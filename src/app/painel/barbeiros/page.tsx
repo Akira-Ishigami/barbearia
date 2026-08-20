@@ -11,6 +11,7 @@ import {
 } from "@/lib/db";
 import { useSession } from "@/lib/use-session";
 import { useAsync } from "@/lib/use-async";
+import { SenhaField } from "@/components/SenhaField";
 import type { BarbeiroPerfil } from "@/lib/types";
 
 const MAX_FOTO_BYTES = 800_000;
@@ -191,18 +192,13 @@ export default function BarbeirosPage() {
                 className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
               />
             </label>
-            <label className="block">
-              <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
-                Senha (login)
-              </span>
-              <input
-                type="password"
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                placeholder="Mín. 6 caracteres"
-                className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
-              />
-            </label>
+            <SenhaField
+              label="Senha (login)"
+              value={senha}
+              onChange={setSenha}
+              placeholder="Mín. 6 caracteres"
+              autoComplete="new-password"
+            />
             <label className="block">
               <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
                 Especialidade

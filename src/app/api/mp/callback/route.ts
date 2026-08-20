@@ -15,8 +15,9 @@ export async function GET(request: NextRequest) {
   const state = params.get("state");
   const erroMP = params.get("error");
 
+  const origem = appUrl(request);
   const voltarPara = (query: string) =>
-    NextResponse.redirect(`${appUrl()}/painel/pagamentos?${query}`);
+    NextResponse.redirect(`${origem}/painel/pagamentos?${query}`);
 
   if (erroMP) {
     return voltarPara(`mp=erro&motivo=${encodeURIComponent(erroMP)}`);
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const tokens = await trocarCodePorToken(code);
+    const tokens = await trocarCodePorToken(code, origem);
     const expiraEm = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
     const { error } = await supabaseAdmin()

@@ -8,7 +8,23 @@
 
 const MP_API = "https://api.mercadopago.com";
 
-export function appUrl(): string {
+/**
+ * Endereço público da aplicação.
+ *
+ * Preferimos deduzir do próprio pedido: assim funciona em produção, em
+ * preview e no localhost sem ninguém precisar acertar variável de ambiente
+ * — que foi exatamente o que quebrou a conexão com o Mercado Pago antes
+ * (o redirect_uri ia como http://localhost:3000 em produção).
+ */
+export function appUrl(request?: { nextUrl: URL; headers: Headers }): string {
+  if (request) {
+    // Atrás do proxy da Vercel, o host real vem nestes cabeçalhos.
+    const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+    const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
+    if (host) return `${proto}://${host}`;
+    return request.nextUrl.origin;
+  }
+
   const url = process.env.NEXT_PUBLIC_APP_URL;
   if (!url) throw new Error("Falta NEXT_PUBLIC_APP_URL.");
   return url.replace(/\/$/, "");
@@ -22,12 +38,20 @@ export function mpAssinaturaConfigurada(): boolean {
   return Boolean(process.env.MP_ACCESS_TOKEN);
 }
 
-function redirectUri(): string {
+/**
+ * Precisa bater EXATAMENTE com o que está cadastrado no painel do Mercado
+ * Pago, tanto ao mandar o dono autorizar quanto ao trocar o code por token.
+ *
+ * Ignoramos MP_REDIRECT_URI quando temos o pedido em mãos: é fonte comum de
+ * erro (fica apontando pro localhost) e o host real é mais confiável.
+ */
+function redirectUri(origem?: string): string {
+  if (origem) return `${origem}/api/mp/callback`;
   return process.env.MP_REDIRECT_URI || `${appUrl()}/api/mp/callback`;
 }
 
 /** URL pra onde mandamos o dono autorizar a barbearia dele. */
-export function urlAutorizacao(state: string): string {
+export function urlAutorizacao(state: string, origem?: string): string {
   const clientId = process.env.MP_CLIENT_ID;
   if (!clientId) throw new Error("Falta MP_CLIENT_ID.");
 
@@ -36,7 +60,7 @@ export function urlAutorizacao(state: string): string {
     response_type: "code",
     platform_id: "mp",
     state,
-    redirect_uri: redirectUri(),
+    redirect_uri: redirectUri(origem),
   });
   return `https://auth.mercadopago.com.br/authorization?${params}`;
 }
@@ -68,8 +92,14 @@ async function chamarOAuth(body: Record<string, string>): Promise<TokensMP> {
 }
 
 /** Troca o `code` do OAuth pelos tokens da barbearia. */
-export function trocarCodePorToken(code: string) {
-  return chamarOAuth({ grant_type: "authorization_code", code, redirect_uri: redirectUri() });
+export function trocarCodePorToken(code: string, origem?: string) {
+  return chamarOAuth({
+    grant_type: "authorization_code",
+    code,
+    // Tem que ser o mesmo redirect_uri usado na autorização, senão o
+    // Mercado Pago recusa a troca.
+    redirect_uri: redirectUri(origem),
+  });
 }
 
 /** Os tokens do MP expiram (~180 dias); isso renova antes de usar. */

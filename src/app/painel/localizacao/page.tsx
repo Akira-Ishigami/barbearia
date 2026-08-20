@@ -5,6 +5,7 @@ import { formatPhone, isValidPhone } from "@/lib/format";
 import { getBarbearia, updateBarbearia } from "@/lib/db";
 import { useAsync } from "@/lib/use-async";
 import { useSession } from "@/lib/use-session";
+import { EnderecoCepField } from "@/components/EnderecoCepField";
 import { WEEKDAYS, type Weekday } from "@/lib/types";
 
 const MAX_FOTO_BYTES = 1_500_000;
@@ -286,19 +287,13 @@ export default function LocalizacaoPage() {
           />
         </label>
 
-        <label className="block">
-          <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
-            Endereço
-          </span>
-          <input
-            value={endereco}
-            onChange={(e) => {
-              setEndereco(e.target.value);
-              setSaved(false);
-            }}
-            className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-4 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
-          />
-        </label>
+        <EnderecoCepField
+          valor={endereco}
+          onChange={(v) => {
+            setEndereco(v);
+            setSaved(false);
+          }}
+        />
 
         <div>
           <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">

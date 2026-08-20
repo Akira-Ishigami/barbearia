@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   }
 
   const plano = getPlan(corpo.plano);
-  const base = appUrl();
+  const base = appUrl(request);
 
   try {
     const preferencia = await criarPreferencia({

@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, type FormEvent } from "react";
 import { entrar } from "@/lib/use-session";
+import { EnderecoCepField } from "@/components/EnderecoCepField";
+import { SenhaField } from "@/components/SenhaField";
 import { formatPhone, isValidPhone } from "@/lib/format";
 import { getPlan, TRIAL_DAYS } from "@/lib/plans";
 import { WEEKDAYS, type Weekday } from "@/lib/types";
@@ -162,30 +164,23 @@ function CadastroForm() {
                 placeholder="Barbearia do Zé"
                 required
               />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block">
-                  <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
-                    Telefone
-                  </span>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    required
-                    value={telefone}
-                    onChange={(e) => setTelefone(formatPhone(e.target.value))}
-                    placeholder="(11) 98888-1234"
-                    maxLength={15}
-                    className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-4 py-3 font-body text-sm text-bone outline-none transition-colors placeholder:text-muted focus:border-gold-bright"
-                  />
-                </label>
-                <Field
-                  label="Endereço"
-                  value={endereco}
-                  onChange={setEndereco}
-                  placeholder="Rua, número, bairro, cidade"
+              <label className="block">
+                <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
+                  Telefone
+                </span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
                   required
+                  value={telefone}
+                  onChange={(e) => setTelefone(formatPhone(e.target.value))}
+                  placeholder="(11) 98888-1234"
+                  maxLength={15}
+                  className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-4 py-3 font-body text-sm text-bone outline-none transition-colors placeholder:text-muted focus:border-gold-bright"
                 />
-              </div>
+              </label>
+
+              <EnderecoCepField valor={endereco} onChange={setEndereco} />
             </fieldset>
 
             <fieldset className="space-y-3">
@@ -253,12 +248,13 @@ function CadastroForm() {
                 placeholder="voce@suabarbearia.com"
                 required
               />
-              <Field
+              <SenhaField
                 label="Senha"
-                type="password"
                 value={senha}
                 onChange={setSenha}
                 placeholder="Crie uma senha"
+                autoComplete="new-password"
+                dica="Mínimo de 6 caracteres."
                 required
               />
             </fieldset>

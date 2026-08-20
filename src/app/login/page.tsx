@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { entrar } from "@/lib/use-session";
 import { supabase } from "@/lib/supabase-browser";
+import { SenhaField } from "@/components/SenhaField";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -84,19 +85,7 @@ export default function LoginPage() {
                 className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-4 py-3 font-body text-sm text-bone outline-none transition-colors placeholder:text-muted focus:border-gold-bright"
               />
             </label>
-            <label className="block">
-              <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
-                Senha
-              </span>
-              <input
-                type="password"
-                required
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-4 py-3 font-body text-sm text-bone outline-none transition-colors placeholder:text-muted focus:border-gold-bright"
-              />
-            </label>
+            <SenhaField value={senha} onChange={setSenha} required />
 
             {error && (
               <p className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 font-body text-xs text-rose-300">

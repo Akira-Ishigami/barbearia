@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 4. preferência no Mercado Pago
-  const base = appUrl();
+  const base = appUrl(request);
   const taxa = Number(conta.taxa_percentual ?? 0);
 
   try {

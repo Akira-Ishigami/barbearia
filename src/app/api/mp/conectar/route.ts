@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { mpOAuthConfigurado, urlAutorizacao } from "@/lib/mercadopago";
+import { appUrl, mpOAuthConfigurado, urlAutorizacao } from "@/lib/mercadopago";
 import { assinarState } from "@/lib/mp-state";
 
 /** Começa a conexão OAuth: manda o dono pro Mercado Pago autorizar. */
@@ -21,5 +21,5 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  return NextResponse.redirect(urlAutorizacao(assinarState(barbeariaId)));
+  return NextResponse.redirect(urlAutorizacao(assinarState(barbeariaId), appUrl(request)));
 }
