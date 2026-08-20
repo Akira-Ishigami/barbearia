@@ -4,11 +4,13 @@ Ordem importa: a Vercel primeiro, porque o Mercado Pago pede a URL do site.
 
 ---
 
-## 1. Subir na Vercel
+## 1. Vercel — já está no ar ✅
 
-1. Suba o repositório pro GitHub
-2. [vercel.com/new](https://vercel.com/new) → importe o repositório → **Deploy**
-3. Anote a URL de produção, algo como `https://navalha.vercel.app`
+- Repositório: [github.com/Akira-Ishigami/barbearia](https://github.com/Akira-Ishigami/barbearia)
+- Projeto Vercel: **navalha**
+- **URL de produção: https://navalha-virid.vercel.app**
+
+Cada `git push` na branch `main` gera um deploy novo automaticamente.
 
 > A URL de produção **não muda** a cada deploy — é ela que vai no Mercado Pago.
 > As URLs de preview (de cada branch) mudam, e não servem pro cadastro.
@@ -44,7 +46,7 @@ Na aplicação, marque que ela usa **Checkout Pro** e ative o modelo de
 
 - **URLs de redirecionamento (OAuth)** → cadastre exatamente:
   ```
-  https://SEU-PROJETO.vercel.app/api/mp/callback
+  https://navalha-virid.vercel.app/api/mp/callback
   ```
 - Copie **Client ID** → `MP_CLIENT_ID`
 - Copie **Client Secret** → `MP_CLIENT_SECRET` ⚠️ **segredo**
@@ -63,7 +65,7 @@ Na aplicação → **Webhooks / Notificações**:
 
 - URL:
   ```
-  https://SEU-PROJETO.vercel.app/api/mp/webhook
+  https://navalha-virid.vercel.app/api/mp/webhook
   ```
 - Evento: **Pagamentos** (`payment`)
 - Ao salvar, o MP mostra uma **chave secreta** → `MP_WEBHOOK_SECRET` ⚠️ **segredo**
