@@ -5,37 +5,50 @@ import {
   cancelarAgendamento,
   confirmarAgendamento,
   getAgendamentos,
-  getBarbeariaById,
+  getBarbearia,
   getBarbeiros,
-} from "@/lib/mock-db";
+} from "@/lib/db";
 import { useSession } from "@/lib/use-session";
+import { useAsync } from "@/lib/use-async";
 import { WeekAgenda } from "@/components/WeekAgenda";
 
 export default function AgendaPage() {
   const session = useSession();
   const [filtroBarbeiro, setFiltroBarbeiro] = useState<string>("todos");
-  const [, forceRefresh] = useState(0);
+  const dono = session?.role === "dono";
 
-  if (!session || session.role !== "dono") return null;
+  const { dados, carregando, recarregar } = useAsync(
+    async () => {
+      const id = session!.barbeariaId;
+      const [barbearia, barbeiros, agendamentos] = await Promise.all([
+        getBarbearia(id),
+        getBarbeiros(id),
+        getAgendamentos(id),
+      ]);
+      return { barbearia, barbeiros, agendamentos };
+    },
+    [session?.barbeariaId],
+    { pular: !dono },
+  );
 
-  const barbearia = getBarbeariaById(session.barbeariaId);
-  const barbeiros = getBarbeiros(session.barbeariaId);
-  const agendamentos = getAgendamentos(session.barbeariaId).filter(
+  if (!session || !dono) return null;
+
+  const barbearia = dados?.barbearia;
+  const barbeiros = dados?.barbeiros ?? [];
+  const agendamentos = (dados?.agendamentos ?? []).filter(
     (a) =>
       a.status !== "cancelado" &&
       (filtroBarbeiro === "todos" || a.barbeiroId === filtroBarbeiro),
   );
 
-  if (!barbearia) return null;
-
-  function handleConfirmar(id: string) {
-    confirmarAgendamento(id);
-    forceRefresh((k) => k + 1);
+  async function handleConfirmar(id: string) {
+    await confirmarAgendamento(id);
+    recarregar();
   }
 
-  function handleCancelar(id: string) {
-    cancelarAgendamento(id);
-    forceRefresh((k) => k + 1);
+  async function handleCancelar(id: string) {
+    await cancelarAgendamento(id);
+    recarregar();
   }
 
   return (
@@ -78,14 +91,20 @@ export default function AgendaPage() {
       </div>
 
       <div className="mt-6">
-        <WeekAgenda
-          barbearia={barbearia}
-          agendamentos={agendamentos}
-          barbeiros={filtroBarbeiro === "todos" ? barbeiros : []}
-          accent="gold"
-          onConfirmar={handleConfirmar}
-          onCancelar={handleCancelar}
-        />
+        {carregando && !barbearia ? (
+          <p className="rounded-2xl border border-dashed border-line-strong px-4 py-12 text-center font-body text-sm text-bone-dim">
+            Carregando a agenda…
+          </p>
+        ) : barbearia ? (
+          <WeekAgenda
+            barbearia={barbearia}
+            agendamentos={agendamentos}
+            barbeiros={filtroBarbeiro === "todos" ? barbeiros : []}
+            accent="gold"
+            onConfirmar={handleConfirmar}
+            onCancelar={handleCancelar}
+          />
+        ) : null}
       </div>
     </div>
   );

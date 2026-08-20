@@ -3,13 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { login } from "@/lib/mock-db";
-
-const DEMO_ACCOUNTS = [
-  { label: "Dono — plano Pro", email: "dono@navalha.app", senha: "barbearia123" },
-  { label: "Dono — plano Básico", email: "dono.basico@navalha.app", senha: "barbearia123" },
-  { label: "Barbeiro (equipe do Pro)", email: "barbeiro@navalha.app", senha: "barbeiro123" },
-];
+import { entrar } from "@/lib/use-session";
+import { supabase } from "@/lib/supabase-browser";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,26 +13,31 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
-    const result = login(email, senha);
-    setLoading(false);
-
-    if (!result.ok) {
-      setError(result.error);
+    const resultado = await entrar(email, senha);
+    if (!resultado.ok) {
+      setError(resultado.error);
+      setLoading(false);
       return;
     }
 
-    router.push(result.session.role === "dono" ? "/painel" : "/barbeiro");
-  }
+    // O papel decide o destino: dono vai pro painel, barbeiro pra agenda.
+    try {
+      const { data: auth } = await supabase().auth.getUser();
+      const { data: usuario } = await supabase()
+        .from("usuarios")
+        .select("role")
+        .eq("auth_user_id", auth.user?.id ?? "")
+        .maybeSingle();
 
-  function fillDemo(acc: (typeof DEMO_ACCOUNTS)[number]) {
-    setEmail(acc.email);
-    setSenha(acc.senha);
-    setError(null);
+      router.push(usuario?.role === "barbeiro" ? "/barbeiro" : "/painel");
+    } catch {
+      router.push("/painel");
+    }
   }
 
   return (
@@ -113,30 +113,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 rounded-xl border border-cyan/20 bg-cyan/5 p-4">
-            <p className="font-accent text-[10px] uppercase tracking-widest text-cyan-bright">
-              Contas de demonstração
-            </p>
-            <div className="mt-2 space-y-2">
-              {DEMO_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.email}
-                  type="button"
-                  onClick={() => fillDemo(acc)}
-                  className="flex w-full items-center justify-between rounded-lg border border-line px-3 py-2 text-left transition-colors hover:border-cyan-bright/40"
-                >
-                  <span className="font-body text-xs text-bone-dim">
-                    {acc.label}
-                    <br />
-                    <span className="text-muted">{acc.email}</span>
-                  </span>
-                  <span className="font-accent text-[10px] text-cyan-bright">
-                    usar
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         <p className="mt-6 text-center font-body text-sm text-bone-dim">

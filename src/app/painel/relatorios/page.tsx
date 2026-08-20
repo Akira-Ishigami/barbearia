@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { getAgendamentos, getBarbeariaById, getBarbeiros, getProdutos } from "@/lib/mock-db";
+import { getAgendamentos, getBarbearia, getBarbeiros, getProdutos } from "@/lib/db";
 import { toISODate } from "@/lib/date";
 import { useSession } from "@/lib/use-session";
+import { useAsync } from "@/lib/use-async";
 
 const ESTOQUE_BAIXO = 5;
 const MES_ATUAL = new Date().toLocaleDateString("pt-BR", {
@@ -13,9 +14,26 @@ const MES_ATUAL = new Date().toLocaleDateString("pt-BR", {
 
 export default function RelatoriosPage() {
   const session = useSession();
-  const barbearia = session ? getBarbeariaById(session.barbeariaId) : undefined;
+  const dono = session?.role === "dono";
 
-  if (!session || session.role !== "dono") return null;
+  const { dados } = useAsync(
+    async () => {
+      const id = session!.barbeariaId;
+      const [barbearia, barbeiros, agendamentos, produtos] = await Promise.all([
+        getBarbearia(id),
+        getBarbeiros(id),
+        getAgendamentos(id),
+        getProdutos(id),
+      ]);
+      return { barbearia, barbeiros, agendamentos, produtos };
+    },
+    [session?.barbeariaId],
+    { pular: !dono },
+  );
+
+  const barbearia = dados?.barbearia;
+
+  if (!session || !dono) return null;
 
   if (barbearia?.plano !== "pro") {
     return (
@@ -45,9 +63,9 @@ export default function RelatoriosPage() {
     );
   }
 
-  const barbeiros = getBarbeiros(session.barbeariaId);
+  const barbeiros = dados?.barbeiros ?? [];
   const hoje = toISODate(new Date());
-  const agendamentos = getAgendamentos(session.barbeariaId).filter((a) => a.data === hoje);
+  const agendamentos = (dados?.agendamentos ?? []).filter((a) => a.data === hoje);
 
   const total = agendamentos.length;
   const concluidos = agendamentos.filter((a) => a.status === "concluido").length;
@@ -77,7 +95,7 @@ export default function RelatoriosPage() {
 
   const maiorFaturamento = Math.max(1, ...porBarbeiro.map((b) => b.total));
 
-  const produtos = getProdutos(session.barbeariaId);
+  const produtos = dados?.produtos ?? [];
   const valorEmEstoque = produtos.reduce((sum, p) => sum + p.preco * p.estoque, 0);
   const unidadesEmEstoque = produtos.reduce((sum, p) => sum + p.estoque, 0);
   const semEstoque = produtos.filter((p) => p.estoque === 0).length;

@@ -1,0 +1,125 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { supabaseAdmin, supabaseConfigurado } from "@/lib/supabase";
+
+/**
+ * Cadastro de uma barbearia nova + a conta do dono.
+ *
+ * Cria a conta de login (service role), a barbearia, o vínculo em `usuarios`
+ * e já deixa o dono como primeiro barbeiro da equipe.
+ */
+export async function POST(request: NextRequest) {
+  if (!supabaseConfigurado()) {
+    return NextResponse.json(
+      { erro: "Banco não configurado. Veja o SETUP.md." },
+      { status: 503 },
+    );
+  }
+
+  let c: {
+    barbeariaNome?: string;
+    telefone?: string;
+    endereco?: string;
+    diasFuncionamento?: string[];
+    horarioAbertura?: string;
+    horarioFechamento?: string;
+    plano?: string;
+    donoNome?: string;
+    email?: string;
+    senha?: string;
+  };
+  try {
+    c = await request.json();
+  } catch {
+    return NextResponse.json({ erro: "Corpo inválido." }, { status: 400 });
+  }
+
+  const email = (c.email ?? "").trim().toLowerCase();
+  const nomeBarbearia = (c.barbeariaNome ?? "").trim();
+  const donoNome = (c.donoNome ?? "").trim();
+  const senha = c.senha ?? "";
+
+  if (!nomeBarbearia || !donoNome || !email) {
+    return NextResponse.json({ erro: "Preencha todos os campos." }, { status: 400 });
+  }
+  if (senha.length < 6) {
+    return NextResponse.json(
+      { erro: "A senha precisa ter ao menos 6 caracteres." },
+      { status: 400 },
+    );
+  }
+
+  const db = supabaseAdmin();
+
+  const { data: criado, error: erroAuth } = await db.auth.admin.createUser({
+    email,
+    password: senha,
+    email_confirm: true,
+  });
+
+  if (erroAuth || !criado.user) {
+    const jaExiste = (erroAuth?.message ?? "").toLowerCase().includes("already");
+    return NextResponse.json(
+      {
+        erro: jaExiste
+          ? "Já existe uma conta com esse e-mail."
+          : (erroAuth?.message ?? "Falha ao criar a conta."),
+      },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const { data: barbearia, error: erroBarbearia } = await db
+      .from("barbearias")
+      .insert({
+        nome: nomeBarbearia,
+        telefone: (c.telefone ?? "").trim(),
+        endereco: (c.endereco ?? "").trim(),
+        dias_funcionamento: c.diasFuncionamento?.length
+          ? c.diasFuncionamento
+          : ["seg", "ter", "qua", "qui", "sex"],
+        horario_abertura: c.horarioAbertura ?? "09:00",
+        horario_fechamento: c.horarioFechamento ?? "20:00",
+        plano: c.plano === "pro" ? "pro" : "basico",
+      })
+      .select("id")
+      .single();
+    if (erroBarbearia || !barbearia) {
+      throw new Error(erroBarbearia?.message ?? "Falha ao criar a barbearia.");
+    }
+
+    const { data: usuario, error: erroUsuario } = await db
+      .from("usuarios")
+      .insert({
+        barbearia_id: barbearia.id,
+        nome: donoNome,
+        email,
+        role: "dono",
+        auth_user_id: criado.user.id,
+      })
+      .select("id")
+      .single();
+    if (erroUsuario || !usuario) {
+      throw new Error(erroUsuario?.message ?? "Falha ao criar o usuário.");
+    }
+
+    // O dono já entra como barbeiro, senão a barbearia nasce sem ninguém
+    // pra receber agendamento.
+    await db.from("barbeiros").insert({
+      barbearia_id: barbearia.id,
+      usuario_id: usuario.id,
+      nome: donoNome,
+      email,
+      especialidade: "Dono da barbearia",
+      ativo: true,
+    });
+
+    return NextResponse.json({ ok: true, barbeariaId: barbearia.id });
+  } catch (e) {
+    await db.auth.admin.deleteUser(criado.user.id).catch(() => {});
+    return NextResponse.json(
+      { erro: e instanceof Error ? e.message : "Falha no cadastro." },
+      { status: 500 },
+    );
+  }
+}

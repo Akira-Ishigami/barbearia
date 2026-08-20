@@ -8,14 +8,14 @@ import {
   concluirAgendamento,
   confirmarAgendamento,
   getAgendamentos,
-  getBarbeariaById,
+  getBarbearia,
   getProdutos,
-  logout,
-} from "@/lib/mock-db";
+} from "@/lib/db";
 import { ConcluirAtendimentoModal } from "@/components/ConcluirAtendimentoModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { toISODate } from "@/lib/date";
-import { useSession } from "@/lib/use-session";
+import { sair, useSession } from "@/lib/use-session";
+import { useAsync } from "@/lib/use-async";
 import { METODO_LABEL, type Agendamento } from "@/lib/types";
 
 const STATUS_LABEL: Record<Agendamento["status"], string> = {
@@ -35,21 +35,41 @@ const STATUS_CLASS: Record<Agendamento["status"], string> = {
 export default function PainelPage() {
   const router = useRouter();
   const session = useSession();
-  const [, forceRefresh] = useState(0);
   const [concluindo, setConcluindo] = useState<Agendamento | null>(null);
+  const dono = session?.role === "dono";
 
-  if (!session || session.role !== "dono") {
-    return null;
-  }
+  const { dados, recarregar } = useAsync(
+    async () => {
+      const id = session!.barbeariaId;
+      const [barbearia, agendamentos] = await Promise.all([
+        getBarbearia(id),
+        getAgendamentos(id),
+      ]);
+      // Produtos só existem no Pro — no Básico o modal fecha só o serviço.
+      const produtos = barbearia?.plano === "pro" ? await getProdutos(id) : [];
 
-  // Produtos só existem no Pro — no Básico o modal fecha só o serviço.
-  const isPro = getBarbeariaById(session.barbeariaId)?.plano === "pro";
-  const produtos = isPro ? getProdutos(session.barbeariaId) : [];
+      // mp_contas não é legível pelo navegador (é onde mora o access token),
+      // então o status vem por rota de API.
+      const mp = await fetch(`/api/mp/status?barbearia=${id}`)
+        .then((r) => r.json())
+        .catch(() => ({ conectada: false }));
+
+      return { barbearia, agendamentos, produtos, mpConectado: Boolean(mp.conectada) };
+    },
+    [session?.barbeariaId],
+    { pular: !dono },
+  );
+
+  if (!session || !dono) return null;
+
+  const barbearia = dados?.barbearia;
+  const produtos = dados?.produtos ?? [];
+  const mpConectado = dados?.mpConectado ?? true; // não pisca o aviso enquanto carrega
 
   const hoje = toISODate(new Date());
   // Só hoje aqui (a semana inteira fica na tela de Agenda); cancelados ficam
   // fora da agenda do dia a dia — só o histórico em Relatórios os mantém.
-  const agendamentos = getAgendamentos(session.barbeariaId).filter(
+  const agendamentos = (dados?.agendamentos ?? []).filter(
     (a) => a.data === hoje && a.status !== "cancelado",
   );
   const pendentes = agendamentos.filter((a) => a.status === "pendente");
@@ -58,14 +78,14 @@ export default function PainelPage() {
     .reduce((sum, a) => sum + a.preco, 0);
   const proximo = agendamentos.find((a) => a.status === "confirmado");
 
-  function handleConfirmar(id: string) {
-    confirmarAgendamento(id);
-    forceRefresh((k) => k + 1);
+  async function handleConfirmar(id: string) {
+    await confirmarAgendamento(id);
+    recarregar();
   }
 
-  function handleCancelar(id: string) {
-    cancelarAgendamento(id);
-    forceRefresh((k) => k + 1);
+  async function handleCancelar(id: string) {
+    await cancelarAgendamento(id);
+    recarregar();
   }
 
   return (
@@ -94,8 +114,8 @@ export default function PainelPage() {
             <ThemeToggle compact />
           </div>
           <button
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              await sair();
               router.push("/login");
             }}
             className="rounded-full border border-line-strong px-4 py-2 font-body text-xs text-bone-dim hover:border-gold-bright/40 hover:text-gold-bright md:hidden"
@@ -119,7 +139,7 @@ export default function PainelPage() {
         ))}
       </div>
 
-      {!getBarbeariaById(session.barbeariaId)?.mercadoPago && (
+      {barbearia && !mpConectado && (
         <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-warn-line bg-warn-soft p-5">
           <div>
             <p className="font-body text-sm font-semibold text-bone">
@@ -236,10 +256,15 @@ export default function PainelPage() {
           agendamento={concluindo}
           produtos={produtos}
           onClose={() => setConcluindo(null)}
-          onConcluir={(vendidos) => {
-            concluirAgendamento(concluindo.id, vendidos);
+          onConcluir={async (vendidos) => {
+            await concluirAgendamento(
+              concluindo.id,
+              session.barbeariaId,
+              vendidos,
+              concluindo.clienteNome,
+            );
             setConcluindo(null);
-            forceRefresh((k) => k + 1);
+            recarregar();
           }}
         />
       )}

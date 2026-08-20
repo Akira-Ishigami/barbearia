@@ -12,7 +12,7 @@ export interface Plan {
   highlight: boolean;
 }
 
-export const TRIAL_DAYS = 15;
+export const TRIAL_DAYS = 7;
 
 export const PLANS: Plan[] = [
   {

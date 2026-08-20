@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { cancelarAgendamento, confirmarAgendamento, getAgendamentos } from "@/lib/mock-db";
+import { cancelarAgendamento, confirmarAgendamento, getAgendamentos } from "@/lib/db";
+import { useAsync } from "@/lib/use-async";
 import { formatDayLabel } from "@/lib/date";
 import { METODO_LABEL, type Agendamento } from "@/lib/types";
 
@@ -26,16 +27,19 @@ export function PendentesPopover({
   accent?: "gold" | "cyan";
 }) {
   const [open, setOpen] = useState(false);
-  // Contador local só pra forçar releitura depois de aceitar/rejeitar; a lista
-  // em si é lida direto no render, sem espelhar o mock-db em estado.
-  const [, forceRefresh] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
 
-  const itens: Agendamento[] = open
-    ? getAgendamentos(barbeariaId).filter(
-        (a) => a.status === "pendente" && (!barbeiroId || a.barbeiroId === barbeiroId),
-      )
-    : [];
+  // A lista só é buscada quando o popover abre — não faz sentido carregar
+  // agendamento a cada render só pra manter um contador.
+  const { dados, recarregar } = useAsync(
+    () => getAgendamentos(barbeariaId),
+    [barbeariaId],
+    { pular: !open },
+  );
+
+  const itens: Agendamento[] = (dados ?? []).filter(
+    (a) => a.status === "pendente" && (!barbeiroId || a.barbeiroId === barbeiroId),
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -53,14 +57,14 @@ export function PendentesPopover({
     };
   }, [open]);
 
-  function aceitar(id: string) {
-    confirmarAgendamento(id);
-    forceRefresh((k) => k + 1);
+  async function aceitar(id: string) {
+    await confirmarAgendamento(id);
+    recarregar();
   }
 
-  function rejeitar(id: string) {
-    cancelarAgendamento(id);
-    forceRefresh((k) => k + 1);
+  async function rejeitar(id: string) {
+    await cancelarAgendamento(id);
+    recarregar();
   }
 
   return (

@@ -1,9 +1,10 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { addServico, getServicos, removeServico, updateServico } from "@/lib/mock-db";
+import { addServico, getServicos, removeServico, updateServico } from "@/lib/db";
 import { parseMoney } from "@/lib/format";
 import { useSession } from "@/lib/use-session";
+import { useAsync } from "@/lib/use-async";
 import { CategoriaField } from "@/components/CategoriaField";
 import { SERVICO_CATEGORIAS_PRESET, type Servico } from "@/lib/types";
 
@@ -11,8 +12,6 @@ const MAX_FOTO_BYTES = 800_000;
 
 export default function ServicosPage() {
   const session = useSession();
-  const [servicos, setServicos] = useState<Servico[]>([]);
-  const [loaded, setLoaded] = useState(false);
   const [nome, setNome] = useState("");
   const [categoria, setCategoria] = useState(SERVICO_CATEGORIAS_PRESET[0] as string);
   const [preco, setPreco] = useState("");
@@ -23,12 +22,15 @@ export default function ServicosPage() {
   const [formKey, setFormKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (session && session.role === "dono" && !loaded) {
-    setServicos(getServicos(session.barbeariaId));
-    setLoaded(true);
-  }
+  const dono = session?.role === "dono";
+  const { dados, recarregar } = useAsync(
+    () => getServicos(session!.barbeariaId),
+    [session?.barbeariaId],
+    { pular: !dono },
+  );
+  const servicos: Servico[] = dados ?? [];
 
-  if (!session || session.role !== "dono") return null;
+  if (!session || !dono) return null;
 
   function handleFoto(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -46,7 +48,7 @@ export default function ServicosPage() {
     reader.readAsDataURL(file);
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     if (!session || session.role !== "dono") return;
@@ -63,18 +65,23 @@ export default function ServicosPage() {
       return;
     }
 
-    addServico({
-      barbeariaId: session.barbeariaId,
-      nome: nome.trim(),
-      categoria: categoria.trim() || "Outros",
-      preco: precoNum,
-      duracaoMin: Number(duracao) || 30,
-      foto,
-      ativo: true,
-      servicosIncluidos: ehCombo ? incluidos : undefined,
-    });
+    try {
+      await addServico({
+        barbeariaId: session.barbeariaId,
+        nome: nome.trim(),
+        categoria: categoria.trim() || "Outros",
+        preco: precoNum,
+        duracaoMin: Number(duracao) || 30,
+        foto,
+        ativo: true,
+        servicosIncluidos: ehCombo ? incluidos : undefined,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível salvar.");
+      return;
+    }
 
-    setServicos(getServicos(session.barbeariaId));
+    recarregar();
     setNome("");
     setPreco("");
     setDuracao("30");
@@ -98,14 +105,14 @@ export default function ServicosPage() {
     setPreco(soma > 0 ? String(soma).replace(".", ",") : "");
   }
 
-  function toggleAtivo(s: Servico) {
-    updateServico(s.id, { ativo: !s.ativo });
-    setServicos(getServicos(session!.barbeariaId));
+  async function toggleAtivo(s: Servico) {
+    await updateServico(s.id, { ativo: !s.ativo });
+    recarregar();
   }
 
-  function excluir(id: string) {
-    removeServico(id);
-    setServicos(getServicos(session!.barbeariaId));
+  async function excluir(id: string) {
+    await removeServico(id);
+    recarregar();
   }
 
   // Combos são montados a partir dos outros serviços já cadastrados.

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, type FormEvent } from "react";
-import { cadastrarBarbearia } from "@/lib/mock-db";
+import { entrar } from "@/lib/use-session";
 import { formatPhone, isValidPhone } from "@/lib/format";
 import { getPlan, TRIAL_DAYS } from "@/lib/plans";
 import { WEEKDAYS, type Weekday } from "@/lib/types";
@@ -31,7 +31,7 @@ function CadastroForm() {
     );
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
@@ -56,26 +56,44 @@ function CadastroForm() {
     }
 
     setLoading(true);
-    const result = cadastrarBarbearia({
-      barbeariaNome,
-      telefone,
-      endereco,
-      diasFuncionamento: dias,
-      horarioAbertura: abertura,
-      horarioFechamento: fechamento,
-      plano: plano.id,
-      donoNome,
-      email,
-      senha,
-    });
-    setLoading(false);
 
-    if (!result.ok) {
-      setError(result.error);
-      return;
+    try {
+      const resposta = await fetch("/api/cadastro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          barbeariaNome,
+          telefone,
+          endereco,
+          diasFuncionamento: dias,
+          horarioAbertura: abertura,
+          horarioFechamento: fechamento,
+          plano: plano.id,
+          donoNome,
+          email,
+          senha,
+        }),
+      });
+
+      const corpo = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) {
+        setError(corpo.erro ?? "Não foi possível concluir o cadastro.");
+        setLoading(false);
+        return;
+      }
+
+      // Já entra logado: o cadastro criou a conta com esta mesma senha.
+      const entrada = await entrar(email, senha);
+      if (!entrada.ok) {
+        // Conta criada, mas o login falhou — manda pro login em vez de travar.
+        router.push("/login");
+        return;
+      }
+      router.push("/painel");
+    } catch {
+      setError("Falha de conexão. Tente de novo.");
+      setLoading(false);
     }
-
-    router.push("/painel");
   }
 
   return (

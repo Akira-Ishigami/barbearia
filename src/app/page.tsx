@@ -187,7 +187,7 @@ export default function Home() {
                 href="#planos"
                 className="rounded-full bg-gold px-7 py-3.5 font-body text-sm font-semibold text-ink transition-transform hover:scale-[1.03] hover:bg-gold-bright"
               >
-                Testar grátis por 15 dias
+                Testar grátis por {TRIAL_DAYS} dias
               </a>
               <a
                 href="#sistema"

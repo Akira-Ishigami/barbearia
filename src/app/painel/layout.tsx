@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { getBarbeariaById, logout } from "@/lib/mock-db";
-import { useSession } from "@/lib/use-session";
+import { getBarbearia } from "@/lib/db";
+import { sair, useSession } from "@/lib/use-session";
+import { useAsync } from "@/lib/use-async";
 import { usePendingAlerts } from "@/lib/use-pending-alerts";
 import { useTheme, themeClass } from "@/lib/use-theme";
 import { PendentesPopover } from "@/components/PendentesPopover";
@@ -31,10 +32,17 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
     session?.role === "dono" ? session.barbeariaId : undefined,
   );
 
+  const { dados: barbearia } = useAsync(
+    () => getBarbearia(session!.barbeariaId),
+    [session?.barbeariaId],
+    { pular: session?.role !== "dono" },
+  );
+
   useEffect(() => {
+    // `undefined` = sessão ainda carregando; só decide quando já sabemos.
     if (session === null) {
       router.replace("/login");
-    } else if (session.role !== "dono") {
+    } else if (session && session.role !== "dono") {
       router.replace("/barbeiro");
     }
   }, [session, router]);
@@ -43,7 +51,6 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
     return <div className={`flex flex-1 items-center justify-center bg-ink ${themeClass(theme)}`} />;
   }
 
-  const barbearia = getBarbeariaById(session.barbeariaId);
   const isPro = barbearia?.plano === "pro";
 
   return (
@@ -155,8 +162,8 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
         <div className="mt-auto hidden space-y-3 pt-8 md:block">
           <ThemeToggle />
           <button
-            onClick={() => {
-              logout();
+            onClick={async () => {
+              await sair();
               router.push("/login");
             }}
             className="w-full rounded-lg border border-line-strong px-3.5 py-2.5 text-left font-body text-sm text-bone-dim transition-colors hover:border-gold-bright/40 hover:text-gold-bright"

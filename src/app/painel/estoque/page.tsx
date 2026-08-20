@@ -3,38 +3,47 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import {
-  getBarbeariaById,
+  getBarbearia,
   getMovimentosEstoque,
   getProdutos,
   registrarMovimentoEstoque,
-} from "@/lib/mock-db";
+} from "@/lib/db";
 import { useSession } from "@/lib/use-session";
+import { useAsync } from "@/lib/use-async";
 import type { MovimentoEstoque, MovimentoEstoqueTipo, Produto } from "@/lib/types";
 
 const ESTOQUE_BAIXO = 5;
 
 export default function EstoquePage() {
   const session = useSession();
-  const barbearia = session ? getBarbeariaById(session.barbeariaId) : undefined;
-
-  const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [movimentos, setMovimentos] = useState<MovimentoEstoque[]>([]);
-  const [loaded, setLoaded] = useState(false);
   const [produtoId, setProdutoId] = useState("");
   const [tipo, setTipo] = useState<MovimentoEstoqueTipo>("entrada");
   const [quantidade, setQuantidade] = useState("1");
   const [motivo, setMotivo] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  if (session && session.role === "dono" && !loaded) {
-    const p = getProdutos(session.barbeariaId);
-    setProdutos(p);
-    setMovimentos(getMovimentosEstoque(session.barbeariaId));
-    setProdutoId((prev) => prev || p[0]?.id || "");
-    setLoaded(true);
-  }
+  const dono = session?.role === "dono";
+  const { dados, recarregar } = useAsync(
+    async () => {
+      const id = session!.barbeariaId;
+      const [barbearia, produtos, movimentos] = await Promise.all([
+        getBarbearia(id),
+        getProdutos(id),
+        getMovimentosEstoque(id),
+      ]);
+      return { barbearia, produtos, movimentos };
+    },
+    [session?.barbeariaId],
+    { pular: !dono },
+  );
 
-  if (!session || session.role !== "dono") return null;
+  const barbearia = dados?.barbearia;
+  const produtos: Produto[] = dados?.produtos ?? [];
+  const movimentos: MovimentoEstoque[] = dados?.movimentos ?? [];
+  // O select começa no primeiro produto assim que a lista chega.
+  const produtoSelecionado = produtoId || produtos[0]?.id || "";
+
+  if (!session || !dono) return null;
 
   if (barbearia?.plano !== "pro") {
     return (
@@ -64,17 +73,12 @@ export default function EstoquePage() {
     );
   }
 
-  function refresh() {
-    setProdutos(getProdutos(session!.barbeariaId));
-    setMovimentos(getMovimentosEstoque(session!.barbeariaId));
-  }
-
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
     const qtd = Number(quantidade);
-    if (!produtoId) {
+    if (!produtoSelecionado) {
       setError("Cadastre um produto em Produtos antes de registrar estoque.");
       return;
     }
@@ -83,9 +87,9 @@ export default function EstoquePage() {
       return;
     }
 
-    const result = registrarMovimentoEstoque({
+    const result = await registrarMovimentoEstoque({
       barbeariaId: session!.barbeariaId,
-      produtoId,
+      produtoId: produtoSelecionado,
       tipo,
       quantidade: qtd,
       motivo: motivo.trim() || (tipo === "entrada" ? "Reposição" : "Venda"),
@@ -98,7 +102,7 @@ export default function EstoquePage() {
 
     setQuantidade("1");
     setMotivo("");
-    refresh();
+    recarregar();
   }
 
   if (produtos.length === 0) {
@@ -145,7 +149,7 @@ export default function EstoquePage() {
             Produto
           </span>
           <select
-            value={produtoId}
+            value={produtoSelecionado}
             onChange={(e) => setProdutoId(e.target.value)}
             className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
           >

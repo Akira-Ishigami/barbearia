@@ -4,20 +4,19 @@ import Link from "next/link";
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   addBarbeiroComAcesso,
-  getBarbeariaById,
+  getBarbearia,
   getBarbeiros,
   removeBarbeiro,
   updateBarbeiro,
-} from "@/lib/mock-db";
+} from "@/lib/db";
 import { useSession } from "@/lib/use-session";
+import { useAsync } from "@/lib/use-async";
 import type { BarbeiroPerfil } from "@/lib/types";
 
 const MAX_FOTO_BYTES = 800_000;
 
 export default function BarbeirosPage() {
   const session = useSession();
-  const [barbeiros, setBarbeiros] = useState<BarbeiroPerfil[]>([]);
-  const [loaded, setLoaded] = useState(false);
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
@@ -26,15 +25,22 @@ export default function BarbeirosPage() {
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const barbearia = session ? getBarbeariaById(session.barbeariaId) : undefined;
+  const dono = session?.role === "dono";
+  const { dados, recarregar } = useAsync(
+    async () => {
+      const id = session!.barbeariaId;
+      const [barbearia, barbeiros] = await Promise.all([getBarbearia(id), getBarbeiros(id)]);
+      return { barbearia, barbeiros };
+    },
+    [session?.barbeariaId],
+    { pular: !dono },
+  );
+
+  const barbearia = dados?.barbearia;
   const isPro = barbearia?.plano === "pro";
+  const barbeiros: BarbeiroPerfil[] = dados?.barbeiros ?? [];
 
-  if (session && session.role === "dono" && !loaded) {
-    setBarbeiros(getBarbeiros(session.barbeariaId));
-    setLoaded(true);
-  }
-
-  if (!session || session.role !== "dono") return null;
+  if (!session || !dono) return null;
 
   function handleFoto(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -52,7 +58,7 @@ export default function BarbeirosPage() {
     reader.readAsDataURL(file);
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     if (!session || session.role !== "dono" || !isPro) return;
@@ -63,7 +69,7 @@ export default function BarbeirosPage() {
       return;
     }
 
-    const result = addBarbeiroComAcesso({
+    const result = await addBarbeiroComAcesso({
       barbeariaId: session.barbeariaId,
       nome: nome.trim(),
       email: email.trim(),
@@ -77,7 +83,7 @@ export default function BarbeirosPage() {
       return;
     }
 
-    setBarbeiros(getBarbeiros(session.barbeariaId));
+    recarregar();
     setNome("");
     setEmail("");
     setSenha("");
@@ -86,14 +92,18 @@ export default function BarbeirosPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function excluir(id: string) {
-    removeBarbeiro(id);
-    setBarbeiros(getBarbeiros(session!.barbeariaId));
+  async function excluir(id: string) {
+    try {
+      await removeBarbeiro(id);
+      recarregar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível remover.");
+    }
   }
 
-  function toggleAtivo(b: BarbeiroPerfil) {
-    updateBarbeiro(b.id, { ativo: !b.ativo });
-    setBarbeiros(getBarbeiros(session!.barbeariaId));
+  async function toggleAtivo(b: BarbeiroPerfil) {
+    await updateBarbeiro(b.id, { ativo: !b.ativo });
+    recarregar();
   }
 
   return (

@@ -4,13 +4,14 @@ import Link from "next/link";
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   addProduto,
-  getBarbeariaById,
+  getBarbearia,
   getProdutos,
   removeProduto,
   updateProduto,
-} from "@/lib/mock-db";
+} from "@/lib/db";
 import { parseMoney } from "@/lib/format";
 import { useSession } from "@/lib/use-session";
+import { useAsync } from "@/lib/use-async";
 import { CategoriaField } from "@/components/CategoriaField";
 import { PRODUTO_CATEGORIAS_PRESET, type Produto } from "@/lib/types";
 
@@ -19,8 +20,6 @@ const MAX_FOTO_BYTES = 800_000;
 
 export default function ProdutosPage() {
   const session = useSession();
-  const [produtos, setProdutos] = useState<Produto[]>([]);
-  const [loaded, setLoaded] = useState(false);
   const [nome, setNome] = useState("");
   const [categoria, setCategoria] = useState(PRODUTO_CATEGORIAS_PRESET[0] as string);
   const [preco, setPreco] = useState("");
@@ -30,14 +29,21 @@ export default function ProdutosPage() {
   const [formKey, setFormKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const barbearia = session ? getBarbeariaById(session.barbeariaId) : undefined;
+  const dono = session?.role === "dono";
+  const { dados, recarregar } = useAsync(
+    async () => {
+      const id = session!.barbeariaId;
+      const [barbearia, produtos] = await Promise.all([getBarbearia(id), getProdutos(id)]);
+      return { barbearia, produtos };
+    },
+    [session?.barbeariaId],
+    { pular: !dono },
+  );
 
-  if (session && session.role === "dono" && !loaded) {
-    setProdutos(getProdutos(session.barbeariaId));
-    setLoaded(true);
-  }
+  const barbearia = dados?.barbearia;
+  const produtos: Produto[] = dados?.produtos ?? [];
 
-  if (!session || session.role !== "dono") return null;
+  if (!session || !dono) return null;
 
   if (barbearia?.plano !== "pro") {
     return (
@@ -84,7 +90,7 @@ export default function ProdutosPage() {
     reader.readAsDataURL(file);
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     if (!session || session.role !== "dono") return;
@@ -96,17 +102,22 @@ export default function ProdutosPage() {
       return;
     }
 
-    addProduto({
-      barbeariaId: session.barbeariaId,
-      nome: nome.trim(),
-      categoria: categoria.trim() || "Outros",
-      preco: precoNum,
-      estoque: Math.max(0, Number(estoque) || 0),
-      foto,
-      ativo: true,
-    });
+    try {
+      await addProduto({
+        barbeariaId: session.barbeariaId,
+        nome: nome.trim(),
+        categoria: categoria.trim() || "Outros",
+        preco: precoNum,
+        estoque: Math.max(0, Number(estoque) || 0),
+        foto,
+        ativo: true,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível salvar.");
+      return;
+    }
 
-    setProdutos(getProdutos(session.barbeariaId));
+    recarregar();
     setNome("");
     setPreco("");
     setEstoque("10");
@@ -116,15 +127,14 @@ export default function ProdutosPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
-  function ajustarEstoque(p: Produto, delta: number) {
-    const novoEstoque = Math.max(0, p.estoque + delta);
-    updateProduto(p.id, { estoque: novoEstoque });
-    setProdutos(getProdutos(session!.barbeariaId));
+  async function ajustarEstoque(p: Produto, delta: number) {
+    await updateProduto(p.id, { estoque: Math.max(0, p.estoque + delta) });
+    recarregar();
   }
 
-  function excluir(id: string) {
-    removeProduto(id);
-    setProdutos(getProdutos(session!.barbeariaId));
+  async function excluir(id: string) {
+    await removeProduto(id);
+    recarregar();
   }
 
   const categoriasExistentes = Array.from(new Set(produtos.map((p) => p.categoria)));

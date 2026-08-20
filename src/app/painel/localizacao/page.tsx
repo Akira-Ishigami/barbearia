@@ -2,7 +2,8 @@
 
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { formatPhone, isValidPhone } from "@/lib/format";
-import { getBarbeariaById, updateBarbearia } from "@/lib/mock-db";
+import { getBarbearia, updateBarbearia } from "@/lib/db";
+import { useAsync } from "@/lib/use-async";
 import { useSession } from "@/lib/use-session";
 import { WEEKDAYS, type Weekday } from "@/lib/types";
 
@@ -10,7 +11,11 @@ const MAX_FOTO_BYTES = 1_500_000;
 
 export default function LocalizacaoPage() {
   const session = useSession();
-  const barbearia = session ? getBarbeariaById(session.barbeariaId) : undefined;
+  const { dados: barbearia, recarregar } = useAsync(
+    () => getBarbearia(session!.barbeariaId),
+    [session?.barbeariaId],
+    { pular: session?.role !== "dono" },
+  );
 
   const [loaded, setLoaded] = useState(false);
   const [telefone, setTelefone] = useState("");
@@ -101,7 +106,7 @@ export default function LocalizacaoPage() {
     setSaved(false);
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     setSaved(false);
@@ -119,18 +124,23 @@ export default function LocalizacaoPage() {
       return;
     }
 
-    updateBarbearia(barbearia!.id, {
-      telefone,
-      endereco,
-      linkMaps: linkMaps.trim() || undefined,
-      diasFuncionamento: dias,
-      horarioAbertura: abertura,
-      horarioFechamento: fechamento,
-      foto,
-      sobre: sobre.trim() || undefined,
-      galeria,
-    });
-    setSaved(true);
+    try {
+      await updateBarbearia(barbearia!.id, {
+        telefone,
+        endereco,
+        linkMaps: linkMaps.trim() || undefined,
+        diasFuncionamento: dias,
+        horarioAbertura: abertura,
+        horarioFechamento: fechamento,
+        foto,
+        sobre: sobre.trim() || undefined,
+        galeria,
+      });
+      recarregar();
+      setSaved(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível salvar.");
+    }
   }
 
   function usarLocalizacaoAtual() {

@@ -8,11 +8,11 @@ import {
   concluirAgendamento,
   confirmarAgendamento,
   getAgendamentosPorBarbeiro,
-  getBarbeariaById,
+  getBarbearia,
   getBarbeiros,
-  logout,
-} from "@/lib/mock-db";
-import { useSession } from "@/lib/use-session";
+} from "@/lib/db";
+import { sair, useSession } from "@/lib/use-session";
+import { useAsync } from "@/lib/use-async";
 import { usePendingAlerts } from "@/lib/use-pending-alerts";
 import { useTheme, themeClass } from "@/lib/use-theme";
 import { addDays, formatDayLabel, toISODate } from "@/lib/date";
@@ -44,33 +44,41 @@ export default function PainelBarbeiroPage() {
   const session = useSession();
   const theme = useTheme();
   const [aba, setAba] = useState<"hoje" | "semana">("hoje");
-  const [, forceRefresh] = useState(0);
+  const ehBarbeiro = session?.role === "barbeiro";
 
-  const perfil =
-    session?.role === "barbeiro"
-      ? getBarbeiros(session.barbeariaId).find((b) => b.usuarioId === session.userId)
-      : undefined;
+  const { dados, recarregar } = useAsync(
+    async () => {
+      const id = session!.barbeariaId;
+      const [barbearia, equipe] = await Promise.all([getBarbearia(id), getBarbeiros(id)]);
+      const perfil = equipe.find((b) => b.usuarioId === session!.userId);
+      const agenda = perfil ? await getAgendamentosPorBarbeiro(perfil.id) : [];
+      return { barbearia, perfil, agenda };
+    },
+    [session?.barbeariaId, session?.userId],
+    { pular: !ehBarbeiro },
+  );
+
+  const perfil = dados?.perfil;
   const { pendentes, flash } = usePendingAlerts(
-    session?.role === "barbeiro" ? session.barbeariaId : undefined,
+    ehBarbeiro ? session!.barbeariaId : undefined,
     perfil?.id,
   );
 
   useEffect(() => {
     if (session === null) {
       router.replace("/login");
-    } else if (session.role !== "barbeiro") {
+    } else if (session && session.role !== "barbeiro") {
       router.replace("/painel");
     }
   }, [session, router]);
 
-  if (!session || session.role !== "barbeiro") {
+  if (!session || !ehBarbeiro) {
     return <div className={`${themeClass(theme)} flex flex-1 items-center justify-center bg-ink`} />;
   }
 
-  const barbearia = getBarbeariaById(session.barbeariaId);
-  const agenda = perfil
-    ? getAgendamentosPorBarbeiro(perfil.id).filter((a) => a.status !== "cancelado")
-    : [];
+  const barbearia = dados?.barbearia;
+  // Cancelados não aparecem na agenda do dia a dia.
+  const agenda = (dados?.agenda ?? []).filter((a) => a.status !== "cancelado");
 
   const hoje = toISODate(new Date());
   const amanha = addDays(hoje, 1);
@@ -85,19 +93,19 @@ export default function PainelBarbeiroPage() {
     .reduce((sum, a) => sum + a.preco, 0);
   const proximo = doDia.find((a) => a.status === "confirmado" && a.hora >= agoraHora);
 
-  function handleConfirmar(id: string) {
-    confirmarAgendamento(id);
-    forceRefresh((k) => k + 1);
+  async function handleConfirmar(id: string) {
+    await confirmarAgendamento(id);
+    recarregar();
   }
 
-  function handleCancelar(id: string) {
-    cancelarAgendamento(id);
-    forceRefresh((k) => k + 1);
+  async function handleCancelar(id: string) {
+    await cancelarAgendamento(id);
+    recarregar();
   }
 
-  function handleConcluir(id: string) {
-    concluirAgendamento(id);
-    forceRefresh((k) => k + 1);
+  async function handleConcluir(id: string) {
+    await concluirAgendamento(id, session!.barbeariaId);
+    recarregar();
   }
 
   return (
@@ -144,8 +152,8 @@ export default function PainelBarbeiroPage() {
             </div>
             <ThemeToggle compact />
             <button
-              onClick={() => {
-                logout();
+              onClick={async () => {
+                await sair();
                 router.push("/login");
               }}
               className="rounded-lg border border-line-strong px-3.5 py-2 font-body text-xs text-bone-dim transition-colors hover:border-cyan-bright/40 hover:text-cyan-bright"

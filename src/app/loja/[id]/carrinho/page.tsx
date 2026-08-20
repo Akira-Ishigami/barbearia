@@ -13,7 +13,8 @@ import {
   setProdutoQtd,
   useCart,
 } from "@/lib/cart";
-import { buscarClientePorTelefone, getHorariosOcupados } from "@/lib/mock-db";
+import { buscarClientePorTelefone, getHorariosOcupados } from "@/lib/db";
+import { useAsync } from "@/lib/use-async";
 import { addDays, addMinutes, generateTimeSlots, toISODate, weekdayOf } from "@/lib/date";
 import { formatPhone, isValidEmail, isValidPhone } from "@/lib/format";
 import { SLOT_MIN, WEEKDAYS, slotsDe } from "@/lib/types";
@@ -50,6 +51,15 @@ export default function CheckoutPage() {
   const [clienteReconhecido, setClienteReconhecido] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
+  // Os horários ocupados vêm do banco, então mudam quando outra pessoa
+  // marca — recarrega sempre que o dia escolhido muda. Precisa ficar antes
+  // de qualquer return: hooks não podem ser chamados condicionalmente.
+  const { dados: ocupadosPorBarbeiro } = useAsync(
+    () => getHorariosOcupados(barbearia!.id, dia),
+    [barbearia?.id, dia],
+    { pular: !dia || !barbearia },
+  );
+
   if (!barbearia) return null;
 
   const nServicos = cart.servicos.length;
@@ -74,7 +84,7 @@ export default function CheckoutPage() {
   function janelaLivre(barbeiroId: string, idx: number): boolean {
     if (idx + blocosNecessarios > todosHorarios.length) return false;
     const janela = todosHorarios.slice(idx, idx + blocosNecessarios);
-    const ocupados = getHorariosOcupados(barbeiroId, dia);
+    const ocupados = ocupadosPorBarbeiro?.[barbeiroId] ?? [];
     return janela.every((slot) => !ocupados.includes(slot));
   }
 
@@ -110,11 +120,11 @@ export default function CheckoutPage() {
   const diaLabel = (d: string) => WEEKDAYS.find((w) => w.id === weekdayOf(d))?.label ?? "";
   const dataLonga = (d: string) => `${diaLabel(d)}, ${d.slice(8, 10)}/${d.slice(5, 7)}`;
 
-  function handleTelefoneChange(v: string) {
+  async function handleTelefoneChange(v: string) {
     const formatted = formatPhone(v);
     setTelefone(formatted);
     if (isValidPhone(formatted) && barbearia) {
-      const encontrado = buscarClientePorTelefone(barbearia.id, formatted);
+      const encontrado = await buscarClientePorTelefone(barbearia.id, formatted);
       if (encontrado) {
         setNome((atual) => atual || encontrado.nome);
         setEmail((atual) => atual || encontrado.email || "");

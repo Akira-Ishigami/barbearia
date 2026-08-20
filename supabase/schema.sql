@@ -169,16 +169,45 @@ create table if not exists movimentos_estoque (
 -- Só o service role (usado nas rotas de API) enxerga essa tabela.
 -- ============================================================
 
-alter table mp_contas enable row level security;
--- Nenhuma policy criada de propósito: sem policy, ninguém com a chave
--- anônima lê nem escreve. O service role ignora RLS por definição.
+alter table mp_contas          enable row level security;
+alter table barbearias         enable row level security;
+alter table servicos           enable row level security;
+alter table produtos           enable row level security;
+alter table barbeiros          enable row level security;
+alter table pedidos            enable row level security;
+alter table agendamentos       enable row level security;
+alter table pedido_produtos    enable row level security;
+alter table movimentos_estoque enable row level security;
+alter table usuarios           enable row level security;
 
-alter table barbearias   enable row level security;
-alter table servicos     enable row level security;
-alter table produtos     enable row level security;
-alter table barbeiros    enable row level security;
+-- mp_contas fica sem nenhuma policy de propósito: sem policy, quem usa a
+-- chave anônima não lê nem escreve. Só o service role (rotas de API) entra.
 
--- A página pública precisa ler catálogo e equipe sem login.
+-- ---------- Quem sou eu ----------
+-- Devolve a barbearia do usuário logado. `security definer` faz a função
+-- rodar com os poderes do dono do banco, senão a leitura de `usuarios`
+-- dentro da própria policy de `usuarios` daria recursão infinita.
+create or replace function public.minha_barbearia()
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select barbearia_id from usuarios where auth_user_id = auth.uid() limit 1
+$$;
+
+create or replace function public.meu_papel()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select role from usuarios where auth_user_id = auth.uid() limit 1
+$$;
+
+-- ---------- Leitura pública (página da barbearia, sem login) ----------
 drop policy if exists "leitura publica barbearias" on barbearias;
 create policy "leitura publica barbearias" on barbearias
   for select using (true);
@@ -195,9 +224,109 @@ drop policy if exists "leitura publica barbeiros" on barbeiros;
 create policy "leitura publica barbeiros" on barbeiros
   for select using (ativo = true);
 
--- Pedidos e agendamentos só passam pelas rotas de API (service role).
-alter table pedidos            enable row level security;
-alter table agendamentos       enable row level security;
-alter table pedido_produtos    enable row level security;
-alter table movimentos_estoque enable row level security;
-alter table usuarios           enable row level security;
+-- A página pública precisa saber quais horários já estão tomados, mas não
+-- pode ver o nome nem o telefone de quem marcou. Por isso a leitura sai por
+-- esta função, e não por policy de select na tabela.
+create or replace function public.horarios_ocupados(p_barbearia uuid, p_data date)
+returns table (barbeiro_id uuid, hora text, duracao_min int)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select a.barbeiro_id, a.hora, a.duracao_min
+  from agendamentos a
+  where a.barbearia_id = p_barbearia
+    and a.data = p_data
+    and a.status in ('aguardando_pagamento','pendente','confirmado','concluido')
+$$;
+
+-- ---------- Dono e barbeiro: só a própria barbearia ----------
+drop policy if exists "equipe le a barbearia" on barbearias;
+create policy "equipe le a barbearia" on barbearias
+  for select using (id = public.minha_barbearia());
+
+drop policy if exists "dono edita a barbearia" on barbearias;
+create policy "dono edita a barbearia" on barbearias
+  for update using (id = public.minha_barbearia() and public.meu_papel() = 'dono')
+  with check (id = public.minha_barbearia());
+
+drop policy if exists "equipe le usuarios" on usuarios;
+create policy "equipe le usuarios" on usuarios
+  for select using (barbearia_id = public.minha_barbearia());
+
+-- Catálogo e equipe: o dono gerencia, o barbeiro só lê.
+do $$
+declare t text;
+begin
+  foreach t in array array['servicos','produtos','barbeiros'] loop
+    execute format('drop policy if exists "equipe le %1$s" on %1$s', t);
+    execute format(
+      'create policy "equipe le %1$s" on %1$s for select using (barbearia_id = public.minha_barbearia())', t);
+
+    execute format('drop policy if exists "dono gerencia %1$s" on %1$s', t);
+    execute format(
+      'create policy "dono gerencia %1$s" on %1$s for all
+         using (barbearia_id = public.minha_barbearia() and public.meu_papel() = ''dono'')
+         with check (barbearia_id = public.minha_barbearia())', t);
+  end loop;
+end $$;
+
+-- Agenda, pedidos e estoque: quem é da barbearia enxerga e mexe.
+do $$
+declare t text;
+begin
+  foreach t in array array['agendamentos','pedidos','movimentos_estoque'] loop
+    execute format('drop policy if exists "equipe usa %1$s" on %1$s', t);
+    execute format(
+      'create policy "equipe usa %1$s" on %1$s for all
+         using (barbearia_id = public.minha_barbearia())
+         with check (barbearia_id = public.minha_barbearia())', t);
+  end loop;
+end $$;
+
+drop policy if exists "equipe le itens do pedido" on pedido_produtos;
+create policy "equipe le itens do pedido" on pedido_produtos
+  for select using (
+    exists (
+      select 1 from pedidos p
+      where p.id = pedido_produtos.pedido_id
+        and p.barbearia_id = public.minha_barbearia()
+    )
+  );
+
+-- ---------- Baixa de estoque em uma tacada ----------
+-- Evita ler-somar-gravar do lado do app, que perde venda quando dois
+-- atendimentos são fechados ao mesmo tempo.
+create or replace function public.movimentar_estoque(
+  p_barbearia uuid,
+  p_produto uuid,
+  p_tipo text,
+  p_quantidade int,
+  p_motivo text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_delta int := case when p_tipo = 'entrada' then p_quantidade else -p_quantidade end;
+  v_nome text;
+  v_novo int;
+begin
+  update produtos
+     set estoque = estoque + v_delta
+   where id = p_produto and barbearia_id = p_barbearia
+   returning nome, estoque into v_nome, v_novo;
+
+  if v_nome is null then
+    raise exception 'Produto não encontrado.';
+  end if;
+  if v_novo < 0 then
+    raise exception 'Estoque insuficiente pra essa saída.';
+  end if;
+
+  insert into movimentos_estoque (barbearia_id, produto_id, produto_nome, tipo, quantidade, motivo)
+  values (p_barbearia, p_produto, v_nome, p_tipo, p_quantidade, p_motivo);
+end $$;
