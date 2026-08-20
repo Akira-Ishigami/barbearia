@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   cancelarAgendamento,
+  concluirAgendamento,
   confirmarAgendamento,
   getAgendamentosPorBarbeiro,
   getBarbeariaById,
@@ -13,12 +14,36 @@ import {
 } from "@/lib/mock-db";
 import { useSession } from "@/lib/use-session";
 import { usePendingAlerts } from "@/lib/use-pending-alerts";
+import { useTheme, themeClass } from "@/lib/use-theme";
+import { addDays, formatDayLabel, toISODate } from "@/lib/date";
 import { WeekAgenda } from "@/components/WeekAgenda";
 import { PendentesPopover } from "@/components/PendentesPopover";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { METODO_LABEL, type Agendamento } from "@/lib/types";
+
+const STATUS_LABEL: Record<Agendamento["status"], string> = {
+  pendente: "Aguardando confirmação",
+  confirmado: "Confirmado",
+  concluido: "Concluído",
+  cancelado: "Cancelado",
+};
+
+const STATUS_CLASS: Record<Agendamento["status"], string> = {
+  pendente: "bg-warn-soft text-warn",
+  confirmado: "bg-ok-soft text-ok",
+  concluido: "bg-bone/5 text-muted",
+  cancelado: "bg-off-soft text-off",
+};
+
+function dinheiro(v: number) {
+  return `R$ ${v.toFixed(2).replace(".", ",")}`;
+}
 
 export default function PainelBarbeiroPage() {
   const router = useRouter();
   const session = useSession();
+  const theme = useTheme();
+  const [aba, setAba] = useState<"hoje" | "semana">("hoje");
   const [, forceRefresh] = useState(0);
 
   const perfil =
@@ -39,14 +64,26 @@ export default function PainelBarbeiroPage() {
   }, [session, router]);
 
   if (!session || session.role !== "barbeiro") {
-    return <div className="flex flex-1 items-center justify-center bg-ink" />;
+    return <div className={`${themeClass(theme)} flex flex-1 items-center justify-center bg-ink`} />;
   }
 
   const barbearia = getBarbeariaById(session.barbeariaId);
-  // Cancelados não aparecem mais na agenda do dia a dia.
   const agenda = perfil
     ? getAgendamentosPorBarbeiro(perfil.id).filter((a) => a.status !== "cancelado")
     : [];
+
+  const hoje = toISODate(new Date());
+  const amanha = addDays(hoje, 1);
+  const doDia = agenda.filter((a) => a.data === hoje);
+  const deAmanha = agenda.filter((a) => a.data === amanha);
+  const agoraHora = new Date().toTimeString().slice(0, 5);
+
+  const aFazer = doDia.filter((a) => a.status === "pendente" || a.status === "confirmado");
+  const concluidosHoje = doDia.filter((a) => a.status === "concluido");
+  const ganhoHoje = doDia
+    .filter((a) => a.status !== "pendente")
+    .reduce((sum, a) => sum + a.preco, 0);
+  const proximo = doDia.find((a) => a.status === "confirmado" && a.hora >= agoraHora);
 
   function handleConfirmar(id: string) {
     confirmarAgendamento(id);
@@ -58,59 +95,68 @@ export default function PainelBarbeiroPage() {
     forceRefresh((k) => k + 1);
   }
 
+  function handleConcluir(id: string) {
+    concluirAgendamento(id);
+    forceRefresh((k) => k + 1);
+  }
+
   return (
-    <div className="grain flex flex-1 flex-col bg-ink">
+    <div className={`${themeClass(theme)} grain flex flex-1 flex-col bg-ink`}>
       {flash && (
-        <div className="animate-toast-in fixed left-1/2 top-4 z-[100] flex -translate-x-1/2 items-center gap-2 rounded-full border border-amber-400/40 bg-[#1a1408] px-4 py-2.5 shadow-[0_0_30px_-8px_rgba(251,191,36,0.6)]">
-          <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-amber-400" />
-          <span className="font-body text-sm font-medium text-amber-200">
+        <div className="animate-toast-in fixed left-1/2 top-4 z-[100] flex -translate-x-1/2 items-center gap-2 rounded-full border border-warn-line bg-warn-solid px-4 py-2.5 shadow-lg">
+          <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-warn" />
+          <span className="font-body text-sm font-medium text-warn">
             Novo agendamento aguardando confirmação
           </span>
         </div>
       )}
 
-      <header className="flex items-center justify-between border-b border-line px-6 py-4 md:px-10">
-        <Link href="/" className="flex items-center gap-2.5">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-cyan/40 bg-cyan/10 text-cyan-bright">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.6}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
+      <header className="sticky top-0 z-40 border-b border-line bg-ink/90 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-6 py-3.5">
+          <Link href="/" className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-cyan/40 bg-cyan/10 text-cyan-bright">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.6}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.5 8.5l11 11M20 4 8.5 15.5" />
+              </svg>
+            </span>
+            <span className="truncate font-display text-base font-semibold text-bone">
+              {session.barbeariaNome}
+            </span>
+          </Link>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="hidden w-40 sm:block">
+              <PendentesPopover
+                barbeariaId={session.barbeariaId}
+                barbeiroId={perfil?.id}
+                pendentes={pendentes}
+                flash={flash}
+                accent="cyan"
+              />
+            </div>
+            <ThemeToggle compact />
+            <button
+              onClick={() => {
+                logout();
+                router.push("/login");
+              }}
+              className="rounded-lg border border-line-strong px-3.5 py-2 font-body text-xs text-bone-dim transition-colors hover:border-cyan-bright/40 hover:text-cyan-bright"
             >
-              <path d="M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.5 8.5l11 11M20 4 8.5 15.5" />
-            </svg>
-          </span>
-          <span className="font-display text-lg font-semibold text-bone">
-            Navalha
-          </span>
-        </Link>
-        <div className="flex items-center gap-3">
-          <div className="w-40">
-            <PendentesPopover
-              barbeariaId={session.barbeariaId}
-              barbeiroId={perfil?.id}
-              pendentes={pendentes}
-              flash={flash}
-              accent="cyan"
-            />
+              Sair
+            </button>
           </div>
-          <button
-            onClick={() => {
-              logout();
-              router.push("/login");
-            }}
-            className="rounded-full border border-line-strong px-4 py-2 font-body text-xs text-bone-dim hover:border-cyan-bright/40 hover:text-cyan-bright"
-          >
-            Sair
-          </button>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
         <p className="font-accent text-xs uppercase tracking-[0.2em] text-cyan-bright">
           Painel do barbeiro
         </p>
@@ -118,20 +164,182 @@ export default function PainelBarbeiroPage() {
           Olá, {session.nome.split(" ")[0]}
         </h1>
         <p className="mt-1 font-body text-sm text-bone-dim">
-          {session.barbeariaNome} — sua agenda da semana
+          {proximo
+            ? `Seu próximo cliente é ${proximo.clienteNome}, às ${proximo.hora}.`
+            : aFazer.length > 0
+              ? "Você ainda tem atendimentos hoje."
+              : "Nada mais na agenda de hoje."}
         </p>
 
-        {barbearia && (
-          <div className="mt-8">
-            <WeekAgenda
-              barbearia={barbearia}
-              agendamentos={agenda}
-              barbeiros={[]}
-              accent="cyan"
-              onConfirmar={handleConfirmar}
-              onCancelar={handleCancelar}
-            />
+        {/* NÚMEROS DO DIA */}
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {[
+            ["Hoje", String(doDia.length), "atendimentos"],
+            ["A fazer", String(aFazer.length), "restantes"],
+            ["Concluídos", String(concluidosHoje.length), "hoje"],
+            ["Faturamento", dinheiro(ganhoHoje), "do dia"],
+          ].map(([label, valor, sub]) => (
+            <div key={label} className="rounded-2xl border border-line bg-ink-elev/60 p-4">
+              <p className="font-body text-[11px] uppercase tracking-wide text-muted">{label}</p>
+              <p className="mt-1 font-accent text-xl text-bone">{valor}</p>
+              <p className="font-body text-[11px] text-muted">{sub}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* ABAS */}
+        <div className="mt-8 flex gap-1 rounded-xl border border-line-strong p-1">
+          {(
+            [
+              ["hoje", "Hoje"],
+              ["semana", "Semana"],
+            ] as const
+          ).map(([valor, label]) => (
+            <button
+              key={valor}
+              onClick={() => setAba(valor)}
+              className={`flex-1 rounded-lg px-4 py-2 font-body text-sm font-medium transition-colors ${
+                aba === valor ? "bg-cyan-bright text-ink" : "text-bone-dim hover:text-bone"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {aba === "hoje" ? (
+          <div className="mt-6 space-y-8">
+            <section>
+              <h2 className="font-display text-lg font-semibold text-bone">
+                Agenda de hoje
+              </h2>
+              {doDia.length === 0 ? (
+                <p className="mt-3 rounded-2xl border border-dashed border-line-strong px-4 py-10 text-center font-body text-sm text-bone-dim">
+                  Nenhum cliente marcado pra hoje.
+                </p>
+              ) : (
+                <div className="mt-3 space-y-2.5">
+                  {doDia.map((a) => (
+                    <div
+                      key={a.id}
+                      className={`flex flex-wrap items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 ${
+                        a.status === "pendente"
+                          ? "border-warn-line bg-warn-soft"
+                          : "border-line bg-ink-elev/60"
+                      }`}
+                    >
+                      <div className="flex min-w-0 items-center gap-4">
+                        <span
+                          className={`font-accent text-base ${
+                            a.status === "concluido" ? "text-muted" : "text-cyan-bright"
+                          }`}
+                        >
+                          {a.hora}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate font-body text-sm font-medium text-bone">
+                            {a.clienteNome}
+                          </p>
+                          <p className="truncate font-body text-xs text-bone-dim">
+                            {a.servicoNome} · {dinheiro(a.preco)}
+                            {a.metodoPagamento && (
+                              <span className="ml-1.5 rounded bg-ok-soft px-1.5 py-0.5 font-body text-[10px] font-medium text-ok">
+                                {METODO_LABEL[a.metodoPagamento]} pago
+                              </span>
+                            )}
+                          </p>
+                          {a.clienteTelefone && (
+                            <a
+                              href={`tel:${a.clienteTelefone.replace(/\D/g, "")}`}
+                              className="font-body text-[11px] text-cyan-bright hover:underline"
+                            >
+                              {a.clienteTelefone}
+                            </a>
+                          )}
+                          {a.produtosComprados && a.produtosComprados.length > 0 && (
+                            <p className="font-body text-[11px] text-cyan-bright">
+                              Levar: {a.produtosComprados.map((p) => p.produtoNome).join(", ")}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-2">
+                        {a.status === "pendente" && (
+                          <>
+                            <button
+                              onClick={() => handleConfirmar(a.id)}
+                              className="rounded-full bg-cyan-bright px-4 py-1.5 font-body text-xs font-semibold text-ink transition-transform hover:scale-[1.03]"
+                            >
+                              Aceitar
+                            </button>
+                            <button
+                              onClick={() => handleCancelar(a.id)}
+                              className="rounded-full border border-line-strong px-4 py-1.5 font-body text-xs text-bone-dim transition-colors hover:border-off-line hover:text-off"
+                            >
+                              Recusar
+                            </button>
+                          </>
+                        )}
+                        {a.status === "confirmado" && (
+                          <button
+                            onClick={() => handleConcluir(a.id)}
+                            className="rounded-full border border-cyan-bright/50 px-4 py-1.5 font-body text-xs font-semibold text-cyan-bright transition-colors hover:bg-cyan-bright/10"
+                          >
+                            Concluir
+                          </button>
+                        )}
+                        <span
+                          className={`rounded-full px-3 py-1 font-body text-[11px] font-medium ${STATUS_CLASS[a.status]}`}
+                        >
+                          {STATUS_LABEL[a.status]}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <section>
+              <h2 className="font-display text-lg font-semibold text-bone">
+                Amanhã · {formatDayLabel(amanha)}
+              </h2>
+              {deAmanha.length === 0 ? (
+                <p className="mt-3 font-body text-sm text-bone-dim">
+                  Nada marcado pra amanhã ainda.
+                </p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {deAmanha.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center gap-4 rounded-xl border border-line px-4 py-2.5"
+                    >
+                      <span className="font-accent text-sm text-bone-dim">{a.hora}</span>
+                      <div className="min-w-0">
+                        <p className="truncate font-body text-sm text-bone">{a.clienteNome}</p>
+                        <p className="truncate font-body text-xs text-muted">{a.servicoNome}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
+        ) : (
+          barbearia && (
+            <div className="mt-6">
+              <WeekAgenda
+                barbearia={barbearia}
+                agendamentos={agenda}
+                barbeiros={[]}
+                accent="cyan"
+                onConfirmar={handleConfirmar}
+                onCancelar={handleCancelar}
+              />
+            </div>
+          )
         )}
       </main>
     </div>

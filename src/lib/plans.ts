@@ -3,7 +3,10 @@ export type PlanId = "basico" | "pro";
 export interface Plan {
   id: PlanId;
   name: string;
+  /** Como aparece na tela. O valor cobrado sai de `valor`. */
   price: string;
+  /** Valor mensal em reais, usado na cobrança do Mercado Pago. */
+  valor: number;
   tagline: string;
   features: string[];
   highlight: boolean;
@@ -16,6 +19,7 @@ export const PLANS: Plan[] = [
     id: "basico",
     name: "Básico",
     price: "159,99",
+    valor: 159.99,
     tagline: "Pra sair do caderno e da agenda manual.",
     features: [
       "Agenda da semana com horários dos clientes",
@@ -31,6 +35,7 @@ export const PLANS: Plan[] = [
     id: "pro",
     name: "Pro",
     price: "259,95",
+    valor: 259.95,
     tagline: "Pra equipe inteira, com loja e estoque de verdade.",
     features: [
       "Tudo do plano Básico",

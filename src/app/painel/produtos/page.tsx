@@ -153,7 +153,7 @@ export default function ProdutosPage() {
           <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
             Foto (opcional)
           </span>
-          <label className="flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-line-strong bg-white/[0.03] font-body text-[11px] text-muted hover:border-gold-bright/50">
+          <label className="flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-line-strong bg-bone/[0.03] font-body text-[11px] text-muted hover:border-gold-bright/50">
             {foto ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={foto} alt="" className="h-full w-full object-cover" />
@@ -175,7 +175,7 @@ export default function ProdutosPage() {
                 setFoto(undefined);
                 if (fileInputRef.current) fileInputRef.current.value = "";
               }}
-              className="mt-1.5 font-body text-[11px] text-rose-300 hover:underline"
+              className="mt-1.5 font-body text-[11px] text-off hover:underline"
             >
               remover foto
             </button>
@@ -191,7 +191,7 @@ export default function ProdutosPage() {
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               placeholder="Pomada modeladora"
-              className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+              className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
             />
           </label>
           <CategoriaField
@@ -209,7 +209,7 @@ export default function ProdutosPage() {
               onChange={(e) => setPreco(e.target.value.replace(/[^0-9,]/g, ""))}
               placeholder="39,90"
               inputMode="decimal"
-              className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+              className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
             />
           </label>
           <label className="block">
@@ -220,7 +220,7 @@ export default function ProdutosPage() {
               value={estoque}
               onChange={(e) => setEstoque(e.target.value.replace(/[^0-9]/g, ""))}
               inputMode="numeric"
-              className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+              className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
             />
           </label>
         </div>
@@ -234,7 +234,7 @@ export default function ProdutosPage() {
       </form>
 
       {error && (
-        <p className="mt-3 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 font-body text-xs text-rose-300">
+        <p className="mt-3 rounded-lg border border-off-line bg-off-soft px-3 py-2 font-body text-xs text-off">
           {error}
         </p>
       )}
@@ -268,7 +268,7 @@ export default function ProdutosPage() {
                           className="h-12 w-12 rounded-lg object-cover"
                         />
                       ) : (
-                        <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/5 font-accent text-lg text-bone-dim">
+                        <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-bone/5 font-accent text-lg text-bone-dim">
                           {p.nome.charAt(0).toUpperCase()}
                         </span>
                       )}
@@ -291,9 +291,9 @@ export default function ProdutosPage() {
                         <span
                           className={`min-w-[2.5rem] text-center font-accent text-sm ${
                             semEstoque
-                              ? "text-rose-300"
+                              ? "text-off"
                               : estoqueBaixo
-                                ? "text-amber-300"
+                                ? "text-warn"
                                 : "text-bone"
                           }`}
                         >
@@ -308,18 +308,18 @@ export default function ProdutosPage() {
                         </button>
                       </div>
                       {semEstoque && (
-                        <span className="rounded-full bg-rose-500/10 px-3 py-1 font-body text-xs text-rose-300">
+                        <span className="rounded-full bg-off-soft px-3 py-1 font-body text-xs text-off">
                           Sem estoque
                         </span>
                       )}
                       {estoqueBaixo && (
-                        <span className="rounded-full bg-amber-400/10 px-3 py-1 font-body text-xs text-amber-300">
+                        <span className="rounded-full bg-warn-soft px-3 py-1 font-body text-xs text-warn">
                           Estoque baixo
                         </span>
                       )}
                       <button
                         onClick={() => excluir(p.id)}
-                        className="rounded-full border border-line-strong px-3 py-1 font-body text-xs text-bone-dim hover:border-rose-400/40 hover:text-rose-300"
+                        className="rounded-full border border-line-strong px-3 py-1 font-body text-xs text-bone-dim hover:border-off-line hover:text-off"
                       >
                         Excluir
                       </button>

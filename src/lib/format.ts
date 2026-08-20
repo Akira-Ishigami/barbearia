@@ -14,6 +14,10 @@ export function isValidPhone(value: string): boolean {
   return digits.length === 10 || digits.length === 11;
 }
 
+export function isValidEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
 /** Parses a Brazilian-style money input ("45", "45,90"). Returns null if invalid or <= 0. */
 export function parseMoney(value: string): number | null {
   const normalized = value.trim().replace(",", ".");

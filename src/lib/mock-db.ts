@@ -1,9 +1,12 @@
-import { addDays, toISODate } from "./date";
+import { addDays, addMinutes, generateTimeSlots, toISODate } from "./date";
+import { SLOT_MIN, slotsDe } from "./types";
 import type {
   Agendamento,
   Barbearia,
   BarbeiroPerfil,
+  MercadoPagoConta,
   MovimentoEstoque,
+  ProdutoComprado,
   Produto,
   Servico,
   Session,
@@ -29,6 +32,8 @@ const ICON_SCISSORS =
 const ICON_RAZOR = "M4 20 18 6M14 2l4 4-4 4";
 const ICON_BOTTLE = "M9 3h6v3l2 3v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-9l2-3V3Z";
 const ICON_PERSON = "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z";
+const ICON_CHAIR = "M6 20v-4h12v4M5 16V9a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v7M9 6V4h6v2";
+const ICON_MIRROR = "M7 21h10M12 17v4M6 3h12v10a6 6 0 0 1-12 0V3Z";
 
 function svgPhoto(iconPath: string, hueFrom: number, hueTo: number): string {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
@@ -44,6 +49,36 @@ function svgPhoto(iconPath: string, hueFrom: number, hueTo: number): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
+/** Banner largo (placeholder de foto de capa) — mesma ideia do svgPhoto, em formato widescreen. */
+function svgCover(iconPath: string, hueFrom: number, hueTo: number): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="hsl(${hueFrom},45%,16%)"/>
+      <stop offset="1" stop-color="hsl(${hueTo},50%,26%)"/>
+    </linearGradient></defs>
+    <rect width="800" height="400" fill="url(#g)"/>
+    <g transform="translate(320,120) scale(7)" stroke="#f1c869" stroke-width="0.7" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.5">
+      <path d="${iconPath}"/>
+    </g>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+/** Placeholder 4:3 pras fotos do espaço da barbearia. */
+function svgGaleria(iconPath: string, hueFrom: number, hueTo: number): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480">
+    <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="hsl(${hueFrom},40%,18%)"/>
+      <stop offset="1" stop-color="hsl(${hueTo},45%,30%)"/>
+    </linearGradient></defs>
+    <rect width="640" height="480" fill="url(#g)"/>
+    <g transform="translate(260,180) scale(5)" stroke="#f1c869" stroke-width="0.8" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.55">
+      <path d="${iconPath}"/>
+    </g>
+  </svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
 const DEMO_BARBEARIA: Barbearia = {
   id: "demo-barbearia",
   nome: "Barbearia do Zé",
@@ -53,6 +88,25 @@ const DEMO_BARBEARIA: Barbearia = {
   horarioAbertura: "09:00",
   horarioFechamento: "20:00",
   plano: "pro",
+  foto: svgCover(ICON_SCISSORS, 40, 20),
+  sobre:
+    "Tradição e navalha afiada desde 2012. Ambiente clássico, equipe experiente e café sempre fresco pra quem espera a vez.",
+  galeria: [
+    svgGaleria(ICON_CHAIR, 30, 20),
+    svgGaleria(ICON_MIRROR, 200, 190),
+    svgGaleria(ICON_SCISSORS, 15, 35),
+    svgGaleria(ICON_RAZOR, 260, 250),
+  ],
+  mercadoPago: {
+    apelido: "ze.ferreira@navalha.app",
+    publicKey: "TEST-8f21c4a9-0d3e-47bb-9c10-demo",
+    accessToken: "TEST-4471928365108842-demo-token",
+    ambiente: "teste",
+    aceitaPix: true,
+    aceitaCartao: true,
+    parcelasMax: 3,
+    conectadoEm: new Date().toISOString(),
+  },
   criadaEm: new Date().toISOString(),
 };
 
@@ -65,6 +119,8 @@ const DEMO_BARBEARIA_BASICO: Barbearia = {
   horarioAbertura: "10:00",
   horarioFechamento: "19:00",
   plano: "basico",
+  foto: svgCover(ICON_RAZOR, 24, 10),
+  sobre: "Corte rápido e bem feito no coração da Paulista. Sem hora marcada não tem estresse.",
   criadaEm: new Date().toISOString(),
 };
 
@@ -97,15 +153,28 @@ const DEMO_USERS: Usuario[] = [
 
 const DEMO_SERVICOS: Servico[] = [
   { id: "srv-1", barbeariaId: DEMO_BARBEARIA.id, nome: "Corte degradê", categoria: "Cortes", preco: 45, duracaoMin: 40, foto: svgPhoto(ICON_SCISSORS, 40, 46), ativo: true },
+  { id: "srv-5", barbeariaId: DEMO_BARBEARIA.id, nome: "Corte social", categoria: "Cortes", preco: 40, duracaoMin: 30, foto: svgPhoto(ICON_SCISSORS, 210, 220), ativo: true },
+  { id: "srv-6", barbeariaId: DEMO_BARBEARIA.id, nome: "Corte navalhado", categoria: "Cortes", preco: 55, duracaoMin: 45, foto: svgPhoto(ICON_SCISSORS, 340, 350), ativo: true },
+  { id: "srv-7", barbeariaId: DEMO_BARBEARIA.id, nome: "Corte infantil", categoria: "Cortes", preco: 35, duracaoMin: 30, foto: svgPhoto(ICON_SCISSORS, 160, 175), ativo: true },
   { id: "srv-2", barbeariaId: DEMO_BARBEARIA.id, nome: "Barba desenhada", categoria: "Barba", preco: 35, duracaoMin: 25, foto: svgPhoto(ICON_RAZOR, 24, 30), ativo: true },
-  { id: "srv-3", barbeariaId: DEMO_BARBEARIA.id, nome: "Corte + barba", categoria: "Combos", preco: 70, duracaoMin: 60, foto: svgPhoto(ICON_SCISSORS, 8, 16), ativo: true },
+  { id: "srv-8", barbeariaId: DEMO_BARBEARIA.id, nome: "Barba com toalha quente", categoria: "Barba", preco: 50, duracaoMin: 40, foto: svgPhoto(ICON_RAZOR, 0, 12), ativo: true },
+  { id: "srv-3", barbeariaId: DEMO_BARBEARIA.id, nome: "Corte + barba", categoria: "Combos", preco: 70, duracaoMin: 65, foto: svgPhoto(ICON_SCISSORS, 8, 16), ativo: true, servicosIncluidos: ["srv-1", "srv-2"] },
+  { id: "srv-9", barbeariaId: DEMO_BARBEARIA.id, nome: "Combo completo", categoria: "Combos", preco: 95, duracaoMin: 80, foto: svgPhoto(ICON_SCISSORS, 280, 295), ativo: true, servicosIncluidos: ["srv-1", "srv-2", "srv-4"] },
   { id: "srv-4", barbeariaId: DEMO_BARBEARIA.id, nome: "Sobrancelha", categoria: "Estética", preco: 20, duracaoMin: 15, foto: svgPhoto(ICON_RAZOR, 320, 330), ativo: true },
+  { id: "srv-10", barbeariaId: DEMO_BARBEARIA.id, nome: "Hidratação capilar", categoria: "Estética", preco: 45, duracaoMin: 30, foto: svgPhoto(ICON_BOTTLE, 150, 165), ativo: true },
+  { id: "srv-11", barbeariaId: DEMO_BARBEARIA.id, nome: "Limpeza de pele", categoria: "Estética", preco: 60, duracaoMin: 45, foto: svgPhoto(ICON_BOTTLE, 195, 210), ativo: true },
 ];
 
 const DEMO_PRODUTOS: Produto[] = [
   { id: "prd-1", barbeariaId: DEMO_BARBEARIA.id, nome: "Pomada modeladora", categoria: "Cabelo", preco: 39.9, estoque: 12, foto: svgPhoto(ICON_BOTTLE, 175, 185), ativo: true },
-  { id: "prd-2", barbeariaId: DEMO_BARBEARIA.id, nome: "Óleo para barba", categoria: "Barba", preco: 29.9, estoque: 3, foto: svgPhoto(ICON_BOTTLE, 24, 30), ativo: true },
   { id: "prd-3", barbeariaId: DEMO_BARBEARIA.id, nome: "Shampoo 3 em 1", categoria: "Cabelo", preco: 24.5, estoque: 0, foto: svgPhoto(ICON_BOTTLE, 190, 200), ativo: true },
+  { id: "prd-4", barbeariaId: DEMO_BARBEARIA.id, nome: "Cera fixadora", categoria: "Cabelo", preco: 34.9, estoque: 8, foto: svgPhoto(ICON_BOTTLE, 120, 135), ativo: true },
+  { id: "prd-5", barbeariaId: DEMO_BARBEARIA.id, nome: "Tônico capilar", categoria: "Cabelo", preco: 49.9, estoque: 5, foto: svgPhoto(ICON_BOTTLE, 95, 110), ativo: true },
+  { id: "prd-2", barbeariaId: DEMO_BARBEARIA.id, nome: "Óleo para barba", categoria: "Barba", preco: 29.9, estoque: 3, foto: svgPhoto(ICON_BOTTLE, 24, 30), ativo: true },
+  { id: "prd-6", barbeariaId: DEMO_BARBEARIA.id, nome: "Balm para barba", categoria: "Barba", preco: 32.9, estoque: 9, foto: svgPhoto(ICON_BOTTLE, 8, 20), ativo: true },
+  { id: "prd-7", barbeariaId: DEMO_BARBEARIA.id, nome: "Shampoo para barba", categoria: "Barba", preco: 27.9, estoque: 6, foto: svgPhoto(ICON_BOTTLE, 40, 55), ativo: true },
+  { id: "prd-8", barbeariaId: DEMO_BARBEARIA.id, nome: "Máscara facial de argila", categoria: "Skincare", preco: 22.9, estoque: 10, foto: svgPhoto(ICON_BOTTLE, 300, 315), ativo: true },
+  { id: "prd-9", barbeariaId: DEMO_BARBEARIA.id, nome: "Protetor solar facial", categoria: "Skincare", preco: 45.0, estoque: 4, foto: svgPhoto(ICON_BOTTLE, 220, 235), ativo: true },
 ];
 
 const DEMO_SERVICOS_BASICO: Servico[] = [
@@ -127,29 +196,29 @@ const depois = addDays(hoje, 2);
 
 const DEMO_AGENDAMENTOS: Agendamento[] = [
   // Hoje
-  { id: "ag-1", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-2", clienteNome: "Carlos M.", servicoNome: "Corte degradê", preco: 45, data: hoje, hora: "09:00", status: "concluido", formaPagamento: "online" },
-  { id: "ag-2", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-2", clienteNome: "Rafael P.", servicoNome: "Barba desenhada", preco: 35, data: hoje, hora: "10:30", status: "concluido", formaPagamento: "local" },
-  { id: "ag-4", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-1", clienteNome: "Marcos T.", servicoNome: "Corte degradê", preco: 45, data: hoje, hora: "11:00", status: "confirmado", formaPagamento: "online" },
-  { id: "ag-3", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-2", clienteNome: "João Vitor", servicoNome: "Corte + barba", preco: 70, data: hoje, hora: "14:00", status: "confirmado", formaPagamento: "online" },
-  { id: "ag-5", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-3", clienteNome: "Diego A.", servicoNome: "Sobrancelha", preco: 20, data: hoje, hora: "15:30", status: "pendente", formaPagamento: "local" },
-  { id: "ag-6", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-2", clienteNome: "Bruno K.", servicoNome: "Corte degradê", preco: 45, data: hoje, hora: "16:30", status: "pendente", formaPagamento: "local" },
-  { id: "ag-7", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-1", clienteNome: "Yuri N.", servicoNome: "Barba desenhada", preco: 35, data: hoje, hora: "12:00", status: "cancelado", formaPagamento: "local" },
+  { id: "ag-1", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-2", clienteNome: "Carlos M.", servicoNome: "Corte degradê", preco: 45, duracaoMin: 40, data: hoje, hora: "09:00", status: "concluido", formaPagamento: "online", metodoPagamento: "pix" },
+  { id: "ag-2", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-2", clienteNome: "Rafael P.", servicoNome: "Barba desenhada", preco: 35, duracaoMin: 25, data: hoje, hora: "10:30", status: "concluido", formaPagamento: "local" },
+  { id: "ag-4", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-1", clienteNome: "Marcos T.", servicoNome: "Corte degradê", preco: 45, duracaoMin: 40, data: hoje, hora: "11:00", status: "confirmado", formaPagamento: "online", metodoPagamento: "pix" },
+  { id: "ag-3", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-2", clienteNome: "João Vitor", servicoNome: "Corte + barba", preco: 70, duracaoMin: 60, data: hoje, hora: "14:00", status: "confirmado", formaPagamento: "online", metodoPagamento: "pix" },
+  { id: "ag-5", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-3", clienteNome: "Diego A.", servicoNome: "Sobrancelha", preco: 20, duracaoMin: 15, data: hoje, hora: "15:30", status: "pendente", formaPagamento: "local" },
+  { id: "ag-6", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-2", clienteNome: "Bruno K.", servicoNome: "Corte degradê", preco: 45, duracaoMin: 40, data: hoje, hora: "16:30", status: "pendente", formaPagamento: "local" },
+  { id: "ag-7", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-1", clienteNome: "Yuri N.", servicoNome: "Barba desenhada", preco: 35, duracaoMin: 25, data: hoje, hora: "12:00", status: "cancelado", formaPagamento: "local" },
   // Ontem
-  { id: "ag-8", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-2", clienteNome: "Felipe R.", servicoNome: "Corte degradê", preco: 45, data: ontem, hora: "10:00", status: "concluido", formaPagamento: "online" },
-  { id: "ag-9", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-1", clienteNome: "Gabriel T.", servicoNome: "Sobrancelha", preco: 20, data: ontem, hora: "13:30", status: "concluido", formaPagamento: "local" },
+  { id: "ag-8", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-2", clienteNome: "Felipe R.", servicoNome: "Corte degradê", preco: 45, duracaoMin: 40, data: ontem, hora: "10:00", status: "concluido", formaPagamento: "online", metodoPagamento: "pix" },
+  { id: "ag-9", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-1", clienteNome: "Gabriel T.", servicoNome: "Sobrancelha", preco: 20, duracaoMin: 15, data: ontem, hora: "13:30", status: "concluido", formaPagamento: "local" },
   // Amanhã
-  { id: "ag-10", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-3", clienteNome: "Igor S.", servicoNome: "Corte + barba", preco: 70, data: amanha, hora: "09:30", status: "confirmado", formaPagamento: "online" },
-  { id: "ag-11", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-2", clienteNome: "Thiago L.", servicoNome: "Barba desenhada", preco: 35, data: amanha, hora: "11:00", status: "confirmado", formaPagamento: "online" },
-  { id: "ag-12", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-1", clienteNome: "Caio V.", servicoNome: "Corte degradê", preco: 45, data: amanha, hora: "17:00", status: "pendente", formaPagamento: "local" },
+  { id: "ag-10", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-3", clienteNome: "Igor S.", servicoNome: "Corte + barba", preco: 70, duracaoMin: 60, data: amanha, hora: "09:30", status: "confirmado", formaPagamento: "online", metodoPagamento: "pix" },
+  { id: "ag-11", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-2", clienteNome: "Thiago L.", servicoNome: "Barba desenhada", preco: 35, duracaoMin: 25, data: amanha, hora: "11:00", status: "confirmado", formaPagamento: "online", metodoPagamento: "pix" },
+  { id: "ag-12", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-1", clienteNome: "Caio V.", servicoNome: "Corte degradê", preco: 45, duracaoMin: 40, data: amanha, hora: "17:00", status: "pendente", formaPagamento: "local" },
   // Depois de amanhã
-  { id: "ag-13", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-2", clienteNome: "Danilo P.", servicoNome: "Corte + barba", preco: 70, data: depois, hora: "10:00", status: "confirmado", formaPagamento: "online" },
+  { id: "ag-13", barbeariaId: DEMO_BARBEARIA.id, barbeiroId: "brb-2", clienteNome: "Danilo P.", servicoNome: "Corte + barba", preco: 70, duracaoMin: 60, data: depois, hora: "10:00", status: "confirmado", formaPagamento: "online", metodoPagamento: "pix" },
 
   // Barbearia do Tião (Básico)
-  { id: "ag-b1", barbeariaId: DEMO_BARBEARIA_BASICO.id, barbeiroId: "brb-b1", clienteNome: "Eduardo L.", servicoNome: "Corte simples", preco: 30, data: hoje, hora: "10:30", status: "concluido", formaPagamento: "online" },
-  { id: "ag-b2", barbeariaId: DEMO_BARBEARIA_BASICO.id, barbeiroId: "brb-b1", clienteNome: "Fábio S.", servicoNome: "Barba", preco: 25, data: hoje, hora: "13:00", status: "confirmado", formaPagamento: "online" },
-  { id: "ag-b3", barbeariaId: DEMO_BARBEARIA_BASICO.id, barbeiroId: "brb-b1", clienteNome: "Gustavo P.", servicoNome: "Corte simples", preco: 30, data: hoje, hora: "16:00", status: "pendente", formaPagamento: "local" },
-  { id: "ag-b4", barbeariaId: DEMO_BARBEARIA_BASICO.id, barbeiroId: "brb-b1", clienteNome: "Henrique O.", servicoNome: "Barba", preco: 25, data: hoje, hora: "11:30", status: "cancelado", formaPagamento: "local" },
-  { id: "ag-b5", barbeariaId: DEMO_BARBEARIA_BASICO.id, barbeiroId: "brb-b1", clienteNome: "Ivan R.", servicoNome: "Corte simples", preco: 30, data: amanha, hora: "12:00", status: "confirmado", formaPagamento: "online" },
+  { id: "ag-b1", barbeariaId: DEMO_BARBEARIA_BASICO.id, barbeiroId: "brb-b1", clienteNome: "Eduardo L.", servicoNome: "Corte simples", preco: 30, duracaoMin: 30, data: hoje, hora: "10:30", status: "concluido", formaPagamento: "online", metodoPagamento: "pix" },
+  { id: "ag-b2", barbeariaId: DEMO_BARBEARIA_BASICO.id, barbeiroId: "brb-b1", clienteNome: "Fábio S.", servicoNome: "Barba", preco: 25, duracaoMin: 20, data: hoje, hora: "13:00", status: "confirmado", formaPagamento: "online", metodoPagamento: "pix" },
+  { id: "ag-b3", barbeariaId: DEMO_BARBEARIA_BASICO.id, barbeiroId: "brb-b1", clienteNome: "Gustavo P.", servicoNome: "Corte simples", preco: 30, duracaoMin: 30, data: hoje, hora: "16:00", status: "pendente", formaPagamento: "local" },
+  { id: "ag-b4", barbeariaId: DEMO_BARBEARIA_BASICO.id, barbeiroId: "brb-b1", clienteNome: "Henrique O.", servicoNome: "Barba", preco: 25, duracaoMin: 20, data: hoje, hora: "11:30", status: "cancelado", formaPagamento: "local" },
+  { id: "ag-b5", barbeariaId: DEMO_BARBEARIA_BASICO.id, barbeiroId: "brb-b1", clienteNome: "Ivan R.", servicoNome: "Corte simples", preco: 30, duracaoMin: 30, data: amanha, hora: "12:00", status: "confirmado", formaPagamento: "online", metodoPagamento: "pix" },
 ];
 
 function read<T>(key: string, fallback: T): T {
@@ -179,7 +248,7 @@ function seedIfMissing<T extends { id: string }>(key: string, demoItems: T[]) {
 // Old localStorage data was seeded before those fields existed, so
 // seedIfMissing alone won't add them to already-saved demo records —
 // bumping this wipes stale mock data instead of silently breaking on it.
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 11;
 const VERSION_KEY = "navalha_schema_version";
 
 function ensureSeeded() {
@@ -217,6 +286,75 @@ export function updateBarbearia(id: string, patch: Partial<Barbearia>) {
     b.id === id ? { ...b, ...patch } : b,
   );
   write(KEYS.barbearias, barbearias);
+}
+
+// ---------- Mercado Pago ----------
+
+export interface ConectarMPInput {
+  barbeariaId: string;
+  apelido: string;
+  publicKey: string;
+  accessToken: string;
+  ambiente: MercadoPagoConta["ambiente"];
+}
+
+/** Formato das credenciais do Mercado Pago (TEST-… no sandbox, APP_USR-… em produção). */
+export function validarCredencialMP(
+  valor: string,
+  ambiente: MercadoPagoConta["ambiente"],
+): boolean {
+  const prefixo = ambiente === "teste" ? "TEST-" : "APP_USR-";
+  return valor.trim().startsWith(prefixo) && valor.trim().length > prefixo.length + 12;
+}
+
+export function conectarMercadoPago(
+  input: ConectarMPInput,
+): { ok: true } | { ok: false; error: string } {
+  const barbearia = getBarbeariaById(input.barbeariaId);
+  if (!barbearia) return { ok: false, error: "Barbearia não encontrada." };
+
+  if (!input.apelido.trim()) {
+    return { ok: false, error: "Informe o e-mail ou apelido da conta do Mercado Pago." };
+  }
+  if (!validarCredencialMP(input.publicKey, input.ambiente)) {
+    return {
+      ok: false,
+      error: `A Public Key precisa começar com ${input.ambiente === "teste" ? "TEST-" : "APP_USR-"}.`,
+    };
+  }
+  if (!validarCredencialMP(input.accessToken, input.ambiente)) {
+    return {
+      ok: false,
+      error: `O Access Token precisa começar com ${input.ambiente === "teste" ? "TEST-" : "APP_USR-"}.`,
+    };
+  }
+
+  const conta: MercadoPagoConta = {
+    apelido: input.apelido.trim(),
+    publicKey: input.publicKey.trim(),
+    accessToken: input.accessToken.trim(),
+    ambiente: input.ambiente,
+    aceitaPix: true,
+    aceitaCartao: true,
+    parcelasMax: 3,
+    conectadoEm: new Date().toISOString(),
+  };
+
+  updateBarbearia(input.barbeariaId, { mercadoPago: conta });
+  return { ok: true };
+}
+
+export function atualizarPreferenciasMP(
+  barbeariaId: string,
+  patch: Partial<Pick<MercadoPagoConta, "aceitaPix" | "aceitaCartao" | "parcelasMax">>,
+) {
+  const barbearia = getBarbeariaById(barbeariaId);
+  if (!barbearia?.mercadoPago) return;
+  updateBarbearia(barbeariaId, { mercadoPago: { ...barbearia.mercadoPago, ...patch } });
+}
+
+export function desconectarMercadoPago(barbeariaId: string) {
+  updateBarbearia(barbeariaId, { mercadoPago: undefined });
 }
 
 export function getUsuarios(): Usuario[] {
@@ -495,63 +633,159 @@ export function cancelarAgendamento(id: string) {
   updateAgendamento(id, { status: "cancelado" });
 }
 
-/** Horários já tomados por um barbeiro num dia (pendente ou confirmado seguram o slot). */
+/**
+ * Horários já tomados por um barbeiro num dia (pendente, confirmado ou já
+ * concluído seguram o bloco). Um agendamento longo ocupa vários blocos de
+ * 30 min, então a lista é expandida a partir da duração do serviço.
+ */
 export function getHorariosOcupados(barbeiroId: string, data: string): string[] {
-  return read<Agendamento[]>(KEYS.agendamentos, [])
-    .filter(
-      (a) =>
-        a.barbeiroId === barbeiroId &&
-        a.data === data &&
-        (a.status === "pendente" || a.status === "confirmado"),
-    )
-    .map((a) => a.hora);
+  const doDia = read<Agendamento[]>(KEYS.agendamentos, []).filter(
+    (a) =>
+      a.barbeiroId === barbeiroId &&
+      a.data === data &&
+      (a.status === "pendente" || a.status === "confirmado" || a.status === "concluido"),
+  );
+
+  const ocupados: string[] = [];
+  for (const a of doDia) {
+    const blocos = slotsDe(a.duracaoMin ?? SLOT_MIN);
+    for (let i = 0; i < blocos; i++) {
+      ocupados.push(addMinutes(a.hora, i * SLOT_MIN));
+    }
+  }
+  return ocupados;
 }
 
-export interface NovoAgendamentoInput {
+/** Último nome/e-mail usados por esse telefone nessa barbearia, se houver. */
+export function buscarClientePorTelefone(
+  barbeariaId: string,
+  telefone: string,
+): { nome: string; email?: string } | null {
+  const digits = telefone.replace(/\D/g, "");
+  if (digits.length < 10) return null;
+
+  const anteriores = read<Agendamento[]>(KEYS.agendamentos, [])
+    .filter(
+      (a) =>
+        a.barbeariaId === barbeariaId &&
+        (a.clienteTelefone ?? "").replace(/\D/g, "") === digits,
+    )
+    .sort((a, b) => b.id.localeCompare(a.id));
+
+  const recente = anteriores[0];
+  return recente ? { nome: recente.clienteNome, email: recente.clienteEmail } : null;
+}
+
+export interface NovoPedidoInput {
   barbeariaId: string;
   barbeiroId: string;
   clienteNome: string;
   clienteTelefone: string;
-  servicoNome: string;
-  preco: number;
+  clienteEmail?: string;
   data: string;
-  hora: string;
+  horaInicio: string;
+  servicos: { id: string; nome: string; preco: number; duracaoMin: number }[];
+  produtos: { id: string; nome: string; preco: number; quantidade: number }[];
   formaPagamento: Agendamento["formaPagamento"];
+  metodoPagamento?: Agendamento["metodoPagamento"];
 }
 
 /**
- * Agendamento feito pelo cliente na página pública.
+ * Fecha a compra feita pelo carrinho na página pública: um Agendamento por
+ * serviço (horários encadeados a partir de horaInicio, mesmo barbeiro), e dá
+ * baixa imediata no estoque dos produtos levados junto.
  * Pagamento online já entra confirmado; pagar no local fica pendente até a
  * barbearia confirmar no painel.
  */
-export function criarAgendamento(
-  input: NovoAgendamentoInput,
-): { ok: true; agendamento: Agendamento } | { ok: false; error: string } {
-  const ocupados = getHorariosOcupados(input.barbeiroId, input.data);
-  if (ocupados.includes(input.hora)) {
-    return { ok: false, error: "Esse horário acabou de ser ocupado. Escolha outro." };
+export function criarPedido(
+  input: NovoPedidoInput,
+): { ok: true; agendamentos: Agendamento[] } | { ok: false; error: string } {
+  if (input.servicos.length === 0) {
+    return { ok: false, error: "Adicione ao menos um serviço ao carrinho." };
   }
 
-  const agendamento: Agendamento = {
-    id: `ag-${Date.now()}`,
-    barbeariaId: input.barbeariaId,
-    barbeiroId: input.barbeiroId,
-    clienteNome: input.clienteNome,
-    clienteTelefone: input.clienteTelefone,
-    servicoNome: input.servicoNome,
-    preco: input.preco,
-    data: input.data,
-    hora: input.hora,
-    status: input.formaPagamento === "online" ? "confirmado" : "pendente",
-    formaPagamento: input.formaPagamento,
-  };
+  for (const item of input.produtos) {
+    const produto = getProdutos(input.barbeariaId).find((p) => p.id === item.id);
+    if (!produto || produto.estoque < item.quantidade) {
+      return {
+        ok: false,
+        error: `"${item.nome}" ficou sem estoque suficiente. Ajuste a quantidade no carrinho.`,
+      };
+    }
+  }
+
+  const barbearia = getBarbeariaById(input.barbeariaId);
+  if (!barbearia) return { ok: false, error: "Barbearia não encontrada." };
+
+  const todosHorarios = generateTimeSlots(barbearia.horarioAbertura, barbearia.horarioFechamento);
+  const startIdx = todosHorarios.indexOf(input.horaInicio);
+  if (startIdx === -1) {
+    return { ok: false, error: "Horário inválido." };
+  }
+
+  // Cada serviço ocupa quantos blocos a duração dele exigir, encadeados.
+  const totalSlots = input.servicos.reduce((sum, s) => sum + slotsDe(s.duracaoMin), 0);
+  if (startIdx + totalSlots > todosHorarios.length) {
+    return {
+      ok: false,
+      error: "Não há horários seguidos suficientes nesse dia. Escolha um horário mais cedo.",
+    };
+  }
+
+  const slotsNecessarios = todosHorarios.slice(startIdx, startIdx + totalSlots);
+  const ocupados = getHorariosOcupados(input.barbeiroId, input.data);
+  if (slotsNecessarios.some((h) => ocupados.includes(h))) {
+    return { ok: false, error: "Um dos horários necessários acabou de ser ocupado. Escolha outro." };
+  }
+
+  const pedidoId = `pedido-${Date.now()}`;
+  const produtosComprados: ProdutoComprado[] = input.produtos.map((p) => ({
+    produtoId: p.id,
+    produtoNome: p.nome,
+    quantidade: p.quantidade,
+    preco: p.preco,
+  }));
+
+  let cursor = startIdx;
+  const novosAgendamentos: Agendamento[] = input.servicos.map((s, i) => {
+    const hora = todosHorarios[cursor];
+    cursor += slotsDe(s.duracaoMin);
+    return {
+      id: `ag-${Date.now()}-${i}`,
+      barbeariaId: input.barbeariaId,
+      barbeiroId: input.barbeiroId,
+      clienteNome: input.clienteNome,
+      clienteTelefone: input.clienteTelefone,
+      clienteEmail: input.clienteEmail,
+      servicoNome: s.nome,
+      preco: s.preco,
+      data: input.data,
+      hora,
+      duracaoMin: s.duracaoMin,
+      status: input.formaPagamento === "online" ? "confirmado" : "pendente",
+      formaPagamento: input.formaPagamento,
+      metodoPagamento: input.formaPagamento === "online" ? input.metodoPagamento : undefined,
+      pedidoId,
+      produtosComprados: i === 0 && produtosComprados.length > 0 ? produtosComprados : undefined,
+    };
+  });
 
   write(KEYS.agendamentos, [
     ...read<Agendamento[]>(KEYS.agendamentos, []),
-    agendamento,
+    ...novosAgendamentos,
   ]);
 
-  return { ok: true, agendamento };
+  for (const item of input.produtos) {
+    registrarMovimentoEstoque({
+      barbeariaId: input.barbeariaId,
+      produtoId: item.id,
+      tipo: "saida",
+      quantidade: item.quantidade,
+      motivo: `Venda online — ${input.clienteNome}`,
+    });
+  }
+
+  return { ok: true, agendamentos: novosAgendamentos };
 }
 
 /** Marca como concluído e, se houver produtos vendidos, dá baixa no estoque. */

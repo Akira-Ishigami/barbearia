@@ -30,6 +30,16 @@
   --color-cyan-bright: var(--cyan-bright);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-ok-line: var(--ok-line);
+  --color-off: var(--off);
+  --color-off-soft: var(--off-soft);
+  --color-off-line: var(--off-line);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-line: var(--warn-line);
+  --color-warn-solid: var(--warn-solid);
   --font-display: var(--font-display);
   --font-accent: var(--font-accent);
   --font-body: var(--font-body);
@@ -37,6 +47,71 @@
 
 * {
   border-color: var(--line);
+}
+
+/* Tema claro. Sobrescreve as mesmas variáveis do :root, então as classes
+   bg-ink, text-bone, text-gold-bright etc. continuam funcionando sem
+   reescrever nada — só o valor por trás muda dentro desse escopo.
+   Usado na área do cliente (/loja) e, opcionalmente, no painel e no
+   painel do barbeiro (onde é o padrão). */
+.theme-light {
+  --ink: #f3f3f1;
+  --ink-elev: #ffffff;
+  --ink-elev-2: #e8e8e4;
+  --bone: #111214;
+  --bone-dim: #4c5057;
+  --muted: #83868d;
+  --gold: #b06d05;
+  --gold-bright: #8f5804;
+  --gold-deep: #5e3a02;
+  --cyan: #067b7d;
+  --cyan-bright: #036b6d;
+  --line: rgba(17, 18, 20, 0.09);
+  --line-strong: rgba(17, 18, 20, 0.18);
+}
+
+/* A área do cliente ganha uma fonte de display própria. */
+.loja-light {
+  --font-display: var(--font-loja-display);
+}
+
+/* Cores de estado — verde livre, vermelho ocupado. Definidas como token
+   pra funcionarem nos dois temas sem repetir classe em cada lugar. */
+:root {
+  --ok: #34d399;
+  --ok-soft: rgba(52, 211, 153, 0.14);
+  --ok-line: rgba(52, 211, 153, 0.4);
+  --off: #f87171;
+  --off-soft: rgba(248, 113, 113, 0.12);
+  --off-line: rgba(248, 113, 113, 0.35);
+  --warn: #fbbf24;
+  --warn-soft: rgba(251, 191, 36, 0.12);
+  --warn-line: rgba(251, 191, 36, 0.4);
+  --warn-solid: #1a1408;
+}
+
+.theme-light {
+  --ok: #0f7a4a;
+  --ok-soft: rgba(15, 122, 74, 0.1);
+  --ok-line: rgba(15, 122, 74, 0.35);
+  --off: #b4242c;
+  --off-soft: rgba(180, 36, 44, 0.08);
+  --off-line: rgba(180, 36, 44, 0.28);
+  --warn: #8a5a06;
+  --warn-soft: rgba(138, 90, 6, 0.1);
+  --warn-line: rgba(138, 90, 6, 0.32);
+  --warn-solid: #fff6e3;
+}
+
+/* Rolagem lateral sem barra visível — os carrosséis já têm setas e fade
+   nas bordas indicando que dá pra arrastar. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 html {

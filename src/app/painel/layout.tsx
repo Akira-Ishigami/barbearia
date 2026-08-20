@@ -6,7 +6,9 @@ import { useEffect } from "react";
 import { getBarbeariaById, logout } from "@/lib/mock-db";
 import { useSession } from "@/lib/use-session";
 import { usePendingAlerts } from "@/lib/use-pending-alerts";
+import { useTheme, themeClass } from "@/lib/use-theme";
 import { PendentesPopover } from "@/components/PendentesPopover";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 const NAV = [
   { href: "/painel", label: "Visão geral", pro: false },
@@ -16,6 +18,7 @@ const NAV = [
   { href: "/painel/estoque", label: "Estoque", pro: true },
   { href: "/painel/barbeiros", label: "Barbeiros", pro: false },
   { href: "/painel/localizacao", label: "Localização", pro: false },
+  { href: "/painel/pagamentos", label: "Pagamentos", pro: false },
   { href: "/painel/relatorios", label: "Relatórios", pro: true },
 ];
 
@@ -23,6 +26,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
   const router = useRouter();
   const pathname = usePathname();
   const session = useSession();
+  const theme = useTheme();
   const { pendentes, flash } = usePendingAlerts(
     session?.role === "dono" ? session.barbeariaId : undefined,
   );
@@ -36,18 +40,18 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
   }, [session, router]);
 
   if (!session || session.role !== "dono") {
-    return <div className="flex flex-1 items-center justify-center bg-ink" />;
+    return <div className={`flex flex-1 items-center justify-center bg-ink ${themeClass(theme)}`} />;
   }
 
   const barbearia = getBarbeariaById(session.barbeariaId);
   const isPro = barbearia?.plano === "pro";
 
   return (
-    <div className="grain flex flex-1 flex-col bg-ink md:flex-row">
+    <div className={`${themeClass(theme)} grain flex flex-1 flex-col bg-ink md:flex-row`}>
       {flash && (
-        <div className="animate-toast-in fixed left-1/2 top-4 z-[100] flex -translate-x-1/2 items-center gap-2 rounded-full border border-amber-400/40 bg-[#1a1408] px-4 py-2.5 shadow-[0_0_30px_-8px_rgba(251,191,36,0.6)]">
-          <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-amber-400" />
-          <span className="font-body text-sm font-medium text-amber-200">
+        <div className="animate-toast-in fixed left-1/2 top-4 z-[100] flex -translate-x-1/2 items-center gap-2 rounded-full border border-warn-line bg-warn-solid px-4 py-2.5 shadow-lg">
+          <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-warn" />
+          <span className="font-body text-sm font-medium text-warn">
             Novo agendamento aguardando confirmação
           </span>
         </div>
@@ -92,7 +96,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
             className={`mt-4 flex items-center justify-between rounded-lg border px-3 py-2 ${
               isPro
                 ? "border-gold-bright/30 bg-gold-bright/5"
-                : "border-line-strong bg-white/[0.02]"
+                : "border-line-strong bg-bone/[0.02]"
             }`}
           >
             <div>
@@ -139,7 +143,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
                 className={`whitespace-nowrap rounded-lg px-3.5 py-2.5 text-left font-body text-sm transition-colors ${
                   active
                     ? "bg-gold-bright/10 text-gold-bright"
-                    : "text-bone-dim hover:bg-white/5 hover:text-bone"
+                    : "text-bone-dim hover:bg-bone/5 hover:text-bone"
                 }`}
               >
                 {item.label}
@@ -148,15 +152,18 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
           })}
         </nav>
 
-        <button
-          onClick={() => {
-            logout();
-            router.push("/login");
-          }}
-          className="mt-8 hidden w-full rounded-lg border border-line-strong px-3.5 py-2.5 text-left font-body text-sm text-bone-dim transition-colors hover:border-gold-bright/40 hover:text-gold-bright md:block"
-        >
-          Sair
-        </button>
+        <div className="mt-auto hidden space-y-3 pt-8 md:block">
+          <ThemeToggle />
+          <button
+            onClick={() => {
+              logout();
+              router.push("/login");
+            }}
+            className="w-full rounded-lg border border-line-strong px-3.5 py-2.5 text-left font-body text-sm text-bone-dim transition-colors hover:border-gold-bright/40 hover:text-gold-bright"
+          >
+            Sair
+          </button>
+        </div>
       </aside>
 
       {/* MAIN */}

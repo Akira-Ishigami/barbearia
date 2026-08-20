@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PLANS, TRIAL_DAYS } from "@/lib/plans";
+import { BotaoAssinar } from "@/components/BotaoAssinar";
 
 function Icon({
   path,
@@ -476,16 +477,7 @@ export default function Home() {
                   ))}
                 </ul>
 
-                <Link
-                  href={`/cadastro?plano=${plan.id}`}
-                  className={`mt-10 block rounded-full py-3.5 text-center font-body text-sm font-semibold transition-transform hover:scale-[1.02] ${
-                    plan.highlight
-                      ? "bg-gold-bright text-ink"
-                      : "border border-line-strong text-bone hover:border-gold-bright hover:text-gold-bright"
-                  }`}
-                >
-                  Começar grátis por {TRIAL_DAYS} dias
-                </Link>
+                <BotaoAssinar plano={plan.id} destaque={plan.highlight} />
                 <p className="mt-3 text-center font-body text-xs text-muted">
                   Depois, R$ {plan.price}/mês. Cancele quando quiser.
                 </p>

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cancelarAgendamento, confirmarAgendamento, getAgendamentos } from "@/lib/mock-db";
 import { formatDayLabel } from "@/lib/date";
-import type { Agendamento } from "@/lib/types";
+import { METODO_LABEL, type Agendamento } from "@/lib/types";
 
 /**
  * Sino de pendentes: fica no painel inteiro, então dá pra aceitar ou rejeitar
@@ -70,7 +70,7 @@ export function PendentesPopover({
         aria-label={`${pendentes} agendamento(s) aguardando confirmação`}
         className={`relative flex h-10 w-full items-center justify-center gap-2 rounded-lg border px-3 font-body text-sm transition-colors ${
           pendentes > 0
-            ? "border-amber-400/40 bg-amber-400/10 text-amber-200 hover:bg-amber-400/15"
+            ? "border-warn-line bg-warn-soft text-warn hover:bg-warn-soft"
             : "border-line-strong text-bone-dim hover:text-bone"
         }`}
       >
@@ -88,7 +88,7 @@ export function PendentesPopover({
         <span>Pendentes</span>
         {pendentes > 0 && (
           <span
-            className={`ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-amber-400 px-1 font-accent text-[11px] font-semibold text-ink ${
+            className={`ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-warn px-1 font-accent text-[11px] font-semibold text-ink ${
               flash ? "pulse-badge" : ""
             }`}
           >
@@ -111,15 +111,22 @@ export function PendentesPopover({
             itens.map((a) => (
               <div
                 key={a.id}
-                className="rounded-lg border border-amber-400/20 bg-amber-400/5 px-3 py-2.5 [&+&]:mt-2"
+                className="rounded-lg border border-warn-line bg-warn-soft px-3 py-2.5 [&+&]:mt-2"
               >
                 <p className="font-body text-sm text-bone">{a.clienteNome}</p>
                 <p className="font-body text-[11px] text-bone-dim">
                   {formatDayLabel(a.data)} · {a.hora} · {a.servicoNome}
                 </p>
                 <p className="font-body text-[11px] text-muted">
-                  {a.formaPagamento === "online" ? "pago online" : "paga no local"}
+                  {a.formaPagamento === "online"
+                    ? `pago via ${a.metodoPagamento ? METODO_LABEL[a.metodoPagamento] : "online"}`
+                    : "paga no local"}
                 </p>
+                {a.produtosComprados && a.produtosComprados.length > 0 && (
+                  <p className="font-body text-[11px] text-cyan-bright">
+                    + {a.produtosComprados.map((p) => p.produtoNome).join(", ")}
+                  </p>
+                )}
                 <div className="mt-2 flex gap-2">
                   <button
                     onClick={() => aceitar(a.id)}
@@ -131,7 +138,7 @@ export function PendentesPopover({
                   </button>
                   <button
                     onClick={() => rejeitar(a.id)}
-                    className="flex-1 rounded-md border border-line-strong px-2 py-1.5 font-body text-[11px] text-bone-dim hover:border-rose-400/40 hover:text-rose-300"
+                    className="flex-1 rounded-md border border-line-strong px-2 py-1.5 font-body text-[11px] text-bone-dim hover:border-off-line hover:text-off"
                   >
                     Rejeitar
                   </button>

@@ -128,7 +128,7 @@ export default function RelatoriosPage() {
                   R$ {b.total.toFixed(2).replace(".", ",")} · {b.qtd} atend.
                 </span>
               </div>
-              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-white/5">
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-bone/5">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-gold to-gold-bright"
                   style={{ width: `${(b.total / maiorFaturamento) * 100}%` }}
@@ -191,9 +191,9 @@ export default function RelatoriosPage() {
                     <td
                       className={`px-5 py-3 font-accent text-sm ${
                         p.estoque === 0
-                          ? "text-rose-300"
+                          ? "text-off"
                           : p.estoque <= ESTOQUE_BAIXO
-                            ? "text-amber-300"
+                            ? "text-warn"
                             : "text-bone"
                       }`}
                     >

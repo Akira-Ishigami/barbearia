@@ -12,6 +12,27 @@ export const WEEKDAYS: { id: Weekday; label: string }[] = [
   { id: "dom", label: "Dom" },
 ];
 
+export type AmbienteMP = "teste" | "producao";
+
+/**
+ * Credenciais do Mercado Pago da própria barbearia — é pra conta dela que o
+ * dinheiro do cliente vai, sem passar pela Navalha.
+ *
+ * ATENÇÃO: neste protótipo isso mora no localStorage só pra demonstrar o
+ * fluxo. Em produção o access token NUNCA pode ficar no navegador: a conexão
+ * precisa ser via OAuth do Mercado Pago, com o token guardado no servidor.
+ */
+export interface MercadoPagoConta {
+  apelido: string;
+  publicKey: string;
+  accessToken: string;
+  ambiente: AmbienteMP;
+  aceitaPix: boolean;
+  aceitaCartao: boolean;
+  parcelasMax: number;
+  conectadoEm: string;
+}
+
 export interface Barbearia {
   id: string;
   nome: string;
@@ -23,6 +44,14 @@ export interface Barbearia {
   plano: PlanId;
   linkMaps?: string;
   criadaEm: string;
+  /** Foto de capa exibida no topo da página pública. */
+  foto?: string;
+  /** Texto curto de apresentação, exibido junto da foto de capa. */
+  sobre?: string;
+  /** Fotos do espaço da barbearia, exibidas na galeria da página pública. */
+  galeria?: string[];
+  /** Conta do Mercado Pago da barbearia. Sem ela, só rola pagar no local. */
+  mercadoPago?: MercadoPagoConta;
 }
 
 export type UserRole = "dono" | "barbeiro";
@@ -66,6 +95,19 @@ export interface Servico {
   duracaoMin: number;
   foto?: string;
   ativo: boolean;
+  /**
+   * Ids dos serviços que compõem um combo. Só usado quando a categoria é
+   * "Combos" — o cliente vê o que está incluído e a duração é a soma das partes.
+   */
+  servicosIncluidos?: string[];
+}
+
+/** Passo da grade de horários, em minutos. */
+export const SLOT_MIN = 30;
+
+/** Quantos blocos de 30 min um serviço ocupa (mínimo 1). */
+export function slotsDe(duracaoMin: number): number {
+  return Math.max(1, Math.ceil(duracaoMin / SLOT_MIN));
 }
 
 export interface Produto {
@@ -108,16 +150,40 @@ export interface MovimentoEstoque {
 export type AgendamentoStatus = "pendente" | "confirmado" | "concluido" | "cancelado";
 export type FormaPagamento = "online" | "local";
 
+/** Como o cliente pagou quando escolheu pagar online. */
+export type MetodoPagamento = "pix" | "cartao";
+
+export const METODO_LABEL: Record<MetodoPagamento, string> = {
+  pix: "Pix",
+  cartao: "Cartão",
+};
+
+export interface ProdutoComprado {
+  produtoId: string;
+  produtoNome: string;
+  quantidade: number;
+  preco: number;
+}
+
 export interface Agendamento {
   id: string;
   barbeariaId: string;
   barbeiroId: string;
   clienteNome: string;
   clienteTelefone?: string;
+  clienteEmail?: string;
   servicoNome: string;
   preco: number;
   data: string;
   hora: string;
+  /** Duração do serviço; define quantos blocos da grade o agendamento ocupa. */
+  duracaoMin?: number;
   status: AgendamentoStatus;
   formaPagamento: FormaPagamento;
+  /** Só preenchido quando formaPagamento é "online". */
+  metodoPagamento?: MetodoPagamento;
+  /** Agrupa os agendamentos gerados por uma mesma compra no carrinho. */
+  pedidoId?: string;
+  /** Produtos comprados junto nesse pedido — só preenchido no 1º item do grupo. */
+  produtosComprados?: ProdutoComprado[];
 }

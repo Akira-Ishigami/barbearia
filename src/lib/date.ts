@@ -53,6 +53,15 @@ export function weekDates(weekStart: string, diasFuncionamento: Weekday[]): stri
   });
 }
 
+/** "09:00" + 90 → "10:30" */
+export function addMinutes(hhmm: string, minutos: number): string {
+  const [h, m] = hhmm.split(":").map(Number);
+  const total = h * 60 + m + minutos;
+  const hh = String(Math.floor(total / 60)).padStart(2, "0");
+  const mm = String(total % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
 export function generateTimeSlots(
   abertura: string,
   fechamento: string,

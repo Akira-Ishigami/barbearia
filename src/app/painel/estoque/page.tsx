@@ -147,7 +147,7 @@ export default function EstoquePage() {
           <select
             value={produtoId}
             onChange={(e) => setProdutoId(e.target.value)}
-            className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+            className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
           >
             {produtos.map((p) => (
               <option key={p.id} value={p.id} className="bg-ink-elev">
@@ -178,7 +178,7 @@ export default function EstoquePage() {
               onClick={() => setTipo("saida")}
               className={`rounded-lg border px-3 py-2.5 font-body text-sm ${
                 tipo === "saida"
-                  ? "border-rose-400/50 bg-rose-500/10 text-rose-300"
+                  ? "border-off-line bg-off-soft text-off"
                   : "border-line text-bone-dim"
               }`}
             >
@@ -195,7 +195,7 @@ export default function EstoquePage() {
             value={quantidade}
             onChange={(e) => setQuantidade(e.target.value.replace(/[^0-9]/g, ""))}
             inputMode="numeric"
-            className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+            className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
           />
         </label>
 
@@ -207,7 +207,7 @@ export default function EstoquePage() {
             value={motivo}
             onChange={(e) => setMotivo(e.target.value)}
             placeholder={tipo === "entrada" ? "Reposição" : "Venda"}
-            className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+            className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
           />
         </label>
 
@@ -220,7 +220,7 @@ export default function EstoquePage() {
       </form>
 
       {error && (
-        <p className="mt-3 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 font-body text-xs text-rose-300">
+        <p className="mt-3 rounded-lg border border-off-line bg-off-soft px-3 py-2 font-body text-xs text-off">
           {error}
         </p>
       )}
@@ -237,7 +237,7 @@ export default function EstoquePage() {
               <span className="font-body text-sm text-bone">{p.nome}</span>
               <span
                 className={`font-accent text-sm ${
-                  zerado ? "text-rose-300" : baixo ? "text-amber-300" : "text-gold-bright"
+                  zerado ? "text-off" : baixo ? "text-warn" : "text-gold-bright"
                 }`}
               >
                 {p.estoque}
@@ -267,7 +267,7 @@ export default function EstoquePage() {
                   className={`rounded-full px-2.5 py-1 font-body text-[11px] font-semibold ${
                     m.tipo === "entrada"
                       ? "bg-gold-bright/10 text-gold-bright"
-                      : "bg-rose-500/10 text-rose-300"
+                      : "bg-off-soft text-off"
                   }`}
                 >
                   {m.tipo === "entrada" ? "+ Entrada" : "− Saída"}

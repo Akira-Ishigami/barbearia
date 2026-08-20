@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
-import { Sora, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Sora, JetBrains_Mono, Plus_Jakarta_Sans, Unbounded } from "next/font/google";
 import "./globals.css";
 
 const sora = Sora({
   variable: "--font-display",
+  subsets: ["latin"],
+});
+
+// Só usada na área do cliente (/loja) — dá a ela uma identidade própria,
+// mais geométrica, sem mexer no painel nem na home.
+const unbounded = Unbounded({
+  variable: "--font-loja-display",
   subsets: ["latin"],
 });
 
@@ -29,7 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="pt-BR"
-      className={`${sora.variable} ${mono.variable} ${jakarta.variable} h-full antialiased`}
+      className={`${sora.variable} ${mono.variable} ${jakarta.variable} ${unbounded.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-ink text-bone">{children}</body>
     </html>

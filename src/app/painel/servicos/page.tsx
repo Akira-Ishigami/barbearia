@@ -18,6 +18,7 @@ export default function ServicosPage() {
   const [preco, setPreco] = useState("");
   const [duracao, setDuracao] = useState("30");
   const [foto, setFoto] = useState<string | undefined>(undefined);
+  const [incluidos, setIncluidos] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -57,6 +58,11 @@ export default function ServicosPage() {
       return;
     }
 
+    if (ehCombo && incluidos.length < 2) {
+      setError("Um combo precisa juntar pelo menos dois serviços.");
+      return;
+    }
+
     addServico({
       barbeariaId: session.barbeariaId,
       nome: nome.trim(),
@@ -65,6 +71,7 @@ export default function ServicosPage() {
       duracaoMin: Number(duracao) || 30,
       foto,
       ativo: true,
+      servicosIncluidos: ehCombo ? incluidos : undefined,
     });
 
     setServicos(getServicos(session.barbeariaId));
@@ -73,8 +80,22 @@ export default function ServicosPage() {
     setDuracao("30");
     setCategoria(SERVICO_CATEGORIAS_PRESET[0]);
     setFoto(undefined);
+    setIncluidos([]);
     setFormKey((k) => k + 1);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  /** Marca/desmarca um serviço dentro do combo e recalcula preço e duração sugeridos. */
+  function toggleIncluido(s: Servico) {
+    const novos = incluidos.includes(s.id)
+      ? incluidos.filter((id) => id !== s.id)
+      : [...incluidos, s.id];
+    setIncluidos(novos);
+
+    const partes = servicos.filter((x) => novos.includes(x.id));
+    setDuracao(String(partes.reduce((sum, x) => sum + x.duracaoMin, 0) || 30));
+    const soma = partes.reduce((sum, x) => sum + x.preco, 0);
+    setPreco(soma > 0 ? String(soma).replace(".", ",") : "");
   }
 
   function toggleAtivo(s: Servico) {
@@ -86,6 +107,13 @@ export default function ServicosPage() {
     removeServico(id);
     setServicos(getServicos(session!.barbeariaId));
   }
+
+  // Combos são montados a partir dos outros serviços já cadastrados.
+  const ehCombo = categoria.trim().toLowerCase() === "combos";
+  const candidatosCombo = servicos.filter(
+    (s) => s.categoria.trim().toLowerCase() !== "combos",
+  );
+  const nomeDoServico = (id: string) => servicos.find((s) => s.id === id)?.nome ?? "";
 
   const categoriasExistentes = Array.from(new Set(servicos.map((s) => s.categoria)));
   const porCategoria = categoriasExistentes.map((cat) => ({
@@ -110,11 +138,53 @@ export default function ServicosPage() {
         onSubmit={handleSubmit}
         className="mt-6 space-y-4 rounded-2xl border border-line bg-ink-elev/60 p-6"
       >
+        {/* Escolher o tipo primeiro deixa claro que dá pra montar combo aqui. */}
+        <div>
+          <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
+            O que você quer cadastrar?
+          </span>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setCategoria(SERVICO_CATEGORIAS_PRESET[0]);
+                setIncluidos([]);
+                setFormKey((k) => k + 1);
+              }}
+              className={`rounded-xl border px-4 py-2.5 text-left font-body text-sm transition-colors ${
+                !ehCombo
+                  ? "border-gold-bright bg-gold-bright/10 text-gold-bright"
+                  : "border-line-strong text-bone-dim hover:border-gold-bright/40"
+              }`}
+            >
+              Serviço avulso
+              <span className="block font-body text-[11px] text-muted">Um serviço só</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setCategoria("Combos");
+                setFormKey((k) => k + 1);
+              }}
+              className={`rounded-xl border px-4 py-2.5 text-left font-body text-sm transition-colors ${
+                ehCombo
+                  ? "border-cyan-bright bg-cyan-bright/10 text-cyan-bright"
+                  : "border-line-strong text-bone-dim hover:border-cyan-bright/40"
+              }`}
+            >
+              Combo
+              <span className="block font-body text-[11px] text-muted">
+                Junta 2 ou mais serviços
+              </span>
+            </button>
+          </div>
+        </div>
+
         <div>
           <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
             Foto (opcional)
           </span>
-          <label className="flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-line-strong bg-white/[0.03] font-body text-[11px] text-muted hover:border-gold-bright/50">
+          <label className="flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-line-strong bg-bone/[0.03] font-body text-[11px] text-muted hover:border-gold-bright/50">
             {foto ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={foto} alt="" className="h-full w-full object-cover" />
@@ -136,7 +206,7 @@ export default function ServicosPage() {
                 setFoto(undefined);
                 if (fileInputRef.current) fileInputRef.current.value = "";
               }}
-              className="mt-1.5 font-body text-[11px] text-rose-300 hover:underline"
+              className="mt-1.5 font-body text-[11px] text-off hover:underline"
             >
               remover foto
             </button>
@@ -146,21 +216,24 @@ export default function ServicosPage() {
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
           <label className="block">
             <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
-              Nome do serviço
+              {ehCombo ? "Nome do combo" : "Nome do serviço"}
             </span>
             <input
               value={nome}
               onChange={(e) => setNome(e.target.value)}
-              placeholder="Corte social"
-              className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+              placeholder={ehCombo ? "Corte + barba" : "Corte social"}
+              className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
             />
           </label>
-          <CategoriaField
-            key={formKey}
-            presets={SERVICO_CATEGORIAS_PRESET}
-            value={categoria}
-            onChange={setCategoria}
-          />
+          {/* No modo combo a categoria é sempre "Combos", então o seletor sai de cena. */}
+          {!ehCombo && (
+            <CategoriaField
+              key={formKey}
+              presets={SERVICO_CATEGORIAS_PRESET}
+              value={categoria}
+              onChange={setCategoria}
+            />
+          )}
           <label className="block">
             <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
               Preço (R$)
@@ -170,7 +243,7 @@ export default function ServicosPage() {
               onChange={(e) => setPreco(e.target.value.replace(/[^0-9,]/g, ""))}
               placeholder="40"
               inputMode="decimal"
-              className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+              className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
             />
           </label>
           <label className="block">
@@ -181,21 +254,69 @@ export default function ServicosPage() {
               value={duracao}
               onChange={(e) => setDuracao(e.target.value.replace(/[^0-9]/g, ""))}
               inputMode="numeric"
-              className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+              className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
             />
           </label>
         </div>
 
+        {ehCombo && (
+          <div className="rounded-xl border border-cyan/30 bg-cyan/5 p-4">
+            <p className="font-body text-xs font-medium uppercase tracking-wide text-cyan-bright">
+              Serviços incluídos no combo
+            </p>
+            <p className="mt-1 font-body text-[11px] text-bone-dim">
+              Marque o que entra. Preço e duração são somados automaticamente — depois você
+              pode ajustar (pra dar desconto no combo, por exemplo).
+            </p>
+
+            {candidatosCombo.length === 0 ? (
+              <p className="mt-3 font-body text-xs text-muted">
+                Cadastre os serviços avulsos primeiro para poder montar um combo.
+              </p>
+            ) : (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {candidatosCombo.map((s) => {
+                  const marcado = incluidos.includes(s.id);
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => toggleIncluido(s)}
+                      className={`rounded-lg border px-3 py-1.5 font-body text-xs transition-colors ${
+                        marcado
+                          ? "border-cyan-bright bg-cyan-bright/15 text-cyan-bright"
+                          : "border-line-strong text-bone-dim hover:border-cyan/40"
+                      }`}
+                    >
+                      {marcado ? "✓ " : ""}
+                      {s.nome}
+                      <span className="ml-1.5 text-muted">{s.duracaoMin}min</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {incluidos.length > 0 && (
+              <p className="mt-3 font-body text-xs text-bone-dim">
+                Combo: {incluidos.map(nomeDoServico).join(" + ")}
+              </p>
+            )}
+          </div>
+        )}
+
         <button
           type="submit"
-          className="rounded-xl bg-gold-bright px-5 py-2.5 font-body text-sm font-semibold text-ink transition-transform hover:scale-[1.02]"
+          className={`rounded-xl px-5 py-2.5 font-body text-sm font-semibold text-ink transition-transform hover:scale-[1.02] ${
+            ehCombo ? "bg-cyan-bright" : "bg-gold-bright"
+          }`}
         >
-          Adicionar serviço
+          {ehCombo ? "Adicionar combo" : "Adicionar serviço"}
         </button>
       </form>
 
       {error && (
-        <p className="mt-3 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 font-body text-xs text-rose-300">
+        <p className="mt-3 rounded-lg border border-off-line bg-off-soft px-3 py-2 font-body text-xs text-off">
           {error}
         </p>
       )}
@@ -228,7 +349,7 @@ export default function ServicosPage() {
                         className="h-12 w-12 rounded-lg object-cover"
                       />
                     ) : (
-                      <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white/5 font-accent text-lg text-bone-dim">
+                      <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-bone/5 font-accent text-lg text-bone-dim">
                         {s.nome.charAt(0).toUpperCase()}
                       </span>
                     )}
@@ -237,6 +358,11 @@ export default function ServicosPage() {
                       <p className="font-body text-xs text-bone-dim">
                         {s.duracaoMin} min
                       </p>
+                      {s.servicosIncluidos && s.servicosIncluidos.length > 0 && (
+                        <p className="font-body text-[11px] text-cyan-bright">
+                          Inclui: {s.servicosIncluidos.map(nomeDoServico).filter(Boolean).join(" + ")}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -251,7 +377,7 @@ export default function ServicosPage() {
                     </button>
                     <button
                       onClick={() => excluir(s.id)}
-                      className="rounded-full border border-line-strong px-3 py-1 font-body text-xs text-bone-dim hover:border-rose-400/40 hover:text-rose-300"
+                      className="rounded-full border border-line-strong px-3 py-1 font-body text-xs text-bone-dim hover:border-off-line hover:text-off"
                     >
                       Excluir
                     </button>

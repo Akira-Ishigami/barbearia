@@ -104,7 +104,7 @@ export function ConcluirAtendimentoModal({
           </>
         )}
 
-        <div className="mt-6 rounded-xl border border-line bg-white/[0.02] p-4">
+        <div className="mt-6 rounded-xl border border-line bg-bone/[0.02] p-4">
           <div className="flex justify-between font-body text-sm text-bone-dim">
             <span>Serviço</span>
             <span>R$ {agendamento.preco.toFixed(2).replace(".", ",")}</span>

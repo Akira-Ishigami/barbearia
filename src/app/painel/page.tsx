@@ -13,9 +13,10 @@ import {
   logout,
 } from "@/lib/mock-db";
 import { ConcluirAtendimentoModal } from "@/components/ConcluirAtendimentoModal";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { toISODate } from "@/lib/date";
 import { useSession } from "@/lib/use-session";
-import type { Agendamento } from "@/lib/types";
+import { METODO_LABEL, type Agendamento } from "@/lib/types";
 
 const STATUS_LABEL: Record<Agendamento["status"], string> = {
   pendente: "Aguardando confirmação",
@@ -25,10 +26,10 @@ const STATUS_LABEL: Record<Agendamento["status"], string> = {
 };
 
 const STATUS_CLASS: Record<Agendamento["status"], string> = {
-  pendente: "bg-amber-400/10 text-amber-300",
-  confirmado: "bg-gold-bright/15 text-gold-bright",
-  concluido: "bg-white/5 text-muted",
-  cancelado: "bg-rose-500/10 text-rose-300",
+  pendente: "bg-warn-soft text-warn",
+  confirmado: "bg-ok-soft text-ok",
+  concluido: "bg-bone/5 text-muted",
+  cancelado: "bg-off-soft text-off",
 };
 
 export default function PainelPage() {
@@ -89,6 +90,9 @@ export default function PainelPage() {
           >
             Visitar site ↗
           </Link>
+          <div className="md:hidden">
+            <ThemeToggle compact />
+          </div>
           <button
             onClick={() => {
               logout();
@@ -115,8 +119,27 @@ export default function PainelPage() {
         ))}
       </div>
 
+      {!getBarbeariaById(session.barbeariaId)?.mercadoPago && (
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-warn-line bg-warn-soft p-5">
+          <div>
+            <p className="font-body text-sm font-semibold text-bone">
+              Você ainda não recebe pagamento online
+            </p>
+            <p className="mt-0.5 font-body text-xs text-bone-dim">
+              Conecte sua conta do Mercado Pago pra que o cliente já pague ao agendar.
+            </p>
+          </div>
+          <Link
+            href="/painel/pagamentos"
+            className="shrink-0 rounded-full bg-gold-bright px-5 py-2.5 font-body text-xs font-semibold text-ink transition-transform hover:scale-[1.03]"
+          >
+            Conectar Mercado Pago
+          </Link>
+        </div>
+      )}
+
       {pendentes.length > 0 && (
-        <div className="mt-8 rounded-2xl border border-amber-400/30 bg-amber-400/5 p-6">
+        <div className="mt-8 rounded-2xl border border-warn-line bg-warn-soft p-6">
           <p className="font-display text-lg font-semibold text-bone">
             Aguardando confirmação
           </p>
@@ -128,10 +151,10 @@ export default function PainelPage() {
             {pendentes.map((a) => (
               <div
                 key={a.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-400/20 bg-ink-elev/60 px-4 py-3"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warn-line bg-ink-elev px-4 py-3"
               >
                 <div className="flex items-center gap-4">
-                  <span className="font-accent text-sm text-amber-300">{a.hora}</span>
+                  <span className="font-accent text-sm text-warn">{a.hora}</span>
                   <div>
                     <p className="font-body text-sm text-bone">{a.clienteNome}</p>
                     <p className="font-body text-xs text-bone-dim">{a.servicoNome}</p>
@@ -146,7 +169,7 @@ export default function PainelPage() {
                   </button>
                   <button
                     onClick={() => handleCancelar(a.id)}
-                    className="rounded-full border border-line-strong px-4 py-1.5 font-body text-xs text-bone-dim hover:border-rose-400/40 hover:text-rose-300"
+                    className="rounded-full border border-line-strong px-4 py-1.5 font-body text-xs text-bone-dim hover:border-off-line hover:text-off"
                   >
                     Cancelar
                   </button>
@@ -173,7 +196,19 @@ export default function PainelPage() {
                 </span>
                 <div>
                   <p className="font-body text-sm text-bone">{a.clienteNome}</p>
-                  <p className="font-body text-xs text-bone-dim">{a.servicoNome}</p>
+                  <p className="font-body text-xs text-bone-dim">
+                    {a.servicoNome}
+                    {a.metodoPagamento && (
+                      <span className="ml-1.5 rounded bg-ok-soft px-1.5 py-0.5 font-body text-[10px] font-medium text-ok">
+                        {METODO_LABEL[a.metodoPagamento]}
+                      </span>
+                    )}
+                  </p>
+                  {a.produtosComprados && a.produtosComprados.length > 0 && (
+                    <p className="font-body text-[11px] text-cyan-bright">
+                      + {a.produtosComprados.map((p) => p.produtoNome).join(", ")}
+                    </p>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2">

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { formatPhone, isValidPhone } from "@/lib/format";
 import { getBarbeariaById, updateBarbearia } from "@/lib/mock-db";
 import { useSession } from "@/lib/use-session";
 import { WEEKDAYS, type Weekday } from "@/lib/types";
+
+const MAX_FOTO_BYTES = 1_500_000;
 
 export default function LocalizacaoPage() {
   const session = useSession();
@@ -18,8 +20,13 @@ export default function LocalizacaoPage() {
   const [dias, setDias] = useState<Weekday[]>([]);
   const [abertura, setAbertura] = useState("09:00");
   const [fechamento, setFechamento] = useState("20:00");
+  const [foto, setFoto] = useState<string | undefined>(undefined);
+  const [sobre, setSobre] = useState("");
+  const [galeria, setGaleria] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const galeriaInputRef = useRef<HTMLInputElement>(null);
 
   if (barbearia && !loaded) {
     setTelefone(barbearia.telefone);
@@ -28,11 +35,64 @@ export default function LocalizacaoPage() {
     setDias(barbearia.diasFuncionamento);
     setAbertura(barbearia.horarioAbertura);
     setFechamento(barbearia.horarioFechamento);
+    setFoto(barbearia.foto);
+    setSobre(barbearia.sobre ?? "");
+    setGaleria(barbearia.galeria ?? []);
     setLoaded(true);
   }
 
   if (!session || session.role !== "dono" || !barbearia) return null;
 
+  function handleFoto(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > MAX_FOTO_BYTES) {
+      setError("A foto precisa ter no máximo 1,5MB.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setError(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setFoto(reader.result as string);
+      setSaved(false);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleGaleria(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+
+    if (files.some((f) => f.size > MAX_FOTO_BYTES)) {
+      setError("Cada foto da galeria precisa ter no máximo 1,5MB.");
+      if (galeriaInputRef.current) galeriaInputRef.current.value = "";
+      return;
+    }
+
+    setError(null);
+    Promise.all(
+      files.map(
+        (file) =>
+          new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          }),
+      ),
+    ).then((novas) => {
+      setGaleria((atual) => [...atual, ...novas]);
+      setSaved(false);
+      if (galeriaInputRef.current) galeriaInputRef.current.value = "";
+    });
+  }
+
+  function removerDaGaleria(index: number) {
+    setGaleria((atual) => atual.filter((_, i) => i !== index));
+    setSaved(false);
+  }
 
   function toggleDia(dia: Weekday) {
     setDias((prev) =>
@@ -66,6 +126,9 @@ export default function LocalizacaoPage() {
       diasFuncionamento: dias,
       horarioAbertura: abertura,
       horarioFechamento: fechamento,
+      foto,
+      sobre: sobre.trim() || undefined,
+      galeria,
     });
     setSaved(true);
   }
@@ -109,6 +172,93 @@ export default function LocalizacaoPage() {
         onSubmit={handleSubmit}
         className="mt-6 max-w-xl space-y-5 rounded-2xl border border-line bg-ink-elev/60 p-6"
       >
+        <div>
+          <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
+            Foto de capa
+          </span>
+          <label className="flex h-28 w-full cursor-pointer items-center justify-center overflow-hidden rounded-xl border border-dashed border-line-strong bg-bone/[0.03] font-body text-xs text-muted hover:border-gold-bright/50">
+            {foto ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={foto} alt="" className="h-full w-full object-cover" />
+            ) : (
+              "Clique para escolher uma foto"
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFoto}
+              className="hidden"
+            />
+          </label>
+          {foto && (
+            <button
+              type="button"
+              onClick={() => {
+                setFoto(undefined);
+                setSaved(false);
+                if (fileInputRef.current) fileInputRef.current.value = "";
+              }}
+              className="mt-1.5 font-body text-[11px] text-off hover:underline"
+            >
+              remover foto
+            </button>
+          )}
+        </div>
+
+        <div>
+          <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
+            Fotos da barbearia
+          </span>
+          <p className="mb-2 font-body text-[11px] text-muted">
+            Aparecem na galeria da página pública — o espaço, as cadeiras, o ambiente.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {galeria.map((src, i) => (
+              <div key={i} className="group relative h-20 w-24 overflow-hidden rounded-xl border border-line">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt={`Foto ${i + 1}`} className="h-full w-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => removerDaGaleria(i)}
+                  aria-label={`Remover foto ${i + 1}`}
+                  className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 font-body text-xs text-white opacity-0 transition-opacity group-hover:opacity-100"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+            <label className="flex h-20 w-24 cursor-pointer items-center justify-center rounded-xl border border-dashed border-line-strong bg-bone/[0.03] font-body text-[11px] text-muted hover:border-gold-bright/50">
+              + Adicionar
+              <input
+                ref={galeriaInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleGaleria}
+                className="hidden"
+              />
+            </label>
+          </div>
+        </div>
+
+        <label className="block">
+          <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
+            Sobre a barbearia
+          </span>
+          <textarea
+            value={sobre}
+            onChange={(e) => {
+              setSobre(e.target.value);
+              setSaved(false);
+            }}
+            rows={3}
+            maxLength={280}
+            placeholder="Um texto curto contando a história ou o diferencial da barbearia."
+            className="w-full resize-none rounded-xl border border-line-strong bg-bone/[0.03] px-4 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+          />
+        </label>
+
         <label className="block">
           <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
             Telefone
@@ -122,7 +272,7 @@ export default function LocalizacaoPage() {
               setSaved(false);
             }}
             maxLength={15}
-            className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-4 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+            className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-4 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
           />
         </label>
 
@@ -136,7 +286,7 @@ export default function LocalizacaoPage() {
               setEndereco(e.target.value);
               setSaved(false);
             }}
-            className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-4 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+            className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-4 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
           />
         </label>
 
@@ -152,7 +302,7 @@ export default function LocalizacaoPage() {
                 setSaved(false);
               }}
               placeholder="https://maps.google.com/..."
-              className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-4 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+              className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-4 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
             />
             <button
               type="button"
@@ -199,7 +349,7 @@ export default function LocalizacaoPage() {
                 setAbertura(e.target.value);
                 setSaved(false);
               }}
-              className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-4 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+              className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-4 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
             />
           </label>
           <label className="block">
@@ -213,13 +363,13 @@ export default function LocalizacaoPage() {
                 setFechamento(e.target.value);
                 setSaved(false);
               }}
-              className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-4 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+              className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-4 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
             />
           </label>
         </div>
 
         {error && (
-          <p className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 font-body text-xs text-rose-300">
+          <p className="rounded-lg border border-off-line bg-off-soft px-3 py-2 font-body text-xs text-off">
             {error}
           </p>
         )}

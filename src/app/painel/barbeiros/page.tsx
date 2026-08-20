@@ -129,7 +129,7 @@ export default function BarbeirosPage() {
           onSubmit={handleSubmit}
           className="mt-6 space-y-4 rounded-2xl border border-line bg-ink-elev/60 p-6"
         >
-          <label className="flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed border-line-strong bg-white/[0.03] text-xs text-muted hover:border-gold-bright/50">
+          <label className="flex h-16 w-16 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-dashed border-line-strong bg-bone/[0.03] text-xs text-muted hover:border-gold-bright/50">
             {foto ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={foto} alt="" className="h-full w-full object-cover" />
@@ -151,7 +151,7 @@ export default function BarbeirosPage() {
                 setFoto(undefined);
                 if (fileInputRef.current) fileInputRef.current.value = "";
               }}
-              className="-mt-2 font-body text-[11px] text-rose-300 hover:underline"
+              className="-mt-2 font-body text-[11px] text-off hover:underline"
             >
               remover foto
             </button>
@@ -166,7 +166,7 @@ export default function BarbeirosPage() {
                 value={nome}
                 onChange={(e) => setNome(e.target.value)}
                 placeholder="Nome do barbeiro"
-                className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+                className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
               />
             </label>
             <label className="block">
@@ -178,7 +178,7 @@ export default function BarbeirosPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="barbeiro@email.com"
-                className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+                className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
               />
             </label>
             <label className="block">
@@ -190,7 +190,7 @@ export default function BarbeirosPage() {
                 value={senha}
                 onChange={(e) => setSenha(e.target.value)}
                 placeholder="Mín. 6 caracteres"
-                className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+                className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
               />
             </label>
             <label className="block">
@@ -201,7 +201,7 @@ export default function BarbeirosPage() {
                 value={especialidade}
                 onChange={(e) => setEspecialidade(e.target.value)}
                 placeholder="Degradê, navalhado..."
-                className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+                className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
               />
             </label>
           </div>
@@ -216,7 +216,7 @@ export default function BarbeirosPage() {
       )}
 
       {error && (
-        <p className="mt-3 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 py-2 font-body text-xs text-rose-300">
+        <p className="mt-3 rounded-lg border border-off-line bg-off-soft px-3 py-2 font-body text-xs text-off">
           {error}
         </p>
       )}
@@ -260,7 +260,7 @@ export default function BarbeirosPage() {
                 {b.usuarioId !== session.userId && (
                   <button
                     onClick={() => excluir(b.id)}
-                    className="rounded-full border border-line-strong px-3 py-1 font-body text-xs text-bone-dim hover:border-rose-400/40 hover:text-rose-300"
+                    className="rounded-full border border-line-strong px-3 py-1 font-body text-xs text-bone-dim hover:border-off-line hover:text-off"
                   >
                     Excluir
                   </button>

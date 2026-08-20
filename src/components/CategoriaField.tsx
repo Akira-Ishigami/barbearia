@@ -38,7 +38,7 @@ export function CategoriaField({
       <select
         value={selectValue}
         onChange={(e) => handleSelect(e.target.value)}
-        className="w-full rounded-xl border border-line-strong bg-white/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+        className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
       >
         {presets.map((p) => (
           <option key={p} value={p} className="bg-ink-elev">
@@ -55,7 +55,7 @@ export function CategoriaField({
           onChange={(e) => onChange(e.target.value)}
           placeholder="Nome da categoria"
           autoFocus
-          className="mt-2 w-full rounded-xl border border-line-strong bg-white/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
+          className="mt-2 w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
         />
       )}
     </label>

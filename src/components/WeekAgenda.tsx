@@ -15,9 +15,9 @@ import { WEEKDAYS } from "@/lib/types";
 import type { Agendamento, Barbearia, BarbeiroPerfil } from "@/lib/types";
 
 const STATUS_DOT: Record<Agendamento["status"], string> = {
-  pendente: "border-amber-400/50 bg-amber-400/15 text-amber-200",
+  pendente: "border-warn-line bg-warn-soft text-warn",
   confirmado: "",
-  concluido: "border-line-strong bg-white/5 text-muted",
+  concluido: "border-line-strong bg-bone/5 text-muted",
   cancelado: "",
 };
 
@@ -162,7 +162,7 @@ export function WeekAgenda({
                             <button
                               onClick={() => onCancelar(a.id)}
                               title="Cancelar"
-                              className="flex h-5 w-5 items-center justify-center rounded border border-line-strong text-[10px] text-bone-dim hover:border-rose-400/40 hover:text-rose-300"
+                              className="flex h-5 w-5 items-center justify-center rounded border border-line-strong text-[10px] text-bone-dim hover:border-off-line hover:text-off"
                             >
                               ✕
                             </button>
