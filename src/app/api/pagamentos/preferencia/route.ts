@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { appUrl, criarPreferencia, renovarToken } from "@/lib/mercadopago";
 import { supabaseAdmin, supabaseConfigurado } from "@/lib/supabase";
+import { validarProdutos, validarServicos } from "@/lib/pedido-server";
 
 /**
  * Agendamento pago online: o CLIENTE paga a BARBEARIA.
@@ -19,8 +20,8 @@ interface Corpo {
   cliente: { nome: string; telefone: string; email: string };
   data: string;
   horaInicio: string;
-  servicos: { nome: string; preco: number; duracaoMin: number; hora: string }[];
-  produtos: { produtoId: string; nome: string; preco: number; quantidade: number }[];
+  servicos: { servicoId: string; hora: string }[];
+  produtos: { produtoId: string; quantidade: number }[];
 }
 
 export async function POST(request: NextRequest) {
@@ -79,8 +80,19 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const totalServicos = corpo.servicos.reduce((s, x) => s + x.preco, 0);
-  const totalProdutos = corpo.produtos.reduce((s, p) => s + p.preco * p.quantidade, 0);
+  const validacaoServicos = await validarServicos(db, corpo.barbeariaId, corpo.servicos);
+  if (!validacaoServicos.ok) {
+    return NextResponse.json({ erro: validacaoServicos.error }, { status: 400 });
+  }
+  const validacaoProdutos = await validarProdutos(db, corpo.barbeariaId, corpo.produtos ?? []);
+  if (!validacaoProdutos.ok) {
+    return NextResponse.json({ erro: validacaoProdutos.error }, { status: 400 });
+  }
+  const servicos = validacaoServicos.servicos;
+  const produtos = validacaoProdutos.produtos;
+
+  const totalServicos = servicos.reduce((s, x) => s + x.preco, 0);
+  const totalProdutos = produtos.reduce((s, p) => s + p.preco * p.quantidade, 0);
   const total = totalServicos + totalProdutos;
 
   // 2. pedido
@@ -107,7 +119,7 @@ export async function POST(request: NextRequest) {
 
   // 3. agendamentos — o índice único derruba aqui se o horário foi tomado
   const { error: erroAgenda } = await db.from("agendamentos").insert(
-    corpo.servicos.map((s) => ({
+    servicos.map((s) => ({
       barbearia_id: corpo.barbeariaId,
       barbeiro_id: corpo.barbeiroId,
       pedido_id: pedido.id,
@@ -133,11 +145,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (corpo.produtos.length) {
+  if (produtos.length) {
     await db.from("pedido_produtos").insert(
-      corpo.produtos.map((p) => ({
+      produtos.map((p) => ({
         pedido_id: pedido.id,
-        produto_id: p.produtoId,
+        produto_id: p.id,
         produto_nome: p.nome,
         quantidade: p.quantidade,
         preco: p.preco,
@@ -153,8 +165,8 @@ export async function POST(request: NextRequest) {
     const preferencia = await criarPreferencia({
       accessToken,
       items: [
-        ...corpo.servicos.map((s) => ({ title: s.nome, quantity: 1, unit_price: s.preco })),
-        ...corpo.produtos.map((p) => ({
+        ...servicos.map((s) => ({ title: s.nome, quantity: 1, unit_price: s.preco })),
+        ...produtos.map((p) => ({
           title: p.nome,
           quantity: p.quantidade,
           unit_price: p.preco,

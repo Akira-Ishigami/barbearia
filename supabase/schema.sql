@@ -298,6 +298,12 @@ create policy "equipe le itens do pedido" on pedido_produtos
 -- ---------- Baixa de estoque em uma tacada ----------
 -- Evita ler-somar-gravar do lado do app, que perde venda quando dois
 -- atendimentos são fechados ao mesmo tempo.
+--
+-- `security definer` roda com privilégio elevado e ignora RLS das tabelas
+-- que toca — por isso a função PRECISA checar sozinha que quem está
+-- chamando é da própria barbearia. Sem o `if p_barbearia <> minha_barbearia()`
+-- abaixo, qualquer dono/barbeiro autenticado (de QUALQUER barbearia)
+-- conseguiria zerar o estoque de um concorrente só sabendo o id dele.
 create or replace function public.movimentar_estoque(
   p_barbearia uuid,
   p_produto uuid,
@@ -315,6 +321,10 @@ declare
   v_nome text;
   v_novo int;
 begin
+  if p_barbearia is distinct from public.minha_barbearia() then
+    raise exception 'Sem permissão pra mexer no estoque dessa barbearia.';
+  end if;
+
   update produtos
      set estoque = estoque + v_delta
    where id = p_produto and barbearia_id = p_barbearia

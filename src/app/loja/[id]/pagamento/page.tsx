@@ -104,8 +104,11 @@ function PagamentoConteudo() {
   const horaFim = addMinutes(agendamento!.horaInicio, blocos * SLOT_MIN);
 
   // Cada serviço começa quando o anterior termina.
+  // Preço/nome/duração não vão no corpo — o servidor busca isso no banco
+  // pelo servicoId, pra ninguém conseguir editar o pedido no devtools e
+  // pagar menos do que o serviço custa de verdade.
   const servicosComHora = servicos.reduce<
-    { nome: string; preco: number; duracaoMin: number; hora: string }[]
+    { servicoId: string; hora: string; duracaoMin: number }[]
   >((lista, s) => {
     const hora =
       lista.length === 0
@@ -114,7 +117,7 @@ function PagamentoConteudo() {
             lista[lista.length - 1].hora,
             slotsDe(lista[lista.length - 1].duracaoMin) * SLOT_MIN,
           );
-    return [...lista, { nome: s.nome, preco: s.preco, duracaoMin: s.duracaoMin, hora }];
+    return [...lista, { servicoId: s.servicoId, duracaoMin: s.duracaoMin, hora }];
   }, []);
 
   const corpoPedido = {
@@ -123,11 +126,9 @@ function PagamentoConteudo() {
     cliente: cliente!,
     data: agendamento!.data,
     horaInicio: agendamento!.horaInicio,
-    servicos: servicosComHora,
+    servicos: servicosComHora.map(({ servicoId, hora }) => ({ servicoId, hora })),
     produtos: produtos.map((p) => ({
       produtoId: p.produtoId,
-      nome: p.nome,
-      preco: p.preco,
       quantidade: p.quantidade,
     })),
   };

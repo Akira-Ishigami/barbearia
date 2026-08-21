@@ -5,6 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { useSession } from "@/lib/use-session";
 import { useAsync } from "@/lib/use-async";
+import { cabecalhosAutenticados } from "@/lib/db";
+import { useState } from "react";
 
 interface Conta {
   apelido: string;
@@ -52,6 +54,9 @@ function PagamentosConteudo() {
     { pular: !dono },
   );
 
+  const [conectando, setConectando] = useState(false);
+  const [erroConexao, setErroConexao] = useState<string | null>(null);
+
   if (!session || !dono) return null;
 
   const conta = dados?.conta ?? null;
@@ -59,8 +64,33 @@ function PagamentosConteudo() {
   const pronto = dados?.oauthConfigurado && dados?.bancoConfigurado;
 
   async function desconectar() {
-    await fetch(`/api/mp/desconectar?barbearia=${session!.barbeariaId}`, { method: "POST" });
+    await fetch("/api/mp/desconectar", {
+      method: "POST",
+      headers: await cabecalhosAutenticados(),
+    });
     recarregar();
+  }
+
+  async function conectar() {
+    setErroConexao(null);
+    setConectando(true);
+    try {
+      const resposta = await fetch("/api/mp/conectar", {
+        headers: await cabecalhosAutenticados(),
+      });
+      const corpo = await resposta.json().catch(() => ({}));
+      if (!resposta.ok || !corpo.url) {
+        setErroConexao(corpo.erro ?? "Não foi possível iniciar a conexão.");
+        setConectando(false);
+        return;
+      }
+      // Navegação de página inteira de propósito: o Mercado Pago precisa
+      // carregar a própria tela de login na aba do usuário.
+      window.location.href = corpo.url;
+    } catch {
+      setErroConexao("Não foi possível iniciar a conexão.");
+      setConectando(false);
+    }
   }
 
   return (
@@ -166,17 +196,19 @@ function PagamentosConteudo() {
             <strong className="text-bone">pagar no local</strong> — e você precisa confirmar
             cada agendamento na mão.
           </p>
-          {/* Link comum (não fetch): o Mercado Pago precisa carregar a própria
-              tela de login na aba do usuário. */}
-          <a
-            href={`/api/mp/conectar?barbearia=${session.barbeariaId}`}
-            className="mt-5 inline-block rounded-full bg-gold-bright px-6 py-3 font-body text-sm font-semibold text-ink transition-transform hover:scale-[1.02]"
+          <button
+            onClick={conectar}
+            disabled={conectando}
+            className="mt-5 inline-block rounded-full bg-gold-bright px-6 py-3 font-body text-sm font-semibold text-ink transition-transform hover:scale-[1.02] disabled:opacity-60"
           >
-            Conectar com Mercado Pago
-          </a>
+            {conectando ? "Abrindo o Mercado Pago…" : "Conectar com Mercado Pago"}
+          </button>
           <p className="mt-3 font-body text-xs text-muted">
             Você vai para o site do Mercado Pago, autoriza e volta pra cá.
           </p>
+          {erroConexao && (
+            <p className="mt-3 font-body text-xs text-off">{erroConexao}</p>
+          )}
         </div>
       )}
 

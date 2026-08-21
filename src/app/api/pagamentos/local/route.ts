@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseAdmin, supabaseConfigurado } from "@/lib/supabase";
+import { validarProdutos, validarServicos } from "@/lib/pedido-server";
 
 /**
  * Agendamento pago no balcão — não passa pelo Mercado Pago.
@@ -13,8 +14,8 @@ interface Corpo {
   barbeiroId: string;
   cliente: { nome: string; telefone: string; email: string };
   data: string;
-  servicos: { nome: string; preco: number; duracaoMin: number; hora: string }[];
-  produtos: { produtoId: string; nome: string; preco: number; quantidade: number }[];
+  servicos: { servicoId: string; hora: string }[];
+  produtos: { produtoId: string; quantidade: number }[];
 }
 
 export async function POST(request: NextRequest) {
@@ -50,9 +51,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ erro: "Profissional inválido." }, { status: 400 });
   }
 
+  // Preço, nome e duração vêm do banco, nunca do corpo da requisição — o
+  // navegador só manda quais ids e em que horário.
+  const validacaoServicos = await validarServicos(db, c.barbeariaId, c.servicos);
+  if (!validacaoServicos.ok) {
+    return NextResponse.json({ erro: validacaoServicos.error }, { status: 400 });
+  }
+  const validacaoProdutos = await validarProdutos(db, c.barbeariaId, c.produtos ?? []);
+  if (!validacaoProdutos.ok) {
+    return NextResponse.json({ erro: validacaoProdutos.error }, { status: 400 });
+  }
+  const servicos = validacaoServicos.servicos;
+  const produtos = validacaoProdutos.produtos;
+
   const total =
-    c.servicos.reduce((s, x) => s + x.preco, 0) +
-    c.produtos.reduce((s, p) => s + p.preco * p.quantidade, 0);
+    servicos.reduce((s, x) => s + x.preco, 0) +
+    produtos.reduce((s, p) => s + p.preco * p.quantidade, 0);
 
   const { data: pedido, error: erroPedido } = await db
     .from("pedidos")
@@ -76,7 +90,7 @@ export async function POST(request: NextRequest) {
   }
 
   const { error: erroAgenda } = await db.from("agendamentos").insert(
-    c.servicos.map((s) => ({
+    servicos.map((s) => ({
       barbearia_id: c.barbeariaId,
       barbeiro_id: c.barbeiroId,
       pedido_id: pedido.id,
@@ -98,11 +112,11 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (c.produtos.length) {
+  if (produtos.length) {
     await db.from("pedido_produtos").insert(
-      c.produtos.map((p) => ({
+      produtos.map((p) => ({
         pedido_id: pedido.id,
-        produto_id: p.produtoId,
+        produto_id: p.id,
         produto_nome: p.nome,
         quantidade: p.quantidade,
         preco: p.preco,

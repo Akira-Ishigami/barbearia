@@ -30,7 +30,7 @@ function erro(e: { message: string } | null): void {
  * Cabeçalhos pras rotas de API que exigem login. O token do Supabase Auth
  * é o que prova quem está chamando — a rota não confia em id vindo no corpo.
  */
-async function cabecalhosAutenticados(): Promise<HeadersInit> {
+export async function cabecalhosAutenticados(): Promise<HeadersInit> {
   const { data } = await supabase().auth.getSession();
   return {
     "Content-Type": "application/json",
@@ -377,8 +377,8 @@ export async function criarPedidoLocal(input: {
   barbeiroId: string;
   cliente: { nome: string; telefone: string; email: string };
   data: string;
-  servicos: { nome: string; preco: number; duracaoMin: number; hora: string }[];
-  produtos: { produtoId: string; nome: string; preco: number; quantidade: number }[];
+  servicos: { servicoId: string; hora: string }[];
+  produtos: { produtoId: string; quantidade: number }[];
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const resposta = await fetch("/api/pagamentos/local", {
     method: "POST",
