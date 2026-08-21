@@ -117,8 +117,13 @@ export async function POST(request: NextRequest) {
       const pagamentoBruto = await buscarPagamento(String(paymentId), tokenNavalha);
       const ref = pagamentoBruto.external_reference ?? "";
 
-      // Assinatura da Navalha não tem pedido no banco — nada a atualizar.
+      // Assinatura da Navalha: formato "assinatura:<barbeariaId>". Se aprovada,
+      // libera a barbearia por +30 dias.
       if (ref.startsWith("assinatura:")) {
+        const assinaturaBarbearia = ref.split(":")[1];
+        if (pagamentoBruto.status === "approved" && assinaturaBarbearia) {
+          await db.rpc("marcar_assinatura_paga", { p_barbearia: assinaturaBarbearia });
+        }
         return NextResponse.json({ ok: true, tipo: "assinatura", status: pagamentoBruto.status });
       }
 

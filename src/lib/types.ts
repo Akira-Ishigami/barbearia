@@ -44,6 +44,10 @@ export interface Barbearia {
   plano: PlanId;
   linkMaps?: string;
   criadaEm: string;
+  /** Assinatura do sistema: 'trial' | 'ativa' | 'vencida'. */
+  assinaturaStatus?: "trial" | "ativa" | "vencida";
+  trialTerminaEm?: string | null;
+  assinaturaAte?: string | null;
   /** Foto de capa exibida no topo da página pública. */
   foto?: string;
   /** Texto curto de apresentação, exibido junto da foto de capa. */

@@ -10,12 +10,15 @@ import {
   getAgendamentos,
   getBarbearia,
   getProdutos,
+  statusAssinaturaEfetivo,
 } from "@/lib/db";
 import { ConcluirAtendimentoModal } from "@/components/ConcluirAtendimentoModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { AvisoAssinatura } from "@/components/AvisoAssinatura";
 import { toISODate } from "@/lib/date";
 import { sair, useSession } from "@/lib/use-session";
 import { useAsync } from "@/lib/use-async";
+import { getPlan } from "@/lib/plans";
 import { METODO_LABEL, type Agendamento } from "@/lib/types";
 
 const STATUS_LABEL: Record<Agendamento["status"], string> = {
@@ -88,8 +91,22 @@ export default function PainelPage() {
     recarregar();
   }
 
+  const plano = getPlan(barbearia?.plano);
+
   return (
     <div>
+      {barbearia && (
+        <AvisoAssinatura
+          status={{
+            status: statusAssinaturaEfetivo(barbearia),
+            trialTerminaEm: barbearia.trialTerminaEm ?? null,
+            assinaturaAte: barbearia.assinaturaAte ?? null,
+            planoNome: plano.name,
+            planoValor: plano.valor,
+          }}
+        />
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <p className="font-accent text-xs uppercase tracking-[0.2em] text-gold-bright">

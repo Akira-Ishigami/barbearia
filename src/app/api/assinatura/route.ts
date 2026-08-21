@@ -1,11 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { appUrl, criarPreferencia, mpAssinaturaConfigurada } from "@/lib/mercadopago";
+import { autenticar } from "@/lib/auth-api";
+import { supabaseAdmin } from "@/lib/supabase";
 import { getPlan } from "@/lib/plans";
 
 /**
  * Assinatura do sistema: a BARBEARIA paga a NAVALHA.
- * Aqui usamos a conta do Mercado Pago da própria Navalha (MP_ACCESS_TOKEN),
- * diferente do agendamento, que usa a conta de cada barbearia.
+ * Usa a conta do Mercado Pago da própria Navalha (MP_ACCESS_TOKEN).
+ *
+ * Exige login: quem paga é o dono, pela própria barbearia. O
+ * external_reference leva o id da barbearia pra o webhook liberar a conta
+ * certa quando o pagamento cair.
  */
 export async function POST(request: NextRequest) {
   if (!mpAssinaturaConfigurada()) {
@@ -18,14 +23,21 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  let corpo: { plano?: string; email?: string; nome?: string };
-  try {
-    corpo = await request.json();
-  } catch {
-    return NextResponse.json({ erro: "Corpo inválido." }, { status: 400 });
+  const quem = await autenticar(request);
+  if (!quem) return NextResponse.json({ erro: "Não autenticado." }, { status: 401 });
+  if (quem.role !== "dono") {
+    return NextResponse.json({ erro: "Só o dono assina o plano." }, { status: 403 });
   }
 
-  const plano = getPlan(corpo.plano);
+  // O plano vem da barbearia no banco, não do corpo — senão dava pra pagar o
+  // Básico e destravar como Pro.
+  const { data: barbearia } = await supabaseAdmin()
+    .from("barbearias")
+    .select("plano")
+    .eq("id", quem.barbeariaId)
+    .maybeSingle();
+
+  const plano = getPlan(barbearia?.plano);
   const base = appUrl(request);
 
   try {
@@ -38,18 +50,17 @@ export async function POST(request: NextRequest) {
           unit_price: plano.valor,
         },
       ],
-      externalReference: `assinatura:${plano.id}:${corpo.email ?? "sem-email"}`,
+      externalReference: `assinatura:${quem.barbeariaId}`,
       backUrls: {
-        success: `${base}/cadastro?assinatura=ok&plano=${plano.id}`,
-        pending: `${base}/cadastro?assinatura=pendente&plano=${plano.id}`,
-        failure: `${base}/cadastro?assinatura=falhou&plano=${plano.id}`,
+        success: `${base}/painel?assinatura=ok`,
+        pending: `${base}/painel?assinatura=pendente`,
+        failure: `${base}/painel?assinatura=falhou`,
       },
       notificationUrl: `${base}/api/mp/webhook`,
-      pagador: { name: corpo.nome, email: corpo.email },
       parcelasMax: 1,
     });
 
-    return NextResponse.json({ url: preferencia.init_point, preferenciaId: preferencia.id });
+    return NextResponse.json({ url: preferencia.init_point });
   } catch (e) {
     return NextResponse.json(
       { erro: e instanceof Error ? e.message : "Falha ao criar a cobrança." },

@@ -1,5 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseAdmin, supabaseConfigurado } from "@/lib/supabase";
+import { ipDoPedido, limparExpirados, rateLimit } from "@/lib/rate-limit";
+
+// Cadastro é aberto (não exige login) e caro: cria conta Auth + barbearia +
+// usuário + barbeiro. Sem teto, um bot enche o banco e a cota do Supabase.
+const MAX_CADASTROS = 5;
+const JANELA_MS = 60 * 60 * 1000; // 1 hora
 
 /**
  * Cadastro de uma barbearia nova + a conta do dono.
@@ -12,6 +18,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { erro: "Banco não configurado. Veja o SETUP.md." },
       { status: 503 },
+    );
+  }
+
+  limparExpirados();
+  const limite = rateLimit(`cadastro:${ipDoPedido(request)}`, MAX_CADASTROS, JANELA_MS);
+  if (!limite.ok) {
+    return NextResponse.json(
+      { erro: "Muitas tentativas. Tente de novo mais tarde." },
+      { status: 429, headers: { "Retry-After": String(limite.esperaS) } },
     );
   }
 

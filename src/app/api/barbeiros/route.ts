@@ -37,6 +37,11 @@ export async function POST(request: NextRequest) {
   if (senha.length < 6) {
     return NextResponse.json({ erro: "A senha precisa ter ao menos 6 caracteres." }, { status: 400 });
   }
+  // ~2MB em base64. A foto vem do navegador; sem teto do lado do servidor,
+  // uma imagem enorme inflaria a linha no banco.
+  if (corpo.foto && corpo.foto.length > 3_000_000) {
+    return NextResponse.json({ erro: "A foto é muito grande." }, { status: 413 });
+  }
 
   const db = supabaseAdmin();
 

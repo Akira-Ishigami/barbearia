@@ -21,8 +21,20 @@ create table if not exists barbearias (
   foto                text,
   sobre               text,
   galeria             text[]      not null default '{}',
+  -- Assinatura do sistema (a barbearia paga a Navalha).
+  --   'trial'   → nos 7 dias grátis
+  --   'ativa'   → pagou, em dia
+  --   'vencida' → trial acabou ou pagamento não veio
+  assinatura_status   text        not null default 'trial',
+  trial_termina_em    timestamptz not null default (now() + interval '7 days'),
+  assinatura_ate      timestamptz,          -- até quando está pago
   criada_em           timestamptz not null default now()
 );
+
+-- Para bancos já criados antes destes campos (roda sem erro se já existirem):
+alter table barbearias add column if not exists assinatura_status text not null default 'trial';
+alter table barbearias add column if not exists trial_termina_em timestamptz not null default (now() + interval '7 days');
+alter table barbearias add column if not exists assinatura_ate timestamptz;
 
 -- ---------- Conta Mercado Pago de cada barbearia ----------
 -- Fica em tabela separada porque é o dado mais sensível do sistema:
@@ -340,3 +352,40 @@ begin
   insert into movimentos_estoque (barbearia_id, produto_id, produto_nome, tipo, quantidade, motivo)
   values (p_barbearia, p_produto, v_nome, p_tipo, p_quantidade, p_motivo);
 end $$;
+
+-- ============================================================
+-- Assinatura: trial de 7 dias, depois cobra
+-- ============================================================
+
+-- Barbearia tem acesso liberado? (trial em dia OU assinatura paga em dia)
+create or replace function public.assinatura_ativa(p_barbearia uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when b.assinatura_status = 'ativa' and (b.assinatura_ate is null or b.assinatura_ate > now())
+      then true
+    when b.assinatura_status = 'trial' and b.trial_termina_em > now()
+      then true
+    else false
+  end
+  from barbearias b
+  where b.id = p_barbearia
+$$;
+
+-- Marca a assinatura como paga por +30 dias. Chamada só pelo service role
+-- (webhook), então não checa RLS — o id vem do external_reference validado.
+create or replace function public.marcar_assinatura_paga(p_barbearia uuid)
+returns void
+language sql
+security definer
+set search_path = public
+as $$
+  update barbearias
+     set assinatura_status = 'ativa',
+         assinatura_ate = greatest(coalesce(assinatura_ate, now()), now()) + interval '30 days'
+   where id = p_barbearia
+$$;

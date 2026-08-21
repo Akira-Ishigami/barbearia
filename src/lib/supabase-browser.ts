@@ -29,6 +29,15 @@ export function supabase(): SupabaseClient {
     );
   }
 
-  cache = createClient(url, anon);
+  cache = createClient(url, anon, {
+    auth: {
+      // Mantém o login salvo entre visitas e renova o token sozinho antes de
+      // vencer — sem isso a sessão "cai" e o dono precisa logar de novo toda
+      // hora. Chave fixa pra não conflitar com outro app no mesmo domínio.
+      persistSession: true,
+      autoRefreshToken: true,
+      storageKey: "navalha-auth",
+    },
+  });
   return cache;
 }

@@ -57,7 +57,27 @@ function paraBarbearia(l: LinhaBarbearia): Barbearia {
     sobre: (l.sobre as string) ?? undefined,
     galeria: (l.galeria ?? []) as string[],
     criadaEm: l.criada_em as string,
+    assinaturaStatus: (l.assinatura_status as Barbearia["assinaturaStatus"]) ?? "trial",
+    trialTerminaEm: (l.trial_termina_em as string) ?? null,
+    assinaturaAte: (l.assinatura_ate as string) ?? null,
   };
+}
+
+/**
+ * Deriva o status "de verdade" da assinatura, aplicando o vencimento — o
+ * banco só muda o campo quando algo acontece, então um trial que passou da
+ * data ainda aparece como 'trial' na linha. Aqui isso vira 'vencida'.
+ */
+export function statusAssinaturaEfetivo(b: Barbearia): "trial" | "ativa" | "vencida" {
+  const agora = Date.now();
+  if (b.assinaturaStatus === "ativa") {
+    if (!b.assinaturaAte || new Date(b.assinaturaAte).getTime() > agora) return "ativa";
+    return "vencida";
+  }
+  if (b.assinaturaStatus === "trial" && b.trialTerminaEm) {
+    return new Date(b.trialTerminaEm).getTime() > agora ? "trial" : "vencida";
+  }
+  return "vencida";
 }
 
 export async function getBarbearia(id: string): Promise<Barbearia | undefined> {
