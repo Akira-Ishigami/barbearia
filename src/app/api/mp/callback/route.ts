@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { appUrl, trocarCodePorToken } from "@/lib/mercadopago";
+import { appUrl, buscarUsuario, trocarCodePorToken } from "@/lib/mercadopago";
 import { supabaseAdmin, supabaseConfigurado } from "@/lib/supabase";
 import { conferirState } from "@/lib/mp-state";
 
@@ -14,13 +14,17 @@ export async function GET(request: NextRequest) {
   const code = params.get("code");
   const state = params.get("state");
   const erroMP = params.get("error");
+  const descricaoMP = params.get("error_description");
 
   const origem = appUrl(request);
   const voltarPara = (query: string) =>
     NextResponse.redirect(`${origem}/painel/pagamentos?${query}`);
 
   if (erroMP) {
-    return voltarPara(`mp=erro&motivo=${encodeURIComponent(erroMP)}`);
+    // O MP manda `error_description` com o motivo real (ex.: redirect_uri
+    // não cadastrada). Sem repassar, o dono só via "erro" e ficava perdido.
+    const motivo = descricaoMP || erroMP;
+    return voltarPara(`mp=erro&motivo=${encodeURIComponent(motivo)}`);
   }
   if (!code || !state) {
     return voltarPara("mp=erro&motivo=resposta-incompleta");
@@ -39,12 +43,16 @@ export async function GET(request: NextRequest) {
     const tokens = await trocarCodePorToken(code, origem);
     const expiraEm = new Date(Date.now() + tokens.expires_in * 1000).toISOString();
 
+    // Identifica a conta que autorizou, pra o painel mostrar QUAL foi.
+    const usuario = await buscarUsuario(tokens.access_token);
+
     const { error } = await supabaseAdmin()
       .from("mp_contas")
       .upsert(
         {
           barbearia_id: barbeariaId,
           mp_user_id: String(tokens.user_id),
+          apelido: usuario?.nome || usuario?.nickname || "",
           access_token: tokens.access_token,
           refresh_token: tokens.refresh_token,
           public_key: tokens.public_key ?? "",

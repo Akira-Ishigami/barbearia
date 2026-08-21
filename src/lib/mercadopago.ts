@@ -107,6 +107,43 @@ export function renovarToken(refreshToken: string) {
   return chamarOAuth({ grant_type: "refresh_token", refresh_token: refreshToken });
 }
 
+export interface UsuarioMP {
+  /** Como a conta se identifica — apelido do Mercado Livre, ex. "BARBEARIADOZE". */
+  nickname: string;
+  email: string;
+  nome: string;
+  /** false quando a conta ainda é de testes (credencial TEST-). */
+  producao: boolean;
+}
+
+/**
+ * Lê os dados da conta que acabou de autorizar.
+ *
+ * Serve pra mostrar no painel QUAL conta foi conectada — sem isso o dono
+ * que tem mais de uma conta no Mercado Pago não tem como saber se
+ * autorizou a certa.
+ */
+export async function buscarUsuario(accessToken: string): Promise<UsuarioMP | null> {
+  try {
+    const resposta = await fetch("https://api.mercadopago.com/users/me", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!resposta.ok) return null;
+
+    const d = await resposta.json();
+    const nome = [d.first_name, d.last_name].filter(Boolean).join(" ").trim();
+    return {
+      nickname: d.nickname ?? "",
+      email: d.email ?? "",
+      nome: nome || d.nickname || "",
+      producao: d.site_status === "active",
+    };
+  } catch {
+    // Conta conectada é o que importa; o apelido é enfeite.
+    return null;
+  }
+}
+
 export interface ItemPreferencia {
   title: string;
   quantity: number;

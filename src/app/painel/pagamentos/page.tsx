@@ -39,6 +39,28 @@ const MOTIVOS: Record<string, string> = {
   access_denied: "Você cancelou a autorização no Mercado Pago.",
 };
 
+/**
+ * O Mercado Pago devolve o motivo em inglês e em jargão técnico. Traduzimos
+ * os casos comuns pra o dono saber o que fazer — principalmente o de
+ * redirect_uri, que é erro de configuração do app, não culpa dele.
+ */
+function explicarMotivo(motivo: string | null): string | null {
+  if (!motivo) return null;
+  if (MOTIVOS[motivo]) return MOTIVOS[motivo];
+
+  const m = motivo.toLowerCase();
+  if (m.includes("redirect_uri") || m.includes("redirect uri")) {
+    return "A aplicação da Navalha ainda não está liberada pra conectar contas. Avise o suporte — não é problema da sua conta.";
+  }
+  if (m.includes("invalid_client") || m.includes("client_id")) {
+    return "As credenciais da Navalha no Mercado Pago estão inválidas. Avise o suporte.";
+  }
+  if (m.includes("invalid_grant") || m.includes("expired")) {
+    return "A autorização expirou no meio do caminho. Clique em conectar e tente de novo.";
+  }
+  return `Não foi possível conectar: ${motivo}`;
+}
+
 function PagamentosConteudo() {
   const session = useSession();
   const params = useSearchParams();
@@ -113,7 +135,7 @@ function PagamentosConteudo() {
       )}
       {resultado === "erro" && (
         <p className="mt-6 max-w-2xl rounded-xl border border-off-line bg-off-soft px-4 py-3 font-body text-sm text-off">
-          {MOTIVOS[motivo ?? ""] ?? `Não foi possível conectar${motivo ? `: ${motivo}` : "."}`}
+          {explicarMotivo(motivo) ?? "Não foi possível conectar."}
         </p>
       )}
 

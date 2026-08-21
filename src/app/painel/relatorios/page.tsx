@@ -186,13 +186,15 @@ export default function RelatoriosPage() {
           ))}
         </div>
 
-        <div className="mt-6 overflow-hidden rounded-2xl border border-line bg-ink-elev/60">
+        <div className="mt-6 overflow-x-auto rounded-2xl border border-line bg-ink-elev/60">
           {produtos.length === 0 ? (
             <p className="px-5 py-8 text-center font-body text-sm text-bone-dim">
               Nenhum produto cadastrado ainda.
             </p>
           ) : (
-            <table className="w-full text-left">
+            // min-w garante que as 4 colunas não se espremam a ponto de
+            // ficar ilegível no celular — nesse caso a tabela rola de lado.
+            <table className="w-full min-w-[34rem] text-left">
               <thead>
                 <tr className="border-b border-line font-body text-xs uppercase tracking-wide text-muted">
                   <th className="px-5 py-3 font-medium">Produto</th>

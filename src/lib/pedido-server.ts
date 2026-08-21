@@ -61,6 +61,13 @@ export async function validarProdutos(
   barbeariaId: string,
   itens: { produtoId: string; quantidade: number }[],
 ): Promise<{ ok: true; produtos: ProdutoValidado[] } | { ok: false; error: string }> {
+  // Quantidade inválida é recusada, não ignorada em silêncio: se o corpo
+  // veio adulterado, é melhor o pedido falhar do que criar um pedido
+  // diferente do que a pessoa viu na tela.
+  if (itens.some((i) => !Number.isInteger(i.quantidade) || i.quantidade < 0)) {
+    return { ok: false, error: "Quantidade de produto inválida." };
+  }
+
   const validos = itens.filter((i) => i.quantidade > 0);
   if (!validos.length) return { ok: true, produtos: [] };
 
