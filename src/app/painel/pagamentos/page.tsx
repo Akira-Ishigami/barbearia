@@ -102,7 +102,12 @@ function PagamentosConteudo() {
       });
       const corpo = await resposta.json().catch(() => ({}));
       if (!resposta.ok || !corpo.url) {
-        setErroConexao(corpo.erro ?? "Não foi possível iniciar a conexão.");
+        // `comoResolver` diz o que fazer; sem ele a mensagem fica só no
+        // "não deu certo" e a pessoa trava.
+        setErroConexao(
+          [corpo.erro, corpo.comoResolver].filter(Boolean).join(" ") ||
+            "Não foi possível iniciar a conexão.",
+        );
         setConectando(false);
         return;
       }
@@ -229,7 +234,9 @@ function PagamentosConteudo() {
             Você vai para o site do Mercado Pago, autoriza e volta pra cá.
           </p>
           {erroConexao && (
-            <p className="mt-3 font-body text-xs text-off">{erroConexao}</p>
+            <p className="mt-3 rounded-lg border border-off-line bg-off-soft px-3 py-2 font-body text-xs text-off">
+              {erroConexao}
+            </p>
           )}
         </div>
       )}

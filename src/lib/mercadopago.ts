@@ -42,12 +42,25 @@ export function mpAssinaturaConfigurada(): boolean {
  * Precisa bater EXATAMENTE com o que está cadastrado no painel do Mercado
  * Pago, tanto ao mandar o dono autorizar quanto ao trocar o code por token.
  *
- * Ignoramos MP_REDIRECT_URI quando temos o pedido em mãos: é fonte comum de
- * erro (fica apontando pro localhost) e o host real é mais confiável.
+ * MP_REDIRECT_URI tem prioridade justamente por ser a que está cadastrada
+ * lá. Derivar do host do pedido parecia mais esperto, mas quebrava em
+ * desenvolvimento: o host vira `http://localhost:3000` e o Mercado Pago
+ * responde 403 Forbidden antes mesmo da tela de login (ver `redirectUriValida`).
  */
-function redirectUri(origem?: string): string {
+export function redirectUri(origem?: string): string {
+  const cadastrada = process.env.MP_REDIRECT_URI;
+  if (cadastrada) return cadastrada.trim().replace(/\/$/, "");
   if (origem) return `${origem}/api/mp/callback`;
-  return process.env.MP_REDIRECT_URI || `${appUrl()}/api/mp/callback`;
+  return `${appUrl()}/api/mp/callback`;
+}
+
+/**
+ * O Mercado Pago só aceita redirect_uri em HTTPS e recusa localhost.
+ * Conferimos antes de mandar a pessoa pra lá — senão ela sai do sistema e
+ * cai numa tela de erro genérica do MP, sem saber o que aconteceu.
+ */
+export function redirectUriValida(uri: string): boolean {
+  return uri.startsWith("https://") && !uri.includes("localhost") && !uri.includes("127.0.0.1");
 }
 
 /** URL pra onde mandamos o dono autorizar a barbearia dele. */

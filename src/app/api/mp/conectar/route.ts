@@ -1,6 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { autenticar } from "@/lib/auth-api";
-import { appUrl, mpOAuthConfigurado, urlAutorizacao } from "@/lib/mercadopago";
+import {
+  appUrl,
+  mpOAuthConfigurado,
+  redirectUri,
+  redirectUriValida,
+  urlAutorizacao,
+} from "@/lib/mercadopago";
 import { assinarState } from "@/lib/mp-state";
 
 /**
@@ -32,6 +38,22 @@ export async function GET(request: NextRequest) {
           "Cadastre MP_CLIENT_ID e MP_CLIENT_SECRET nas variáveis de ambiente da Vercel.",
       },
       { status: 503 },
+    );
+  }
+
+  // Confere ANTES de mandar a pessoa pro Mercado Pago: com redirect_uri
+  // http/localhost o MP devolve 403 e mostra uma tela de erro genérica, e o
+  // dono fica sem saber que o problema é de configuração, não da conta dele.
+  const destino = redirectUri(appUrl(request));
+  if (!redirectUriValida(destino)) {
+    return NextResponse.json(
+      {
+        erro: "A conexão com o Mercado Pago só funciona no site publicado (https).",
+        detalhe: `O endereço de retorno seria "${destino}", que o Mercado Pago recusa.`,
+        comoResolver:
+          "Rodando local, use o site em produção pra conectar. Em produção, cadastre MP_REDIRECT_URI com a URL https do site.",
+      },
+      { status: 400 },
     );
   }
 
