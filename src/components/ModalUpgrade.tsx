@@ -10,38 +10,41 @@ import { cabecalhosAutenticados } from "@/lib/db";
  * O botão antes mandava pra landing (`/#planos`): a pessoa saía do sistema,
  * caía numa página de venda e perdia o contexto do que estava fazendo.
  */
-export function ModalUpgrade({
-  onClose,
-  onTrocado,
-}: {
-  onClose: () => void;
-  /** Chamado depois da troca pra a tela recarregar já como Pro. */
-  onTrocado?: () => void;
-}) {
+function dinheiro(v: number) {
+  return `R$ ${v.toFixed(2).replace(".", ",")}`;
+}
+
+export function ModalUpgrade({ onClose }: { onClose: () => void }) {
   const pro = getPlan("pro");
   const basico = getPlan("basico");
   const [trocando, setTrocando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
+  /**
+   * Manda pro checkout do Mercado Pago. A barbearia só vira Pro quando o
+   * webhook confirmar o pagamento — o botão sozinho não muda plano nenhum.
+   */
   async function mudarParaPro() {
     setErro(null);
     setTrocando(true);
     try {
-      const resposta = await fetch("/api/plano", {
-        method: "PATCH",
+      const resposta = await fetch("/api/assinatura", {
+        method: "POST",
         headers: await cabecalhosAutenticados(),
         body: JSON.stringify({ plano: "pro" }),
       });
       const corpo = await resposta.json().catch(() => ({}));
-      if (!resposta.ok) {
-        setErro(corpo.erro ?? "Não foi possível mudar o plano.");
+      if (!resposta.ok || !corpo.url) {
+        setErro(
+          [corpo.erro, corpo.comoResolver].filter(Boolean).join(" ") ||
+            "Não foi possível abrir o pagamento.",
+        );
         setTrocando(false);
         return;
       }
-      onTrocado?.();
-      onClose();
+      window.location.href = corpo.url;
     } catch {
-      setErro("Não foi possível mudar o plano.");
+      setErro("Não foi possível abrir o pagamento.");
       setTrocando(false);
     }
   }
@@ -132,12 +135,12 @@ export function ModalUpgrade({
           <div className="flex items-baseline justify-between">
             <span className="font-body text-sm text-bone-dim">Plano Pro</span>
             <span className="font-accent text-2xl text-bone">
-              R$ {pro.valor.toFixed(2).replace(".", ",")}
+              {dinheiro(pro.valor)}
               <span className="font-body text-sm text-muted">/mês</span>
             </span>
           </div>
           <p className="mt-1.5 text-right font-body text-xs text-muted">
-            R$ {diferenca.toFixed(2).replace(".", ",")} a mais que o Básico
+            {dinheiro(diferenca)} a mais que o Básico
           </p>
         </div>
 
@@ -152,11 +155,11 @@ export function ModalUpgrade({
           disabled={trocando}
           className="mt-6 w-full rounded-full bg-gold-bright py-3.5 text-center font-body text-sm font-semibold text-ink transition-transform hover:scale-[1.02] disabled:opacity-60"
         >
-          {trocando ? "Mudando…" : "Mudar pro Pro agora"}
+          {trocando ? "Abrindo pagamento…" : `Assinar o Pro — ${dinheiro(pro.valor)}/mês`}
         </button>
         <p className="mt-3 text-center font-body text-xs text-muted">
-          Os recursos liberam na hora. O novo valor entra na próxima cobrança —
-          nada é cobrado agora e nenhum dado seu muda.
+          Você vai pro Mercado Pago. Assim que o pagamento for confirmado, os
+          recursos do Pro liberam — seus dados continuam os mesmos.
         </p>
       </div>
     </div>

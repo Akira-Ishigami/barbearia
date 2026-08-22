@@ -3,12 +3,15 @@ import { autenticar } from "@/lib/auth-api";
 import { supabaseAdmin, supabaseConfigurado } from "@/lib/supabase";
 
 /**
- * Troca o plano da barbearia (Básico ↔ Pro).
+ * Troca de plano.
  *
- * A cobrança acompanha: quem está no período grátis passa a ser cobrado pelo
- * novo plano quando ele acabar, e quem já assina vê a diferença na próxima
- * mensalidade. Não cobramos nada agora justamente pra não gerar cobrança
- * quebrada no meio do ciclo.
+ * Subir de plano NÃO passa por aqui: precisa de pagamento aprovado, senão
+ * bastava chamar esta rota pra virar Pro de graça. O upgrade é feito em
+ * `/api/assinatura`, e quem realmente muda o plano é o webhook do Mercado
+ * Pago, depois que o dinheiro entra.
+ *
+ * Descer de plano é liberado: a barbearia está abrindo mão de recursos, e
+ * o valor menor passa a valer no próximo ciclo.
  */
 export async function PATCH(request: NextRequest) {
   if (!supabaseConfigurado()) {
@@ -32,12 +35,38 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ erro: "Plano inválido." }, { status: 400 });
   }
 
-  const { error } = await supabaseAdmin()
+  const db = supabaseAdmin();
+  const { data: barbearia } = await db
     .from("barbearias")
-    .update({ plano: corpo.plano })
+    .select("plano")
+    .eq("id", quem.barbeariaId)
+    .maybeSingle();
+
+  if (!barbearia) {
+    return NextResponse.json({ erro: "Barbearia não encontrada." }, { status: 404 });
+  }
+
+  if (corpo.plano === barbearia.plano) {
+    return NextResponse.json({ ok: true, plano: barbearia.plano });
+  }
+
+  // 402 = precisa pagar. O painel usa isso pra mandar a pessoa pro checkout.
+  if (corpo.plano === "pro") {
+    return NextResponse.json(
+      {
+        erro: "Mudar pro plano Pro precisa de pagamento.",
+        precisaPagar: true,
+      },
+      { status: 402 },
+    );
+  }
+
+  const { error } = await db
+    .from("barbearias")
+    .update({ plano: "basico" })
     .eq("id", quem.barbeariaId);
 
   if (error) return NextResponse.json({ erro: error.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, plano: corpo.plano });
+  return NextResponse.json({ ok: true, plano: "basico" });
 }

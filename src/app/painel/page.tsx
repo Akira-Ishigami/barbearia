@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import {
   cancelarAgendamento,
   concluirAgendamento,
@@ -15,6 +15,7 @@ import {
 import { ConcluirAtendimentoModal } from "@/components/ConcluirAtendimentoModal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { AvisoAssinatura } from "@/components/AvisoAssinatura";
+import { RetornoAssinatura } from "@/components/RetornoAssinatura";
 import { toISODate } from "@/lib/date";
 import { sair, useSession } from "@/lib/use-session";
 import { useAsync } from "@/lib/use-async";
@@ -134,6 +135,11 @@ export default function PainelPage() {
 
   return (
     <div>
+      {/* Suspense porque o componente lê a query string. */}
+      <Suspense fallback={null}>
+        <RetornoAssinatura onConfirmado={recarregar} />
+      </Suspense>
+
       {barbearia && (
         <AvisoAssinatura
           status={{

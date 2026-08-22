@@ -378,7 +378,15 @@ $$;
 
 -- Marca a assinatura como paga por +30 dias. Chamada só pelo service role
 -- (webhook), então não checa RLS — o id vem do external_reference validado.
-create or replace function public.marcar_assinatura_paga(p_barbearia uuid)
+-- Chamada pelo webhook quando o pagamento da mensalidade é aprovado.
+--
+-- `p_plano` vem junto porque a troca de plano é paga: o dono escolhe o Pro,
+-- paga, e só aqui — com o dinheiro confirmado — a barbearia passa a ser Pro.
+-- Sem esse parâmetro dava pra virar Pro só clicando num botão.
+create or replace function public.marcar_assinatura_paga(
+  p_barbearia uuid,
+  p_plano text default null
+)
 returns void
 language sql
 security definer
@@ -386,6 +394,7 @@ set search_path = public
 as $$
   update barbearias
      set assinatura_status = 'ativa',
-         assinatura_ate = greatest(coalesce(assinatura_ate, now()), now()) + interval '30 days'
+         assinatura_ate = greatest(coalesce(assinatura_ate, now()), now()) + interval '30 days',
+         plano = case when p_plano in ('basico','pro') then p_plano else plano end
    where id = p_barbearia
 $$;

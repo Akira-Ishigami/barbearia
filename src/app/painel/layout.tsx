@@ -184,15 +184,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
         {children}
       </main>
 
-      {verUpgrade && (
-        <ModalUpgrade
-          onClose={() => setVerUpgrade(false)}
-          // Recarga completa de propósito: o plano muda o menu (Produtos,
-          // Estoque e Relatórios aparecem) e o conteúdo de várias telas, que
-          // buscam dados no cliente — `router.refresh()` não alcançaria isso.
-          onTrocado={() => window.location.reload()}
-        />
-      )}
+      {verUpgrade && <ModalUpgrade onClose={() => setVerUpgrade(false)} />}
     </div>
   );
 }

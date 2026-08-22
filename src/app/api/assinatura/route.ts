@@ -29,15 +29,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ erro: "Só o dono assina o plano." }, { status: 403 });
   }
 
-  // O plano vem da barbearia no banco, não do corpo — senão dava pra pagar o
-  // Básico e destravar como Pro.
   const { data: barbearia } = await supabaseAdmin()
     .from("barbearias")
     .select("plano")
     .eq("id", quem.barbeariaId)
     .maybeSingle();
 
-  const plano = getPlan(barbearia?.plano);
+  // O corpo pode pedir OUTRO plano (é assim que se faz upgrade), mas só um
+  // dos planos reais — o preço sempre sai da tabela de planos, nunca do
+  // corpo, senão dava pra "pagar" R$ 1 e destravar o Pro.
+  let corpo: { plano?: string } = {};
+  try {
+    corpo = await request.json();
+  } catch {
+    /* corpo vazio = renovar o plano atual */
+  }
+
+  const planoAlvo =
+    corpo.plano === "pro" || corpo.plano === "basico" ? corpo.plano : barbearia?.plano;
+
+  const plano = getPlan(planoAlvo);
   const base = appUrl(request);
 
   try {
@@ -50,7 +61,9 @@ export async function POST(request: NextRequest) {
           unit_price: plano.valor,
         },
       ],
-      externalReference: `assinatura:${quem.barbeariaId}`,
+      // O plano vai junto: é o webhook, com o pagamento aprovado em mãos,
+      // que aplica a mudança na barbearia.
+      externalReference: `assinatura:${quem.barbeariaId}:${plano.id}`,
       backUrls: {
         success: `${base}/painel?assinatura=ok`,
         pending: `${base}/painel?assinatura=pendente`,

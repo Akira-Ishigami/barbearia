@@ -117,12 +117,19 @@ export async function POST(request: NextRequest) {
       const pagamentoBruto = await buscarPagamento(String(paymentId), tokenNavalha);
       const ref = pagamentoBruto.external_reference ?? "";
 
-      // Assinatura da Navalha: formato "assinatura:<barbeariaId>". Se aprovada,
-      // libera a barbearia por +30 dias.
+      // Assinatura da Navalha: "assinatura:<barbeariaId>[:<plano>]". Aprovada,
+      // libera +30 dias e aplica o plano pago.
+      //
+      // É AQUI que a barbearia vira Pro — nunca por clique no painel. O plano
+      // vem do external_reference, que foi montado no servidor ao criar a
+      // cobrança, então não dá pra forjar pelo navegador.
       if (ref.startsWith("assinatura:")) {
-        const assinaturaBarbearia = ref.split(":")[1];
+        const [, assinaturaBarbearia, planoPago] = ref.split(":");
         if (pagamentoBruto.status === "approved" && assinaturaBarbearia) {
-          await db.rpc("marcar_assinatura_paga", { p_barbearia: assinaturaBarbearia });
+          await db.rpc("marcar_assinatura_paga", {
+            p_barbearia: assinaturaBarbearia,
+            p_plano: planoPago === "pro" || planoPago === "basico" ? planoPago : null,
+          });
         }
         return NextResponse.json({ ok: true, tipo: "assinatura", status: pagamentoBruto.status });
       }
