@@ -46,6 +46,7 @@ export default function PainelPage() {
   const router = useRouter();
   const session = useSession();
   const [concluindo, setConcluindo] = useState<Agendamento | null>(null);
+  const [copiado, setCopiado] = useState(false);
   const dono = session?.role === "dono";
 
   const { dados, recarregar } = useAsync(
@@ -134,6 +135,11 @@ export default function PainelPage() {
 
   const plano = getPlan(barbearia?.plano);
 
+  const caminhoDaLoja = barbearia ? caminhoLoja(barbearia) : `/loja/${session.barbeariaId}`;
+  // origin só existe no navegador; em SSR o botão nem chega a ser clicado.
+  const linkPublico =
+    typeof window === "undefined" ? caminhoDaLoja : `${window.location.origin}${caminhoDaLoja}`;
+
   return (
     <div>
       {/* Suspense porque o componente lê a query string. */}
@@ -166,8 +172,21 @@ export default function PainelPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {/* O link da loja é o que o dono manda pro cliente — fica junto do
+              botão de visitar pra não precisar caçar em Localização. */}
+          <button
+            onClick={async () => {
+              await navigator.clipboard.writeText(linkPublico).catch(() => {});
+              setCopiado(true);
+              window.setTimeout(() => setCopiado(false), 2000);
+            }}
+            title={linkPublico}
+            className="rounded-full border border-line-strong px-4 py-2 font-body text-sm font-semibold text-bone-dim transition-colors hover:border-gold-bright/40 hover:text-gold-bright"
+          >
+            {copiado ? "Link copiado!" : "Copiar link da loja"}
+          </button>
           <Link
-            href={barbearia ? caminhoLoja(barbearia) : `/loja/${session.barbeariaId}`}
+            href={caminhoDaLoja}
             target="_blank"
             className="rounded-full border border-line-strong px-4 py-2 font-body text-sm font-semibold text-bone-dim transition-colors hover:border-gold-bright/40 hover:text-gold-bright"
           >
