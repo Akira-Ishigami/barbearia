@@ -188,45 +188,44 @@ export default function LocalizacaoPage() {
       >
         <div>
           <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
-            Endereço da sua página
+            Link da sua página
           </span>
-          <p className="mb-2 font-body text-[11px] text-muted">
-            É o link que você manda pros clientes. Use o nome da barbearia pra
-            ficar fácil de lembrar.
-          </p>
-          <div className="flex items-center gap-2 rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5">
-            <span className="shrink-0 font-body text-xs text-muted">/loja/</span>
-            <input
-              value={slug}
-              onChange={(e) => {
-                // Normaliza enquanto digita pra não salvar acento nem espaço.
-                setSlug(gerarSlug(e.target.value));
-                setSaved(false);
-              }}
-              placeholder={gerarSlug(barbearia.nome)}
-              className="min-w-0 flex-1 bg-transparent font-body text-sm text-bone outline-none"
-            />
-          </div>
-          {slug.trim() && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <code className="min-w-0 flex-1 truncate rounded-lg bg-bone/[0.04] px-2.5 py-1.5 font-accent text-[11px] text-bone-dim">
-                {enderecoPublico}/loja/{slug}
-              </code>
-              <button
-                type="button"
-                onClick={async () => {
-                  await navigator.clipboard
-                    .writeText(`${enderecoPublico}/loja/${slug}`)
-                    .catch(() => {});
-                  setCopiado(true);
-                  window.setTimeout(() => setCopiado(false), 2000);
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-stretch overflow-hidden rounded-xl border border-line-strong bg-bone/[0.03] focus-within:border-gold-bright">
+              <span className="flex select-none items-center whitespace-nowrap border-r border-line px-3 font-accent text-[11px] text-muted">
+                /loja/
+              </span>
+              <input
+                value={slug}
+                onChange={(e) => {
+                  // Normaliza enquanto digita pra não salvar acento nem espaço.
+                  setSlug(gerarSlug(e.target.value));
+                  setSaved(false);
                 }}
-                className="shrink-0 rounded-lg border border-line-strong px-3 py-1.5 font-body text-[11px] text-bone-dim hover:border-gold-bright/40 hover:text-gold-bright"
-              >
-                {copiado ? "Copiado!" : "Copiar link"}
-              </button>
+                placeholder={gerarSlug(barbearia.nome)}
+                spellCheck={false}
+                className="min-w-0 flex-1 bg-transparent px-3 py-2.5 font-accent text-sm text-bone outline-none placeholder:text-muted"
+              />
             </div>
-          )}
+            <button
+              type="button"
+              disabled={!slug.trim()}
+              onClick={async () => {
+                await navigator.clipboard
+                  .writeText(`${enderecoPublico}/loja/${slug}`)
+                  .catch(() => {});
+                setCopiado(true);
+                window.setTimeout(() => setCopiado(false), 2000);
+              }}
+              className={`shrink-0 rounded-xl border px-4 py-2.5 font-body text-xs font-semibold transition-colors disabled:opacity-40 ${
+                copiado
+                  ? "border-ok-line bg-ok-soft text-ok"
+                  : "border-line-strong text-bone-dim hover:border-gold-bright/40 hover:text-gold-bright"
+              }`}
+            >
+              {copiado ? "Copiado!" : "Copiar link"}
+            </button>
+          </div>
         </div>
 
         <div>
