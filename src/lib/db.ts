@@ -450,6 +450,23 @@ export async function getHorariosOcupados(
 }
 
 /** Agendamento pago no local — não passa pelo Mercado Pago. */
+/**
+ * Cabeçalho pro checkout. Manda o token quando existe sessão, pra o pedido
+ * entrar no histórico de quem está logado — mas segue sem ele numa boa,
+ * porque agendar sem conta é o caminho normal.
+ */
+export async function cabecalhosOpcionais(): Promise<HeadersInit> {
+  try {
+    const { data } = await supabase().auth.getSession();
+    const token = data.session?.access_token;
+    return token
+      ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+      : { "Content-Type": "application/json" };
+  } catch {
+    return { "Content-Type": "application/json" };
+  }
+}
+
 export async function criarPedidoLocal(input: {
   barbeariaId: string;
   barbeiroId: string;
@@ -460,7 +477,7 @@ export async function criarPedidoLocal(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const resposta = await fetch("/api/pagamentos/local", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: await cabecalhosOpcionais(),
     body: JSON.stringify(input),
   });
   const corpo = await resposta.json().catch(() => ({}));

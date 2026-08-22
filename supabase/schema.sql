@@ -107,6 +107,21 @@ create table if not exists produtos (
   ativo         boolean not null default true
 );
 
+-- ---------- Clientes ----------
+-- Quem agenda. Diferente de `usuarios`, que é a equipe da barbearia: o
+-- cliente não pertence a nenhuma barbearia, ele circula entre várias.
+-- Continua dando pra agendar sem conta — a conta só guarda o histórico.
+create table if not exists clientes (
+  id            uuid primary key default gen_random_uuid(),
+  auth_user_id  uuid unique,
+  nome          text not null,
+  email         text not null unique,
+  telefone      text not null default '',
+  criado_em     timestamptz not null default now()
+);
+
+create index if not exists clientes_telefone_idx on clientes (telefone);
+
 -- ---------- Pedidos (uma compra do carrinho) ----------
 -- O pedido nasce ANTES de o cliente ir pro Mercado Pago; o webhook
 -- depois marca como pago. Sem isso o horário não fica preso enquanto
@@ -114,6 +129,8 @@ create table if not exists produtos (
 create table if not exists pedidos (
   id                uuid primary key default gen_random_uuid(),
   barbearia_id      uuid not null references barbearias(id) on delete cascade,
+  -- Preenchido quando a pessoa agendou logada; nulo em compra de visitante.
+  cliente_id        uuid references clientes(id) on delete set null,
   cliente_nome      text not null,
   cliente_telefone  text not null default '',
   cliente_email     text not null default '',
@@ -179,6 +196,8 @@ create table if not exists movimentos_estoque (
 
 -- Coluna adicionada depois: bancos criados antes disso não a têm.
 alter table barbearias add column if not exists slug text;
+alter table pedidos add column if not exists cliente_id uuid references clientes(id) on delete set null;
+create index if not exists pedidos_cliente_idx on pedidos (cliente_id, criado_em desc);
 create unique index if not exists barbearias_slug_unico on barbearias (slug) where slug is not null;
 
 -- ============================================================
@@ -198,6 +217,7 @@ alter table agendamentos       enable row level security;
 alter table pedido_produtos    enable row level security;
 alter table movimentos_estoque enable row level security;
 alter table usuarios           enable row level security;
+alter table clientes           enable row level security;
 
 -- mp_contas fica sem nenhuma policy de propósito: sem policy, quem usa a
 -- chave anônima não lê nem escreve. Só o service role (rotas de API) entra.
@@ -225,6 +245,41 @@ set search_path = public
 as $$
   select role from usuarios where auth_user_id = auth.uid() limit 1
 $$;
+
+-- Id do cliente logado. Mesma ideia de minha_barbearia(), mas pra quem
+-- agenda: `security definer` evita a recursão de ler `clientes` dentro da
+-- própria policy de `clientes`.
+create or replace function public.meu_cliente()
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select id from clientes where auth_user_id = auth.uid() limit 1
+$$;
+
+-- O cliente enxerga e edita só o próprio cadastro.
+drop policy if exists "cliente le a si mesmo" on clientes;
+create policy "cliente le a si mesmo" on clientes
+  for select using (auth_user_id = auth.uid());
+
+drop policy if exists "cliente edita a si mesmo" on clientes;
+create policy "cliente edita a si mesmo" on clientes
+  for update using (auth_user_id = auth.uid())
+  with check (auth_user_id = auth.uid());
+
+-- A equipe da barbearia lê o cadastro de quem já comprou nela — é o que
+-- permite reconhecer o cliente na agenda sem expor a base inteira.
+drop policy if exists "barbearia le clientes que compraram" on clientes;
+create policy "barbearia le clientes que compraram" on clientes
+  for select using (
+    exists (
+      select 1 from pedidos p
+      where p.cliente_id = clientes.id
+        and p.barbearia_id = public.minha_barbearia()
+    )
+  );
 
 -- ---------- Leitura pública (página da barbearia, sem login) ----------
 drop policy if exists "leitura publica barbearias" on barbearias;
@@ -303,6 +358,35 @@ begin
          with check (barbearia_id = public.minha_barbearia())', t);
   end loop;
 end $$;
+
+-- ---------- Cliente vê o próprio histórico ----------
+-- Só leitura: criar e alterar pedido continua passando pelas rotas de API,
+-- que validam preço e horário.
+drop policy if exists "cliente le seus pedidos" on pedidos;
+create policy "cliente le seus pedidos" on pedidos
+  for select using (cliente_id is not null and cliente_id = public.meu_cliente());
+
+drop policy if exists "cliente le seus agendamentos" on agendamentos;
+create policy "cliente le seus agendamentos" on agendamentos
+  for select using (
+    exists (
+      select 1 from pedidos p
+      where p.id = agendamentos.pedido_id
+        and p.cliente_id is not null
+        and p.cliente_id = public.meu_cliente()
+    )
+  );
+
+drop policy if exists "cliente le itens dos seus pedidos" on pedido_produtos;
+create policy "cliente le itens dos seus pedidos" on pedido_produtos
+  for select using (
+    exists (
+      select 1 from pedidos p
+      where p.id = pedido_produtos.pedido_id
+        and p.cliente_id is not null
+        and p.cliente_id = public.meu_cliente()
+    )
+  );
 
 drop policy if exists "equipe le itens do pedido" on pedido_produtos;
 create policy "equipe le itens do pedido" on pedido_produtos

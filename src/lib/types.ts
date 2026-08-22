@@ -71,6 +71,38 @@ export interface Usuario {
   barbeariaId: string;
 }
 
+/** Quem agenda. Diferente de Usuario, não pertence a nenhuma barbearia. */
+export interface Cliente {
+  id: string;
+  nome: string;
+  email: string;
+  telefone: string;
+  criadoEm: string;
+}
+
+/** Sessão de cliente — separada da equipe, que usa `Session`. */
+export interface SessionCliente {
+  clienteId: string;
+  nome: string;
+  email: string;
+  telefone: string;
+}
+
+/** Uma visita do histórico do cliente. */
+export interface VisitaCliente {
+  pedidoId: string;
+  barbeariaId: string;
+  barbeariaNome: string;
+  barbeariaSlug?: string;
+  data: string;
+  hora: string;
+  servicos: string[];
+  produtos: string[];
+  total: number;
+  status: AgendamentoStatus;
+  formaPagamento: FormaPagamento;
+}
+
 export interface Session {
   userId: string;
   nome: string;

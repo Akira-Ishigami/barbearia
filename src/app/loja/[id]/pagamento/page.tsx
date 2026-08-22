@@ -6,7 +6,7 @@ import { Suspense, useState } from "react";
 import { useLoja } from "@/lib/loja-context";
 import { caminhoLoja } from "@/lib/slug";
 import { cartTotal, clearCart, useCart } from "@/lib/cart";
-import { criarPedidoLocal } from "@/lib/db";
+import { cabecalhosOpcionais, criarPedidoLocal } from "@/lib/db";
 import { useAsync } from "@/lib/use-async";
 import { addMinutes } from "@/lib/date";
 import { SLOT_MIN, slotsDe } from "@/lib/types";
@@ -140,7 +140,7 @@ function PagamentoConteudo() {
     try {
       const resposta = await fetch("/api/pagamentos/preferencia", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await cabecalhosOpcionais(),
         body: JSON.stringify(corpoPedido),
       });
       const corpo = await resposta.json().catch(() => ({}));

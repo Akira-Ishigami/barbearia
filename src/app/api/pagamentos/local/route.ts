@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseAdmin, supabaseConfigurado } from "@/lib/supabase";
+import { clienteDoPedido } from "@/lib/cliente-api";
 import { validarProdutos, validarServicos } from "@/lib/pedido-server";
 
 /**
@@ -72,6 +73,8 @@ export async function POST(request: NextRequest) {
     .from("pedidos")
     .insert({
       barbearia_id: c.barbeariaId,
+      // Vazio pra quem agenda sem conta — o pedido existe do mesmo jeito.
+      cliente_id: await clienteDoPedido(request, db),
       cliente_nome: c.cliente.nome,
       cliente_telefone: c.cliente.telefone,
       cliente_email: c.cliente.email,

@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { cartCount, cartTotal, useCart } from "@/lib/cart";
+import { getClienteLogado } from "@/lib/cliente-db";
+import { useAsync } from "@/lib/use-async";
 
 /**
  * Barra fixa do catálogo: identidade à esquerda, carrinho à direita.
@@ -18,6 +21,11 @@ export function LojaTopBar({
   const cart = useCart(barbeariaId);
   const count = cartCount(cart);
   const vazio = count === 0;
+  const pathname = usePathname();
+
+  // Cliente logado é opcional: sem conta a loja funciona igual, então uma
+  // falha aqui não pode atrapalhar o agendamento.
+  const { dados: cliente } = useAsync(() => getClienteLogado(), []);
 
   return (
     <div className="sticky top-0 z-40 border-b border-line bg-ink/85 backdrop-blur-xl">
@@ -41,6 +49,29 @@ export function LojaTopBar({
           </span>
           <span className="truncate font-display text-sm font-semibold tracking-tight text-bone">
             {barbeariaNome}
+          </span>
+        </Link>
+
+        <div className="flex shrink-0 items-center gap-2">
+        <Link
+          href={cliente ? "/minha-conta" : `/entrar?voltar=${encodeURIComponent(pathname)}`}
+          aria-label={cliente ? "Minha conta" : "Entrar"}
+          title={cliente ? cliente.nome : "Entrar na minha conta"}
+          className="flex h-10 items-center gap-2 rounded-full border border-line-strong px-3 font-body text-xs font-semibold text-bone-dim transition-colors hover:border-bone/40 hover:text-bone"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.7}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-4 w-4 shrink-0"
+          >
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+          </svg>
+          <span className="hidden sm:inline">
+            {cliente ? cliente.nome.split(" ")[0] : "Entrar"}
           </span>
         </Link>
 
@@ -75,6 +106,7 @@ export function LojaTopBar({
             </>
           )}
         </Link>
+        </div>
       </div>
     </div>
   );
