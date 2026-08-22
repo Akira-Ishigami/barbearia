@@ -14,10 +14,9 @@ import { useSession } from "@/lib/use-session";
 import { useAsync } from "@/lib/use-async";
 import { CategoriaField } from "@/components/CategoriaField";
 import { PRODUTO_CATEGORIAS_PRESET, type Produto } from "@/lib/types";
+import { PRESET_CATALOGO, prepararFoto } from "@/lib/imagem";
 
 const ESTOQUE_BAIXO = 5;
-const MAX_FOTO_BYTES = 800_000;
-
 export default function ProdutosPage() {
   const session = useSession();
   const [nome, setNome] = useState("");
@@ -74,20 +73,20 @@ export default function ProdutosPage() {
     );
   }
 
-  function handleFoto(e: ChangeEvent<HTMLInputElement>) {
+  // Redimensiona no navegador: aceita a foto original do celular e
+  // recusa miniatura pequena, que ficaria borrada no card.
+  async function handleFoto(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > MAX_FOTO_BYTES) {
-      setError("A foto precisa ter no máximo 800KB.");
-      if (fileInputRef.current) fileInputRef.current.value = "";
+    setError(null);
+    const r = await prepararFoto(file, PRESET_CATALOGO);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!r.ok) {
+      setError(r.error);
       return;
     }
-
-    setError(null);
-    const reader = new FileReader();
-    reader.onload = () => setFoto(reader.result as string);
-    reader.readAsDataURL(file);
+    setFoto(r.foto.dataUrl);
   }
 
   async function handleSubmit(e: FormEvent) {

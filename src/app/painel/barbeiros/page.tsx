@@ -13,8 +13,7 @@ import { useSession } from "@/lib/use-session";
 import { useAsync } from "@/lib/use-async";
 import { SenhaField } from "@/components/SenhaField";
 import type { BarbeiroPerfil } from "@/lib/types";
-
-const MAX_FOTO_BYTES = 800_000;
+import { PRESET_AVATAR, prepararFoto } from "@/lib/imagem";
 
 export default function BarbeirosPage() {
   const session = useSession();
@@ -43,20 +42,20 @@ export default function BarbeirosPage() {
 
   if (!session || !dono) return null;
 
-  function handleFoto(e: ChangeEvent<HTMLInputElement>) {
+  // Redimensiona no navegador: aceita a foto original do celular e
+  // recusa miniatura pequena, que ficaria borrada no card.
+  async function handleFoto(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > MAX_FOTO_BYTES) {
-      setError("A foto precisa ter no máximo 800KB.");
-      if (fileInputRef.current) fileInputRef.current.value = "";
+    setError(null);
+    const r = await prepararFoto(file, PRESET_AVATAR);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!r.ok) {
+      setError(r.error);
       return;
     }
-
-    setError(null);
-    const reader = new FileReader();
-    reader.onload = () => setFoto(reader.result as string);
-    reader.readAsDataURL(file);
+    setFoto(r.foto.dataUrl);
   }
 
   async function handleSubmit(e: FormEvent) {

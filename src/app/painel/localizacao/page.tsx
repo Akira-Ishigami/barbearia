@@ -7,8 +7,7 @@ import { useAsync } from "@/lib/use-async";
 import { useSession } from "@/lib/use-session";
 import { EnderecoCepField } from "@/components/EnderecoCepField";
 import { WEEKDAYS, type Weekday } from "@/lib/types";
-
-const MAX_FOTO_BYTES = 1_500_000;
+import { PRESET_CAPA, PRESET_GALERIA, prepararFoto } from "@/lib/imagem";
 
 export default function LocalizacaoPage() {
   const session = useSession();
@@ -49,50 +48,42 @@ export default function LocalizacaoPage() {
 
   if (!session || session.role !== "dono" || !barbearia) return null;
 
-  function handleFoto(e: ChangeEvent<HTMLInputElement>) {
+  // A foto é redimensionada aqui no navegador, então não há limite de
+  // tamanho de arquivo: pode mandar a foto original do celular.
+  async function handleFoto(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > MAX_FOTO_BYTES) {
-      setError("A foto precisa ter no máximo 1,5MB.");
-      if (fileInputRef.current) fileInputRef.current.value = "";
+    setError(null);
+    const r = await prepararFoto(file, PRESET_CAPA);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!r.ok) {
+      setError(r.error);
       return;
     }
-
-    setError(null);
-    const reader = new FileReader();
-    reader.onload = () => {
-      setFoto(reader.result as string);
-      setSaved(false);
-    };
-    reader.readAsDataURL(file);
+    setFoto(r.foto.dataUrl);
+    setSaved(false);
   }
 
-  function handleGaleria(e: ChangeEvent<HTMLInputElement>) {
+  async function handleGaleria(e: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
+    if (galeriaInputRef.current) galeriaInputRef.current.value = "";
     if (files.length === 0) return;
 
-    if (files.some((f) => f.size > MAX_FOTO_BYTES)) {
-      setError("Cada foto da galeria precisa ter no máximo 1,5MB.");
-      if (galeriaInputRef.current) galeriaInputRef.current.value = "";
-      return;
-    }
-
     setError(null);
-    Promise.all(
-      files.map(
-        (file) =>
-          new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.readAsDataURL(file);
-          }),
-      ),
-    ).then((novas) => {
-      setGaleria((atual) => [...atual, ...novas]);
+    const resultados = await Promise.all(
+      files.map((file) => prepararFoto(file, PRESET_GALERIA)),
+    );
+
+    const aceitas = resultados.flatMap((r) => (r.ok ? [r.foto.dataUrl] : []));
+    const recusada = resultados.find((r) => !r.ok);
+
+    if (aceitas.length) {
+      setGaleria((atual) => [...atual, ...aceitas]);
       setSaved(false);
-      if (galeriaInputRef.current) galeriaInputRef.current.value = "";
-    });
+    }
+    // Uma foto ruim no meio não descarta as boas — avisa só sobre ela.
+    if (recusada && !recusada.ok) setError(recusada.error);
   }
 
   function removerDaGaleria(index: number) {
