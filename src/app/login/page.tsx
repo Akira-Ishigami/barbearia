@@ -29,13 +29,36 @@ export default function LoginPage() {
     // O papel decide o destino: dono vai pro painel, barbeiro pra agenda.
     try {
       const { data: auth } = await supabase().auth.getUser();
+      const authId = auth.user?.id ?? "";
+
       const { data: usuario } = await supabase()
         .from("usuarios")
         .select("role")
-        .eq("auth_user_id", auth.user?.id ?? "")
+        .eq("auth_user_id", authId)
         .maybeSingle();
 
-      router.push(usuario?.role === "barbeiro" ? "/barbeiro" : "/painel");
+      if (usuario) {
+        router.push(usuario.role === "barbeiro" ? "/barbeiro" : "/painel");
+        return;
+      }
+
+      // Conta de cliente entrando na tela da equipe. Sem isso ele iria pro
+      // painel, seria expulso por não estar em `usuarios`, voltaria pra cá
+      // já logado e ficaria girando entre as duas telas.
+      const { data: cliente } = await supabase()
+        .from("clientes")
+        .select("id")
+        .eq("auth_user_id", authId)
+        .maybeSingle();
+
+      if (cliente) {
+        router.push("/minha-conta");
+        return;
+      }
+
+      await supabase().auth.signOut();
+      setError("Esta conta não tem acesso ao painel.");
+      setLoading(false);
     } catch {
       router.push("/painel");
     }
@@ -108,6 +131,15 @@ export default function LoginPage() {
           Ainda não tem conta?{" "}
           <Link href="/#planos" className="text-gold-bright hover:underline">
             Ver planos
+          </Link>
+        </p>
+
+        {/* Sem isso o cliente que caísse aqui ficaria tentando a senha dele
+            numa tela que só aceita login de dono ou barbeiro. */}
+        <p className="mt-2 text-center font-body text-xs text-muted">
+          Vai agendar um horário?{" "}
+          <Link href="/entrar" className="text-bone-dim hover:text-gold-bright">
+            Entrar como cliente
           </Link>
         </p>
       </div>

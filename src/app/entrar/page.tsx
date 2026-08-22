@@ -39,7 +39,31 @@ function EntrarConteudo() {
       setEnviando(false);
       return;
     }
-    router.push(voltarPara);
+
+    // Dono ou barbeiro entrando na tela do cliente: manda pro painel dele em
+    // vez de deixar cair em /minha-conta, que o expulsaria de volta pra cá.
+    const destino = await destinoDaEquipe();
+    router.push(destino ?? voltarPara);
+  }
+
+  /** Painel da equipe, quando a conta que entrou é de dono ou barbeiro. */
+  async function destinoDaEquipe(): Promise<string | null> {
+    try {
+      const db = supabase();
+      const { data: auth } = await db.auth.getUser();
+      if (!auth.user) return null;
+
+      const { data: usuario } = await db
+        .from("usuarios")
+        .select("role")
+        .eq("auth_user_id", auth.user.id)
+        .maybeSingle();
+
+      if (!usuario) return null;
+      return usuario.role === "barbeiro" ? "/barbeiro" : "/painel";
+    } catch {
+      return null;
+    }
   }
 
   async function criar(e: FormEvent) {
@@ -95,7 +119,9 @@ function EntrarConteudo() {
   const criando = modo === "criar";
 
   return (
-    <div className="grain flex flex-1 flex-col items-center justify-center bg-ink px-6 py-16">
+    // Tema claro de propósito: é a área do cliente, a mesma da loja. O
+    // painel da equipe (/login) é escuro — a cor já diz de quem é a tela.
+    <div className="theme-light loja-light grain flex flex-1 flex-col items-center justify-center bg-ink px-6 py-16 text-bone">
       <Link href="/" className="flex items-center gap-2.5">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-gold/40 bg-gold/10 text-gold-bright">
           <svg

@@ -81,7 +81,7 @@ export default function BarbeariasPage() {
     minhaPos !== null && lista.length > 0 && lista.every((l) => l.km === null);
 
   return (
-    <div className="grain flex flex-1 flex-col bg-ink">
+    <div className="theme-light loja-light grain flex flex-1 flex-col bg-ink text-bone">
       <header className="border-b border-line px-6 py-5">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2.5">
