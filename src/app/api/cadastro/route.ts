@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { supabaseAdmin, supabaseConfigurado } from "@/lib/supabase";
+import { gerarSlug } from "@/lib/slug";
 import { ipDoPedido, limparExpirados, rateLimit } from "@/lib/rate-limit";
 
 // Cadastro é aberto (não exige login) e caro: cria conta Auth + barbearia +
@@ -88,6 +89,7 @@ export async function POST(request: NextRequest) {
       .from("barbearias")
       .insert({
         nome: nomeBarbearia,
+        slug: await slugDisponivel(db, nomeBarbearia),
         telefone: (c.telefone ?? "").trim(),
         endereco: (c.endereco ?? "").trim(),
         dias_funcionamento: c.diasFuncionamento?.length
@@ -137,4 +139,28 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+/**
+ * Endereço da página pública a partir do nome, sem repetir um já usado —
+ * duas barbearias com o mesmo nome viram "barbearia-do-ze" e
+ * "barbearia-do-ze-2".
+ */
+async function slugDisponivel(
+  db: ReturnType<typeof supabaseAdmin>,
+  nome: string,
+): Promise<string> {
+  const base = gerarSlug(nome) || "barbearia";
+
+  for (let i = 0; i < 30; i++) {
+    const tentativa = i === 0 ? base : `${base}-${i + 1}`;
+    const { data } = await db
+      .from("barbearias")
+      .select("id")
+      .eq("slug", tentativa)
+      .maybeSingle();
+    if (!data) return tentativa;
+  }
+
+  return `${base}-${Math.random().toString(36).slice(2, 7)}`;
 }

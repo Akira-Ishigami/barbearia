@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useLoja } from "@/lib/loja-context";
+import { caminhoLoja } from "@/lib/slug";
 import {
   cartTotal,
   removeProdutoFromCart,
@@ -175,7 +176,7 @@ export default function CheckoutPage() {
     }
 
     if (etapa === 4) {
-      router.push(`/loja/${barbearia.id}/pagamento`);
+      router.push(`${caminhoLoja(barbearia)}/pagamento`);
       return;
     }
     setEtapa((e) => (e + 1) as EtapaIndex);
@@ -186,7 +187,7 @@ export default function CheckoutPage() {
     if (!barbearia) return;
     setErro(null);
     if (etapa === 0) {
-      router.push(`/loja/${barbearia.id}`);
+      router.push(`${caminhoLoja(barbearia)}`);
       return;
     }
     setEtapa((e) => (e - 1) as EtapaIndex);
@@ -199,7 +200,7 @@ export default function CheckoutPage() {
         <LojaStepHeader
           barbeariaNome={barbearia.nome}
           etapa={0}
-          onVoltar={() => router.push(`/loja/${barbearia.id}`)}
+          onVoltar={() => router.push(`${caminhoLoja(barbearia)}`)}
         />
         <div className="mx-auto max-w-md px-6 py-24 text-center">
           <p className="font-display text-xl font-semibold text-bone">Seu carrinho está vazio</p>
@@ -207,7 +208,7 @@ export default function CheckoutPage() {
             Volte pro catálogo e escolha os serviços da sua visita.
           </p>
           <Link
-            href={`/loja/${barbearia.id}`}
+            href={`${caminhoLoja(barbearia)}`}
             className="mt-8 inline-block rounded-full bg-bone px-7 py-3.5 font-body text-sm font-semibold text-ink transition-transform hover:scale-[1.03]"
           >
             Ver serviços
@@ -321,7 +322,7 @@ export default function CheckoutPage() {
             )}
 
             <Link
-              href={`/loja/${barbearia.id}`}
+              href={`${caminhoLoja(barbearia)}`}
               className="mt-6 inline-block font-body text-sm text-bone-dim underline underline-offset-4 hover:text-bone"
             >
               Adicionar mais itens

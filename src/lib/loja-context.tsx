@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import { getBarbearia, getBarbeiros, getProdutos, getServicos } from "./db";
+import { getBarbeariaPorSlugOuId, getBarbeiros, getProdutos, getServicos } from "./db";
 import { supabaseConfigurado } from "./supabase-browser";
 import { useAsync } from "./use-async";
 import type { Barbearia, BarbeiroPerfil, Produto, Servico } from "./types";
@@ -34,13 +34,15 @@ export function LojaProvider({ id, children }: { id: string; children: React.Rea
 
   const { dados, carregando, erro } = useAsync(
     async () => {
-      const barbearia = await getBarbearia(id);
+      // `id` aqui é o que veio na URL: pode ser o slug ou o uuid antigo.
+      const barbearia = await getBarbeariaPorSlugOuId(id);
       if (!barbearia) return { barbearia: undefined, servicos: [], produtos: [], barbeiros: [] };
 
+      // Daqui pra frente sempre o uuid — as outras tabelas referenciam por ele.
       const [servicos, produtos, barbeiros] = await Promise.all([
-        getServicos(id),
-        getProdutos(id),
-        getBarbeiros(id),
+        getServicos(barbearia.id),
+        getProdutos(barbearia.id),
+        getBarbeiros(barbearia.id),
       ]);
 
       return {

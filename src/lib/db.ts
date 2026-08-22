@@ -1,6 +1,7 @@
 "use client";
 
 import { supabase } from "./supabase-browser";
+import { gerarSlug, pareceUuid } from "./slug";
 import { SLOT_MIN, slotsDe } from "./types";
 import { addMinutes } from "./date";
 import type {
@@ -52,6 +53,7 @@ function paraBarbearia(l: LinhaBarbearia): Barbearia {
     horarioAbertura: l.horario_abertura as string,
     horarioFechamento: l.horario_fechamento as string,
     plano: l.plano as Barbearia["plano"],
+    slug: (l.slug as string) ?? undefined,
     linkMaps: (l.link_maps as string) ?? undefined,
     foto: (l.foto as string) ?? undefined,
     sobre: (l.sobre as string) ?? undefined,
@@ -86,9 +88,50 @@ export async function getBarbearia(id: string): Promise<Barbearia | undefined> {
   return data ? paraBarbearia(data) : undefined;
 }
 
+/**
+ * Busca pela URL da loja, que pode ser o slug ("barbearia-do-ze") ou o uuid.
+ *
+ * Os dois continuam valendo: links de uuid que a barbearia já mandou pros
+ * clientes não podem quebrar só porque passamos a usar nome na URL.
+ */
+export async function getBarbeariaPorSlugOuId(valor: string): Promise<Barbearia | undefined> {
+  if (pareceUuid(valor)) return getBarbearia(valor);
+
+  const { data, error } = await supabase()
+    .from("barbearias")
+    .select("*")
+    .eq("slug", valor)
+    .maybeSingle();
+  erro(error);
+  return data ? paraBarbearia(data) : undefined;
+}
+
+/**
+ * Slug livre a partir do nome. Se já existir, vai somando sufixo: duas
+ * barbearias podem se chamar "Barbearia do Zé" e as duas precisam de link.
+ */
+export async function gerarSlugDisponivel(nome: string, ignorarId?: string): Promise<string> {
+  const base = gerarSlug(nome) || "barbearia";
+
+  for (let i = 0; i < 30; i++) {
+    const tentativa = i === 0 ? base : `${base}-${i + 1}`;
+    const { data } = await supabase()
+      .from("barbearias")
+      .select("id")
+      .eq("slug", tentativa)
+      .maybeSingle();
+
+    if (!data || data.id === ignorarId) return tentativa;
+  }
+
+  // Improvável: 30 barbearias com o mesmo nome. Cai num sufixo aleatório.
+  return `${base}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
 export async function updateBarbearia(id: string, patch: Partial<Barbearia>): Promise<void> {
   const linha: Record<string, unknown> = {};
   if (patch.nome !== undefined) linha.nome = patch.nome;
+  if (patch.slug !== undefined) linha.slug = patch.slug || null;
   if (patch.telefone !== undefined) linha.telefone = patch.telefone;
   if (patch.endereco !== undefined) linha.endereco = patch.endereco;
   if (patch.diasFuncionamento !== undefined) linha.dias_funcionamento = patch.diasFuncionamento;

@@ -17,6 +17,9 @@ create table if not exists barbearias (
   horario_abertura    text        not null default '09:00',
   horario_fechamento  text        not null default '20:00',
   plano               text        not null default 'basico',
+  -- Endereço legível da página pública: /loja/barbearia-do-ze em vez do uuid.
+  -- Único porque é o que identifica a barbearia na URL.
+  slug                text        unique,
   link_maps           text,
   foto                text,
   sobre               text,
@@ -173,6 +176,10 @@ create table if not exists movimentos_estoque (
   motivo        text not null default '',
   data          timestamptz not null default now()
 );
+
+-- Coluna adicionada depois: bancos criados antes disso não a têm.
+alter table barbearias add column if not exists slug text;
+create unique index if not exists barbearias_slug_unico on barbearias (slug) where slug is not null;
 
 -- ============================================================
 -- RLS (Row Level Security)

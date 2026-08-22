@@ -42,6 +42,8 @@ export interface Barbearia {
   horarioAbertura: string;
   horarioFechamento: string;
   plano: PlanId;
+  /** Endereço da página pública: /loja/<slug>. Cai no id quando não houver. */
+  slug?: string;
   linkMaps?: string;
   criadaEm: string;
   /** Assinatura do sistema: 'trial' | 'ativa' | 'vencida'. */

@@ -8,6 +8,7 @@ import { useSession } from "@/lib/use-session";
 import { EnderecoCepField } from "@/components/EnderecoCepField";
 import { WEEKDAYS, type Weekday } from "@/lib/types";
 import { PRESET_CAPA, PRESET_GALERIA, prepararFoto } from "@/lib/imagem";
+import { gerarSlug } from "@/lib/slug";
 
 export default function LocalizacaoPage() {
   const session = useSession();
@@ -21,6 +22,8 @@ export default function LocalizacaoPage() {
   const [telefone, setTelefone] = useState("");
   const [endereco, setEndereco] = useState("");
   const [linkMaps, setLinkMaps] = useState("");
+  const [slug, setSlug] = useState("");
+  const [copiado, setCopiado] = useState(false);
   const [buscandoLocal, setBuscandoLocal] = useState(false);
   const [dias, setDias] = useState<Weekday[]>([]);
   const [abertura, setAbertura] = useState("09:00");
@@ -37,6 +40,7 @@ export default function LocalizacaoPage() {
     setTelefone(barbearia.telefone);
     setEndereco(barbearia.endereco);
     setLinkMaps(barbearia.linkMaps ?? "");
+    setSlug(barbearia.slug ?? "");
     setDias(barbearia.diasFuncionamento);
     setAbertura(barbearia.horarioAbertura);
     setFechamento(barbearia.horarioFechamento);
@@ -47,6 +51,9 @@ export default function LocalizacaoPage() {
   }
 
   if (!session || session.role !== "dono" || !barbearia) return null;
+
+  // Em SSR não existe window; o campo só aparece depois de montar mesmo.
+  const enderecoPublico = typeof window === "undefined" ? "" : window.location.origin;
 
   // A foto é redimensionada aqui no navegador, então não há limite de
   // tamanho de arquivo: pode mandar a foto original do celular.
@@ -107,6 +114,10 @@ export default function LocalizacaoPage() {
       setError("Informe um telefone válido, com DDD.");
       return;
     }
+    if (slug.trim() && slug.trim().length < 3) {
+      setError("O endereço da página precisa ter ao menos 3 letras.");
+      return;
+    }
     if (dias.length === 0) {
       setError("Selecione ao menos um dia de funcionamento.");
       return;
@@ -120,6 +131,7 @@ export default function LocalizacaoPage() {
       await updateBarbearia(barbearia!.id, {
         telefone,
         endereco,
+        slug: slug.trim() || undefined,
         linkMaps: linkMaps.trim() || undefined,
         diasFuncionamento: dias,
         horarioAbertura: abertura,
@@ -174,6 +186,49 @@ export default function LocalizacaoPage() {
         onSubmit={handleSubmit}
         className="mt-6 max-w-xl space-y-5 rounded-2xl border border-line bg-ink-elev/60 p-6"
       >
+        <div>
+          <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
+            Endereço da sua página
+          </span>
+          <p className="mb-2 font-body text-[11px] text-muted">
+            É o link que você manda pros clientes. Use o nome da barbearia pra
+            ficar fácil de lembrar.
+          </p>
+          <div className="flex items-center gap-2 rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5">
+            <span className="shrink-0 font-body text-xs text-muted">/loja/</span>
+            <input
+              value={slug}
+              onChange={(e) => {
+                // Normaliza enquanto digita pra não salvar acento nem espaço.
+                setSlug(gerarSlug(e.target.value));
+                setSaved(false);
+              }}
+              placeholder={gerarSlug(barbearia.nome)}
+              className="min-w-0 flex-1 bg-transparent font-body text-sm text-bone outline-none"
+            />
+          </div>
+          {slug.trim() && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <code className="min-w-0 flex-1 truncate rounded-lg bg-bone/[0.04] px-2.5 py-1.5 font-accent text-[11px] text-bone-dim">
+                {enderecoPublico}/loja/{slug}
+              </code>
+              <button
+                type="button"
+                onClick={async () => {
+                  await navigator.clipboard
+                    .writeText(`${enderecoPublico}/loja/${slug}`)
+                    .catch(() => {});
+                  setCopiado(true);
+                  window.setTimeout(() => setCopiado(false), 2000);
+                }}
+                className="shrink-0 rounded-lg border border-line-strong px-3 py-1.5 font-body text-[11px] text-bone-dim hover:border-gold-bright/40 hover:text-gold-bright"
+              >
+                {copiado ? "Copiado!" : "Copiar link"}
+              </button>
+            </div>
+          )}
+        </div>
+
         <div>
           <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
             Foto de capa

@@ -22,6 +22,7 @@ import { useAsync } from "@/lib/use-async";
 import { getPlan } from "@/lib/plans";
 import { METODO_LABEL, type Agendamento } from "@/lib/types";
 import { agruparEmVisitas } from "@/lib/agrupar";
+import { caminhoLoja } from "@/lib/slug";
 
 function dinheiro(v: number) {
   return `R$ ${v.toFixed(2).replace(".", ",")}`;
@@ -166,7 +167,7 @@ export default function PainelPage() {
         </div>
         <div className="flex items-center gap-3">
           <Link
-            href={`/loja/${session.barbeariaId}`}
+            href={barbearia ? caminhoLoja(barbearia) : `/loja/${session.barbeariaId}`}
             target="_blank"
             className="rounded-full border border-line-strong px-4 py-2 font-body text-sm font-semibold text-bone-dim transition-colors hover:border-gold-bright/40 hover:text-gold-bright"
           >

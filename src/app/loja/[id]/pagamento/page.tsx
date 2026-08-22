@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useLoja } from "@/lib/loja-context";
+import { caminhoLoja } from "@/lib/slug";
 import { cartTotal, clearCart, useCart } from "@/lib/cart";
 import { criarPedidoLocal } from "@/lib/db";
 import { useAsync } from "@/lib/use-async";
@@ -90,7 +91,7 @@ function PagamentoConteudo() {
             : "Volte pro carrinho pra escolher o horário e preencher seus dados antes de pagar."}
         </p>
         <Link
-          href={`/loja/${barbearia.id}`}
+          href={`${caminhoLoja(barbearia)}`}
           className="mt-8 inline-block rounded-full bg-bone px-7 py-3.5 font-body text-sm font-semibold text-ink transition-transform hover:scale-[1.03]"
         >
           Voltar pro catálogo
@@ -184,7 +185,7 @@ function PagamentoConteudo() {
       <div className="sticky top-0 z-40 border-b border-line bg-ink/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-6 py-3.5">
           <button
-            onClick={() => router.push(`/loja/${barbearia.id}/carrinho`)}
+            onClick={() => router.push(`${caminhoLoja(barbearia)}/carrinho`)}
             className="flex shrink-0 items-center gap-1.5 font-body text-sm text-bone-dim transition-colors hover:text-bone"
           >
             <span aria-hidden>←</span> Voltar
