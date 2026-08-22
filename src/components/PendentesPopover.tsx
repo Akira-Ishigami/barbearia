@@ -109,7 +109,9 @@ export function PendentesPopover({
 
       {open && (
         <div
-          className={`absolute left-0 right-0 z-50 max-h-80 overflow-y-auto rounded-xl border border-line-strong bg-ink-elev p-2 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.9)] md:w-72 ${
+          // No desktop passa da largura da barra de propósito: cabe o nome do
+          // cliente e o total sem cortar nenhum dos dois.
+          className={`absolute left-0 right-0 z-50 max-h-80 overflow-y-auto rounded-xl border border-line-strong bg-ink-elev p-2 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.9)] md:right-auto md:w-80 ${
             direction === "up" ? "bottom-full mb-2" : "top-full mt-2"
           }`}
         >
@@ -124,8 +126,10 @@ export function PendentesPopover({
                 className="rounded-lg border border-warn-line bg-warn-soft px-3 py-2.5 [&+&]:mt-2"
               >
                 <div className="flex items-baseline justify-between gap-2">
-                  <p className="font-body text-sm text-bone">{v.clienteNome}</p>
-                  <span className="font-accent text-[11px] text-bone-dim">
+                  <p className="min-w-0 truncate font-body text-sm text-bone">
+                    {v.clienteNome}
+                  </p>
+                  <span className="shrink-0 font-accent text-[11px] text-bone-dim">
                     R$ {v.total.toFixed(2).replace(".", ",")}
                   </span>
                 </div>

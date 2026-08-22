@@ -81,8 +81,10 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
 
       {/* SIDEBAR */}
       {/* No desktop a barra acompanha a rolagem: com a agenda ou a lista de
-          serviços longa, o menu sumia e obrigava a rolar de volta pro topo. */}
-      <aside className="flex border-b border-line bg-ink-elev/60 px-5 py-6 md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:flex-col md:overflow-y-auto md:border-b-0 md:border-r">
+          serviços longa, o menu sumia e obrigava a rolar de volta pro topo.
+          Sem `overflow` aqui de propósito — ele criaria um recorte que corta
+          a lista de pendentes, que é um popover posicionado por cima. */}
+      <aside className="flex border-b border-line bg-ink-elev/60 px-5 py-6 md:sticky md:top-0 md:max-h-screen md:w-64 md:shrink-0 md:flex-col md:border-b-0 md:border-r">
         <div className="hidden md:block">
           <Link href="/" className="flex items-center gap-2.5">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-gold/40 bg-gold/10 text-gold-bright">
