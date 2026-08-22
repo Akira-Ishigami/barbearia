@@ -30,11 +30,16 @@ export function LojaTopBar({
   return (
     <div className="sticky top-0 z-40 border-b border-line bg-ink/85 backdrop-blur-xl">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3">
-        <Link
-          href={`/loja/${barbeariaId}`}
-          className="flex min-w-0 items-center gap-2.5 transition-opacity hover:opacity-70"
-        >
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-bone text-ink">
+        <div className="flex min-w-0 items-center gap-2.5">
+          {/* A tesoura é a marca da Navalha, não da barbearia: leva pro
+              diretório, onde dá pra achar outras. O nome ao lado é que
+              volta pro topo desta loja. */}
+          <Link
+            href="/barbearias"
+            aria-label="Ver outras barbearias"
+            title="Ver outras barbearias"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-bone text-ink transition-transform hover:scale-105"
+          >
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -46,11 +51,14 @@ export function LojaTopBar({
             >
               <path d="M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.5 8.5l11 11M20 4 8.5 15.5" />
             </svg>
-          </span>
-          <span className="truncate font-display text-sm font-semibold tracking-tight text-bone">
+          </Link>
+          <Link
+            href={`/loja/${barbeariaId}`}
+            className="min-w-0 truncate font-display text-sm font-semibold tracking-tight text-bone transition-opacity hover:opacity-70"
+          >
             {barbeariaNome}
-          </span>
-        </Link>
+          </Link>
+        </div>
 
         <div className="flex shrink-0 items-center gap-2">
         <Link
