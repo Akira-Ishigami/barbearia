@@ -13,12 +13,18 @@ export function LojaStepHeader({
   barbeariaNome,
   etapa,
   onVoltar,
+  pulaDados = false,
 }: {
   barbeariaNome: string;
   etapa: EtapaIndex;
   onVoltar: () => void;
+  /** Cliente logado não passa por "Seus dados" — o contador ignora a etapa. */
+  pulaDados?: boolean;
 }) {
-  const progresso = ((etapa + 1) / ETAPAS.length) * 100;
+  // Sem isso, quem pula a etapa 3 veria o contador saltar de 3/5 pra 5/5.
+  const total = pulaDados ? ETAPAS.length - 1 : ETAPAS.length;
+  const atual = pulaDados && etapa > 3 ? etapa : etapa + 1;
+  const progresso = (atual / total) * 100;
 
   return (
     <div className="sticky top-0 z-40 border-b border-line bg-ink/85 backdrop-blur-xl">
@@ -32,7 +38,7 @@ export function LojaStepHeader({
           </button>
           <p className="truncate font-display text-sm font-semibold text-bone">{barbeariaNome}</p>
           <span className="shrink-0 font-accent text-[11px] text-muted">
-            {etapa + 1}/{ETAPAS.length}
+            {atual}/{total}
           </span>
         </div>
 

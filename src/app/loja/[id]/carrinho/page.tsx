@@ -58,12 +58,21 @@ export default function CheckoutPage() {
   // (marcando pro filho, por exemplo), o que ela digitou manda.
   const { dados: clienteLogado } = useAsync(() => getClienteLogado(), []);
   const [preencheu, setPreencheu] = useState(false);
+  // Quando a pessoa clica em "alterar" no resumo, ela quer ver o formulário
+  // mesmo estando logada — normalmente pra marcar pra outra pessoa.
+  const [editarDados, setEditarDados] = useState(false);
+
   if (clienteLogado && !preencheu) {
     setNome((atual) => atual || clienteLogado.nome);
     setTelefone((atual) => atual || clienteLogado.telefone);
     setEmail((atual) => atual || clienteLogado.email);
     setPreencheu(true);
   }
+
+  // Dados completos vindos da conta: a etapa vira só uma confirmação, então
+  // não faz sentido parar nela — a pessoa digitaria o que já cadastrou.
+  const dadosProntos =
+    Boolean(clienteLogado) && !editarDados && nome.trim().length > 1 && isValidPhone(telefone);
 
   // Os horários ocupados vêm do banco, então mudam quando outra pessoa
   // marca — recarrega sempre que o dia escolhido muda. Precisa ficar antes
@@ -192,6 +201,16 @@ export default function CheckoutPage() {
       router.push(`${caminhoLoja(barbearia)}/pagamento`);
       return;
     }
+
+    // Pula "Seus dados" pra quem já está logado: os campos viriam todos
+    // preenchidos e a etapa só teria o botão de continuar.
+    if (etapa === 2 && dadosProntos) {
+      setCartCliente(barbearia.id, { nome: nome.trim(), telefone, email: email.trim() });
+      setEtapa(4);
+      window.scrollTo({ top: 0 });
+      return;
+    }
+
     setEtapa((e) => (e + 1) as EtapaIndex);
     window.scrollTo({ top: 0 });
   }
@@ -201,6 +220,13 @@ export default function CheckoutPage() {
     setErro(null);
     if (etapa === 0) {
       router.push(`${caminhoLoja(barbearia)}`);
+      return;
+    }
+    // Espelha o pulo da ida: sem isso o "voltar" cairia numa etapa que a
+    // pessoa nunca viu.
+    if (etapa === 4 && dadosProntos) {
+      setEtapa(2);
+      window.scrollTo({ top: 0 });
       return;
     }
     setEtapa((e) => (e - 1) as EtapaIndex);
@@ -235,7 +261,12 @@ export default function CheckoutPage() {
 
   return (
     <>
-      <LojaStepHeader barbeariaNome={barbearia.nome} etapa={etapa} onVoltar={voltar} />
+      <LojaStepHeader
+        barbeariaNome={barbearia.nome}
+        etapa={etapa}
+        onVoltar={voltar}
+        pulaDados={dadosProntos}
+      />
 
       <div className="mx-auto w-full max-w-2xl flex-1 px-6 py-10 pb-32">
         {/* ── 0 · ITENS ───────────────────────────────── */}
@@ -656,7 +687,12 @@ export default function CheckoutPage() {
                     <div className="mt-1.5">{bloco.conteudo}</div>
                   </div>
                   <button
-                    onClick={() => setEtapa(bloco.etapaAlvo)}
+                    onClick={() => {
+                      // "Seus dados" está pulada pra quem está logado; abrir
+                      // pelo resumo é o jeito de marcar pra outra pessoa.
+                      if (bloco.etapaAlvo === 3) setEditarDados(true);
+                      setEtapa(bloco.etapaAlvo);
+                    }}
                     className="shrink-0 font-body text-xs text-bone-dim underline underline-offset-4 hover:text-bone"
                   >
                     alterar
