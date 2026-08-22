@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getPlan } from "@/lib/plans";
+import { cabecalhosAutenticados } from "@/lib/db";
 
 /**
  * Mostra o que muda ao virar Pro sem tirar o dono do painel.
@@ -9,9 +10,41 @@ import { getPlan } from "@/lib/plans";
  * O botão antes mandava pra landing (`/#planos`): a pessoa saía do sistema,
  * caía numa página de venda e perdia o contexto do que estava fazendo.
  */
-export function ModalUpgrade({ onClose }: { onClose: () => void }) {
+export function ModalUpgrade({
+  onClose,
+  onTrocado,
+}: {
+  onClose: () => void;
+  /** Chamado depois da troca pra a tela recarregar já como Pro. */
+  onTrocado?: () => void;
+}) {
   const pro = getPlan("pro");
   const basico = getPlan("basico");
+  const [trocando, setTrocando] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  async function mudarParaPro() {
+    setErro(null);
+    setTrocando(true);
+    try {
+      const resposta = await fetch("/api/plano", {
+        method: "PATCH",
+        headers: await cabecalhosAutenticados(),
+        body: JSON.stringify({ plano: "pro" }),
+      });
+      const corpo = await resposta.json().catch(() => ({}));
+      if (!resposta.ok) {
+        setErro(corpo.erro ?? "Não foi possível mudar o plano.");
+        setTrocando(false);
+        return;
+      }
+      onTrocado?.();
+      onClose();
+    } catch {
+      setErro("Não foi possível mudar o plano.");
+      setTrocando(false);
+    }
+  }
 
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {
@@ -108,14 +141,22 @@ export function ModalUpgrade({ onClose }: { onClose: () => void }) {
           </p>
         </div>
 
-        <a
-          href="mailto:contato@navalha.app?subject=Quero%20mudar%20pro%20plano%20Pro"
-          className="mt-6 block rounded-full bg-gold-bright py-3.5 text-center font-body text-sm font-semibold text-ink transition-transform hover:scale-[1.02]"
+        {erro && (
+          <p className="mt-4 rounded-lg border border-off-line bg-off-soft px-3 py-2 font-body text-xs text-off">
+            {erro}
+          </p>
+        )}
+
+        <button
+          onClick={mudarParaPro}
+          disabled={trocando}
+          className="mt-6 w-full rounded-full bg-gold-bright py-3.5 text-center font-body text-sm font-semibold text-ink transition-transform hover:scale-[1.02] disabled:opacity-60"
         >
-          Quero mudar pro Pro
-        </a>
+          {trocando ? "Mudando…" : "Mudar pro Pro agora"}
+        </button>
         <p className="mt-3 text-center font-body text-xs text-muted">
-          A troca vale a partir da próxima cobrança. Nada muda nos seus dados.
+          Os recursos liberam na hora. O novo valor entra na próxima cobrança —
+          nada é cobrado agora e nenhum dado seu muda.
         </p>
       </div>
     </div>

@@ -192,11 +192,16 @@ export async function criarPreferencia(input: CriarPreferenciaInput): Promise<Pr
     excluir.push({ id: "credit_card" }, { id: "debit_card" });
   }
 
+  // `auto_return` faz o Mercado Pago devolver o cliente sozinho depois de
+  // pagar, mas só é aceito com back_url https — em localhost a criação da
+  // preferência falha inteira com "auto_return invalid".
+  const podeAutoReturn = redirectUriValida(input.backUrls.success);
+
   const corpo: Record<string, unknown> = {
     items: input.items.map((i) => ({ ...i, currency_id: "BRL" })),
     external_reference: input.externalReference,
     back_urls: input.backUrls,
-    auto_return: "approved",
+    ...(podeAutoReturn ? { auto_return: "approved" } : {}),
     notification_url: input.notificationUrl,
     statement_descriptor: "NAVALHA",
     payment_methods: {
