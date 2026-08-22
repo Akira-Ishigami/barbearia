@@ -107,6 +107,21 @@ export async function getBarbeariaPorSlugOuId(valor: string): Promise<Barbearia 
 }
 
 /**
+ * Todas as barbearias, pro diretório público.
+ *
+ * A policy de leitura pública já libera essa tabela — é a mesma consulta
+ * que a página da loja faz, só que sem filtrar por uma.
+ */
+export async function getBarbeariasPublicas(): Promise<Barbearia[]> {
+  const { data, error } = await supabase()
+    .from("barbearias")
+    .select("*")
+    .order("nome");
+  erro(error);
+  return (data ?? []).map(paraBarbearia);
+}
+
+/**
  * Slug livre a partir do nome. Se já existir, vai somando sufixo: duas
  * barbearias podem se chamar "Barbearia do Zé" e as duas precisam de link.
  */
