@@ -5,6 +5,7 @@ import { cancelarAgendamento, confirmarAgendamento, getAgendamentos } from "@/li
 import { useAsync } from "@/lib/use-async";
 import { formatDayLabel } from "@/lib/date";
 import { METODO_LABEL, type Agendamento } from "@/lib/types";
+import { agruparEmVisitas } from "@/lib/agrupar";
 
 /**
  * Sino de pendentes: fica no painel inteiro, então dá pra aceitar ou rejeitar
@@ -37,9 +38,12 @@ export function PendentesPopover({
     { pular: !open },
   );
 
-  const itens: Agendamento[] = (dados ?? []).filter(
+  const pendentesDoBanco: Agendamento[] = (dados ?? []).filter(
     (a) => a.status === "pendente" && (!barbeiroId || a.barbeiroId === barbeiroId),
   );
+  // Um cliente que marcou corte + barba são duas linhas no banco, mas uma
+  // visita só — vira um card com um par de botões.
+  const itens = agruparEmVisitas(pendentesDoBanco);
 
   useEffect(() => {
     if (!open) return;
@@ -57,13 +61,15 @@ export function PendentesPopover({
     };
   }, [open]);
 
-  async function aceitar(id: string) {
-    await confirmarAgendamento(id);
+  // A visita é aceita ou recusada inteira: não faz sentido confirmar o corte
+  // e deixar a barba do mesmo cliente pendurada.
+  async function aceitar(ids: string[]) {
+    await Promise.all(ids.map((id) => confirmarAgendamento(id)));
     recarregar();
   }
 
-  async function rejeitar(id: string) {
-    await cancelarAgendamento(id);
+  async function rejeitar(ids: string[]) {
+    await Promise.all(ids.map((id) => cancelarAgendamento(id)));
     recarregar();
   }
 
@@ -112,28 +118,33 @@ export function PendentesPopover({
               Nenhum agendamento aguardando confirmação.
             </p>
           ) : (
-            itens.map((a) => (
+            itens.map((v) => (
               <div
-                key={a.id}
+                key={v.chave}
                 className="rounded-lg border border-warn-line bg-warn-soft px-3 py-2.5 [&+&]:mt-2"
               >
-                <p className="font-body text-sm text-bone">{a.clienteNome}</p>
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="font-body text-sm text-bone">{v.clienteNome}</p>
+                  <span className="font-accent text-[11px] text-bone-dim">
+                    R$ {v.total.toFixed(2).replace(".", ",")}
+                  </span>
+                </div>
                 <p className="font-body text-[11px] text-bone-dim">
-                  {formatDayLabel(a.data)} · {a.hora} · {a.servicoNome}
+                  {formatDayLabel(v.data)} · {v.hora} · {v.servicos.join(" + ")}
                 </p>
                 <p className="font-body text-[11px] text-muted">
-                  {a.formaPagamento === "online"
-                    ? `pago via ${a.metodoPagamento ? METODO_LABEL[a.metodoPagamento] : "online"}`
+                  {v.formaPagamento === "online"
+                    ? `pago via ${v.metodoPagamento ? METODO_LABEL[v.metodoPagamento] : "online"}`
                     : "paga no local"}
                 </p>
-                {a.produtosComprados && a.produtosComprados.length > 0 && (
+                {v.produtos.length > 0 && (
                   <p className="font-body text-[11px] text-cyan-bright">
-                    + {a.produtosComprados.map((p) => p.produtoNome).join(", ")}
+                    + {v.produtos.map((p) => p.produtoNome).join(", ")}
                   </p>
                 )}
                 <div className="mt-2 flex gap-2">
                   <button
-                    onClick={() => aceitar(a.id)}
+                    onClick={() => aceitar(v.ids)}
                     className={`flex-1 rounded-md px-2 py-1.5 font-body text-[11px] font-semibold text-ink transition-transform hover:scale-[1.02] ${
                       accent === "gold" ? "bg-gold-bright" : "bg-cyan-bright"
                     }`}
@@ -141,7 +152,7 @@ export function PendentesPopover({
                     Aceitar
                   </button>
                   <button
-                    onClick={() => rejeitar(a.id)}
+                    onClick={() => rejeitar(v.ids)}
                     className="flex-1 rounded-md border border-line-strong px-2 py-1.5 font-body text-[11px] text-bone-dim hover:border-off-line hover:text-off"
                   >
                     Rejeitar

@@ -25,6 +25,14 @@ export interface PresetFoto {
   descricao: string;
 }
 
+/**
+ * Variância do laplaciano abaixo disso indica imagem sem detalhe real —
+ * tipicamente uma foto pequena que alguém ampliou antes de enviar. O valor
+ * é conservador de propósito: imagem levemente suave passa, só barra o que
+ * está claramente borrado.
+ */
+const NITIDEZ_MINIMA = 12;
+
 export const PRESET_CAPA: PresetFoto = {
   ladoMax: 1920,
   qualidade: 0.85,
@@ -90,6 +98,55 @@ async function carregar(file: File): Promise<{ bitmap: ImageBitmap } | { img: HT
   }
 }
 
+/**
+ * Mede o detalhe da imagem pela variância do laplaciano — quanto mais
+ * bordas nítidas, maior o valor.
+ *
+ * Serve pra pegar o caso que apareceu em produção: uma imagem de 161x91
+ * ampliada pra 1920 antes de subir. As dimensões passavam na checagem, mas
+ * a foto não tinha detalhe nenhum e ficava borrada ocupando a tela toda.
+ */
+function medirNitidez(ctx: CanvasRenderingContext2D, largura: number, altura: number): number {
+  // Amostra reduzida: medir na resolução cheia é caro e não muda o veredito.
+  const passo = Math.max(1, Math.floor(Math.max(largura, altura) / 320));
+  const w = Math.floor(largura / passo);
+  const h = Math.floor(altura / passo);
+  if (w < 3 || h < 3) return Number.POSITIVE_INFINITY;
+
+  let dados: Uint8ClampedArray;
+  try {
+    dados = ctx.getImageData(0, 0, largura, altura).data;
+  } catch {
+    // Canvas "sujo" por imagem de outra origem: não dá pra medir, deixa passar.
+    return Number.POSITIVE_INFINITY;
+  }
+
+  const cinza = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = ((y * passo) * largura + x * passo) * 4;
+      cinza[y * w + x] = 0.299 * dados[i] + 0.587 * dados[i + 1] + 0.114 * dados[i + 2];
+    }
+  }
+
+  let soma = 0;
+  let somaQuad = 0;
+  let n = 0;
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      const lap =
+        cinza[i - w] + cinza[i + w] + cinza[i - 1] + cinza[i + 1] - 4 * cinza[i];
+      soma += lap;
+      somaQuad += lap * lap;
+      n++;
+    }
+  }
+  if (n === 0) return Number.POSITIVE_INFINITY;
+  const media = soma / n;
+  return somaQuad / n - media * media;
+}
+
 export async function prepararFoto(
   file: File,
   preset: PresetFoto,
@@ -140,6 +197,15 @@ export async function prepararFoto(
   ctx.imageSmoothingQuality = "high";
   ctx.drawImage(fonte as CanvasImageSource, 0, 0, largura, altura);
   if ("bitmap" in origem) origem.bitmap.close();
+
+  if (medirNitidez(ctx, largura, altura) < NITIDEZ_MINIMA) {
+    return {
+      ok: false,
+      error:
+        "Essa imagem está borrada — parece uma foto pequena que foi ampliada. " +
+        "Use o arquivo original, sem esticar, senão ela aparece assim pro cliente.",
+    };
+  }
 
   const dataUrl = canvas.toDataURL("image/jpeg", preset.qualidade);
 

@@ -551,16 +551,30 @@ export default function LojaPublicaPage() {
             <p className="mt-4 font-body text-sm leading-relaxed text-bone-dim">
               {barbearia.endereco}
             </p>
-            {barbearia.linkMaps && (
-              <a
-                href={barbearia.linkMaps}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-6 inline-block rounded-full border border-line-strong px-6 py-3 font-body text-sm font-semibold text-bone transition-colors hover:border-bone hover:bg-bone hover:text-ink"
-              >
-                Abrir no Google Maps ↗
-              </a>
-            )}
+            <a
+              href={
+                barbearia.linkMaps ||
+                `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(barbearia.endereco)}`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-6 inline-block rounded-full border border-line-strong px-6 py-3 font-body text-sm font-semibold text-bone transition-colors hover:border-bone hover:bg-bone hover:text-ink"
+            >
+              Abrir no Google Maps ↗
+            </a>
+
+            {/* Mapa embutido: o `output=embed` não precisa de chave de API.
+                Cai no endereço quando não há link salvo, então toda barbearia
+                tem mapa mesmo sem configurar nada. */}
+            <div className="mt-6 overflow-hidden rounded-2xl border border-line">
+              <iframe
+                title={`Mapa — ${barbearia.nome}`}
+                src={`https://www.google.com/maps?q=${encodeURIComponent(barbearia.endereco)}&output=embed`}
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                className="h-64 w-full border-0"
+              />
+            </div>
           </div>
 
           <div className="rounded-2xl border border-line bg-ink-elev p-6">
@@ -590,12 +604,25 @@ export default function LojaPublicaPage() {
           </div>
         </div>
 
-        <p className="mt-14 text-center font-body text-[11px] text-muted">
-          Página feita com{" "}
-          <Link href="/" className="text-gold-bright hover:underline">
-            Navalha
-          </Link>
-        </p>
+        <div className="mt-14 space-y-1.5 text-center font-body text-[11px] text-muted">
+          <p>
+            Página feita com{" "}
+            <Link href="/" className="text-gold-bright hover:underline">
+              Navalha
+            </Link>
+          </p>
+          <p>
+            Desenvolvido por{" "}
+            <a
+              href="https://instagram.com/dev__akira"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-bone-dim hover:text-gold-bright hover:underline"
+            >
+              Akira Ishigami
+            </a>
+          </p>
+        </div>
       </section>
     </>
   );

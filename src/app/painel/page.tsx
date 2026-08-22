@@ -20,6 +20,7 @@ import { sair, useSession } from "@/lib/use-session";
 import { useAsync } from "@/lib/use-async";
 import { getPlan } from "@/lib/plans";
 import { METODO_LABEL, type Agendamento } from "@/lib/types";
+import { agruparEmVisitas } from "@/lib/agrupar";
 
 const STATUS_LABEL: Record<Agendamento["status"], string> = {
   pendente: "Aguardando confirmação",
@@ -75,19 +76,22 @@ export default function PainelPage() {
   const agendamentos = (dados?.agendamentos ?? []).filter(
     (a) => a.data === hoje && a.status !== "cancelado",
   );
-  const pendentes = agendamentos.filter((a) => a.status === "pendente");
+  // Cada serviço é uma linha no banco, mas o cliente é um só: agrupamos por
+  // pedido pra não repetir a mesma pessoa várias vezes na lista.
+  const pendentes = agruparEmVisitas(agendamentos.filter((a) => a.status === "pendente"));
+  const visitasDoDia = agruparEmVisitas(agendamentos);
   const faturamentoHoje = agendamentos
     .filter((a) => a.status !== "pendente")
     .reduce((sum, a) => sum + a.preco, 0);
   const proximo = agendamentos.find((a) => a.status === "confirmado");
 
-  async function handleConfirmar(id: string) {
-    await confirmarAgendamento(id);
+  async function handleConfirmar(ids: string[]) {
+    await Promise.all(ids.map((id) => confirmarAgendamento(id)));
     recarregar();
   }
 
-  async function handleCancelar(id: string) {
-    await cancelarAgendamento(id);
+  async function handleCancelar(ids: string[]) {
+    await Promise.all(ids.map((id) => cancelarAgendamento(id)));
     recarregar();
   }
 
@@ -185,27 +189,30 @@ export default function PainelPage() {
             acontecer, ou cancele se ele não aparecer.
           </p>
           <div className="mt-4 space-y-2.5">
-            {pendentes.map((a) => (
+            {pendentes.map((v) => (
               <div
-                key={a.id}
+                key={v.chave}
                 className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-warn-line bg-ink-elev px-4 py-3"
               >
                 <div className="flex items-center gap-4">
-                  <span className="font-accent text-sm text-warn">{a.hora}</span>
+                  <span className="font-accent text-sm text-warn">{v.hora}</span>
                   <div>
-                    <p className="font-body text-sm text-bone">{a.clienteNome}</p>
-                    <p className="font-body text-xs text-bone-dim">{a.servicoNome}</p>
+                    <p className="font-body text-sm text-bone">{v.clienteNome}</p>
+                    <p className="font-body text-xs text-bone-dim">
+                      {v.servicos.join(" + ")} · R${" "}
+                      {v.total.toFixed(2).replace(".", ",")}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => handleConfirmar(a.id)}
+                    onClick={() => handleConfirmar(v.ids)}
                     className="rounded-full bg-gold-bright px-4 py-1.5 font-body text-xs font-semibold text-ink transition-transform hover:scale-[1.03]"
                   >
                     Confirmar
                   </button>
                   <button
-                    onClick={() => handleCancelar(a.id)}
+                    onClick={() => handleCancelar(v.ids)}
                     className="rounded-full border border-line-strong px-4 py-1.5 font-body text-xs text-bone-dim hover:border-off-line hover:text-off"
                   >
                     Cancelar
@@ -222,49 +229,52 @@ export default function PainelPage() {
           Agenda de hoje
         </p>
         <div className="mt-4 space-y-2.5">
-          {agendamentos.map((a) => (
-            <div
-              key={a.id}
-              className="flex items-center justify-between rounded-xl border border-line px-4 py-3"
-            >
-              <div className="flex items-center gap-4">
-                <span className="font-accent text-sm text-gold-bright">
-                  {a.hora}
-                </span>
-                <div>
-                  <p className="font-body text-sm text-bone">{a.clienteNome}</p>
-                  <p className="font-body text-xs text-bone-dim">
-                    {a.servicoNome}
-                    {a.metodoPagamento && (
-                      <span className="ml-1.5 rounded bg-ok-soft px-1.5 py-0.5 font-body text-[10px] font-medium text-ok">
-                        {METODO_LABEL[a.metodoPagamento]}
-                      </span>
-                    )}
-                  </p>
-                  {a.produtosComprados && a.produtosComprados.length > 0 && (
-                    <p className="font-body text-[11px] text-cyan-bright">
-                      + {a.produtosComprados.map((p) => p.produtoNome).join(", ")}
+          {visitasDoDia.map((v) => {
+            const status = v.primeiro.status;
+            return (
+              <div
+                key={v.chave}
+                className="flex items-center justify-between rounded-xl border border-line px-4 py-3"
+              >
+                <div className="flex items-center gap-4">
+                  <span className="font-accent text-sm text-gold-bright">
+                    {v.hora}
+                  </span>
+                  <div>
+                    <p className="font-body text-sm text-bone">{v.clienteNome}</p>
+                    <p className="font-body text-xs text-bone-dim">
+                      {v.servicos.join(" + ")}
+                      {v.metodoPagamento && (
+                        <span className="ml-1.5 rounded bg-ok-soft px-1.5 py-0.5 font-body text-[10px] font-medium text-ok">
+                          {METODO_LABEL[v.metodoPagamento]}
+                        </span>
+                      )}
                     </p>
+                    {v.produtos.length > 0 && (
+                      <p className="font-body text-[11px] text-cyan-bright">
+                        + {v.produtos.map((p) => p.produtoNome).join(", ")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {status === "confirmado" && (
+                    <button
+                      onClick={() => setConcluindo(v.primeiro)}
+                      className="rounded-full border border-gold-bright/40 px-3.5 py-1.5 font-body text-xs font-semibold text-gold-bright hover:bg-gold-bright/10"
+                    >
+                      Concluir
+                    </button>
                   )}
+                  <span
+                    className={`rounded-full px-3 py-1 font-body text-xs font-medium ${STATUS_CLASS[status]}`}
+                  >
+                    {STATUS_LABEL[status]}
+                  </span>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {a.status === "confirmado" && (
-                  <button
-                    onClick={() => setConcluindo(a)}
-                    className="rounded-full border border-gold-bright/40 px-3.5 py-1.5 font-body text-xs font-semibold text-gold-bright hover:bg-gold-bright/10"
-                  >
-                    Concluir
-                  </button>
-                )}
-                <span
-                  className={`rounded-full px-3 py-1 font-body text-xs font-medium ${STATUS_CLASS[a.status]}`}
-                >
-                  {STATUS_LABEL[a.status]}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getBarbearia } from "@/lib/db";
 import { sair, useSession } from "@/lib/use-session";
 import { useAsync } from "@/lib/use-async";
@@ -10,6 +10,7 @@ import { usePendingAlerts } from "@/lib/use-pending-alerts";
 import { useTheme, themeClass } from "@/lib/use-theme";
 import { PendentesPopover } from "@/components/PendentesPopover";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ModalUpgrade } from "@/components/ModalUpgrade";
 
 const NAV = [
   { href: "/painel", label: "Visão geral", pro: false },
@@ -28,6 +29,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const session = useSession();
   const theme = useTheme();
+  const [verUpgrade, setVerUpgrade] = useState(false);
   const { pendentes, flash } = usePendingAlerts(
     session?.role === "dono" ? session.barbeariaId : undefined,
   );
@@ -78,7 +80,9 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
       )}
 
       {/* SIDEBAR */}
-      <aside className="flex border-b border-line bg-ink-elev/60 px-5 py-6 md:w-64 md:shrink-0 md:flex-col md:border-b-0 md:border-r">
+      {/* No desktop a barra acompanha a rolagem: com a agenda ou a lista de
+          serviços longa, o menu sumia e obrigava a rolar de volta pro topo. */}
+      <aside className="flex border-b border-line bg-ink-elev/60 px-5 py-6 md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:flex-col md:overflow-y-auto md:border-b-0 md:border-r">
         <div className="hidden md:block">
           <Link href="/" className="flex items-center gap-2.5">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-gold/40 bg-gold/10 text-gold-bright">
@@ -119,12 +123,12 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
               </p>
             </div>
             {!isPro && (
-              <Link
-                href="/#planos"
-                className="rounded-full bg-gold-bright px-2.5 py-1 font-body text-[10px] font-semibold text-ink"
+              <button
+                onClick={() => setVerUpgrade(true)}
+                className="rounded-full bg-gold-bright px-2.5 py-1 font-body text-[10px] font-semibold text-ink transition-transform hover:scale-105"
               >
                 Upgrade
-              </Link>
+              </button>
             )}
           </div>
         </div>
@@ -177,6 +181,8 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
       <main className="min-w-0 flex-1 px-6 py-8 md:px-10 md:py-10">
         {children}
       </main>
+
+      {verUpgrade && <ModalUpgrade onClose={() => setVerUpgrade(false)} />}
     </div>
   );
 }

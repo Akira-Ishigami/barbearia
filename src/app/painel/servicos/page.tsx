@@ -8,6 +8,7 @@ import { useAsync } from "@/lib/use-async";
 import { CategoriaField } from "@/components/CategoriaField";
 import { SERVICO_CATEGORIAS_PRESET, type Servico } from "@/lib/types";
 import { PRESET_CATALOGO, prepararFoto } from "@/lib/imagem";
+import { EditarServicoModal } from "@/components/EditarServicoModal";
 
 export default function ServicosPage() {
   const session = useSession();
@@ -19,6 +20,7 @@ export default function ServicosPage() {
   const [incluidos, setIncluidos] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [formKey, setFormKey] = useState(0);
+  const [editando, setEditando] = useState<Servico | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const dono = session?.role === "dono";
@@ -376,6 +378,12 @@ export default function ServicosPage() {
                       R$ {s.preco.toFixed(2).replace(".", ",")}
                     </span>
                     <button
+                      onClick={() => setEditando(s)}
+                      className="rounded-full border border-line-strong px-3 py-1 font-body text-xs text-bone-dim hover:border-gold-bright/40 hover:text-gold-bright"
+                    >
+                      Editar
+                    </button>
+                    <button
                       onClick={() => toggleAtivo(s)}
                       className="rounded-full border border-line-strong px-3 py-1 font-body text-xs text-bone-dim hover:border-gold-bright/40 hover:text-gold-bright"
                     >
@@ -394,6 +402,16 @@ export default function ServicosPage() {
           </div>
         ))}
       </div>
+      {editando && (
+        <EditarServicoModal
+          servico={editando}
+          onClose={() => setEditando(null)}
+          onSalvar={async (patch) => {
+            await updateServico(editando.id, patch);
+            recarregar();
+          }}
+        />
+      )}
     </div>
   );
 }

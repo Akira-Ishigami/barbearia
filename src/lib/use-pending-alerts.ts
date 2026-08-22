@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { supabase, supabaseConfigurado } from "./supabase-browser";
-import { playNotificationSound } from "./sound";
+import { playNotificationSound, prepararSom } from "./sound";
 
-const POLL_MS = 15000;
+// 15s deixava o dono esperando demais pra ver que chegou cliente novo.
+const POLL_MS = 8000;
 
 async function contarPendentes(barbeariaId: string, barbeiroId?: string): Promise<number> {
   let consulta = supabase()
@@ -37,6 +38,10 @@ export function usePendingAlerts(barbeariaId: string | undefined, barbeiroId?: s
 
   useEffect(() => {
     if (!barbeariaId || !supabaseConfigurado()) return;
+
+    // O navegador só libera áudio depois de um gesto; deixamos escutando o
+    // primeiro clique da sessão pra que o alerta seguinte já toque.
+    prepararSom();
 
     let cancelado = false;
 

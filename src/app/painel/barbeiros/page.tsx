@@ -14,6 +14,7 @@ import { useAsync } from "@/lib/use-async";
 import { SenhaField } from "@/components/SenhaField";
 import type { BarbeiroPerfil } from "@/lib/types";
 import { PRESET_AVATAR, prepararFoto } from "@/lib/imagem";
+import { EditarBarbeiroModal } from "@/components/EditarBarbeiroModal";
 
 export default function BarbeirosPage() {
   const session = useSession();
@@ -23,6 +24,7 @@ export default function BarbeirosPage() {
   const [especialidade, setEspecialidade] = useState("");
   const [foto, setFoto] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  const [editando, setEditando] = useState<BarbeiroPerfil | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const dono = session?.role === "dono";
@@ -254,27 +256,45 @@ export default function BarbeirosPage() {
                 </p>
               </div>
             </div>
-            {isPro && (
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => toggleAtivo(b)}
-                  className="rounded-full border border-line-strong px-3 py-1 font-body text-xs text-bone-dim hover:border-gold-bright/40 hover:text-gold-bright"
-                >
-                  {b.ativo ? "Ativo" : "Inativo"}
-                </button>
-                {b.usuarioId !== session.userId && (
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setEditando(b)}
+                className="rounded-full border border-line-strong px-3 py-1 font-body text-xs text-bone-dim hover:border-gold-bright/40 hover:text-gold-bright"
+              >
+                Editar
+              </button>
+              {isPro && (
+                <>
                   <button
-                    onClick={() => excluir(b.id)}
-                    className="rounded-full border border-line-strong px-3 py-1 font-body text-xs text-bone-dim hover:border-off-line hover:text-off"
+                    onClick={() => toggleAtivo(b)}
+                    className="rounded-full border border-line-strong px-3 py-1 font-body text-xs text-bone-dim hover:border-gold-bright/40 hover:text-gold-bright"
                   >
-                    Excluir
+                    {b.ativo ? "Ativo" : "Inativo"}
                   </button>
-                )}
-              </div>
-            )}
+                  {b.usuarioId !== session.userId && (
+                    <button
+                      onClick={() => excluir(b.id)}
+                      className="rounded-full border border-line-strong px-3 py-1 font-body text-xs text-bone-dim hover:border-off-line hover:text-off"
+                    >
+                      Excluir
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         ))}
       </div>
+      {editando && (
+        <EditarBarbeiroModal
+          barbeiro={editando}
+          onClose={() => setEditando(null)}
+          onSalvar={async (patch) => {
+            await updateBarbeiro(editando.id, patch);
+            recarregar();
+          }}
+        />
+      )}
     </div>
   );
 }
