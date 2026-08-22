@@ -8,7 +8,7 @@ Ordem importa: a Vercel primeiro, porque o Mercado Pago pede a URL do site.
 
 - Repositório: [github.com/Akira-Ishigami/barbearia](https://github.com/Akira-Ishigami/barbearia)
 - Projeto Vercel: **navalha**
-- **URL de produção: https://navalha-virid.vercel.app**
+- **URL de produção: https://navalha-opal.vercel.app**
 
 Cada `git push` na branch `main` gera um deploy novo automaticamente.
 
@@ -46,7 +46,7 @@ Na aplicação, marque que ela usa **Checkout Pro** e ative o modelo de
 
 - **URLs de redirecionamento (OAuth)** → cadastre exatamente:
   ```
-  https://navalha-virid.vercel.app/api/mp/callback
+  https://navalha-opal.vercel.app/api/mp/callback
   ```
 - Copie **Client ID** → `MP_CLIENT_ID`
 - Copie **Client Secret** → `MP_CLIENT_SECRET` ⚠️ **segredo**
@@ -65,7 +65,7 @@ Na aplicação → **Webhooks / Notificações**:
 
 - URL:
   ```
-  https://navalha-virid.vercel.app/api/mp/webhook
+  https://navalha-opal.vercel.app/api/mp/webhook
   ```
 - Evento: **Pagamentos** (`payment`)
 - Ao salvar, o MP mostra uma **chave secreta** → `MP_WEBHOOK_SECRET` ⚠️ **segredo**
