@@ -94,6 +94,8 @@ export interface VisitaCliente {
   barbeariaId: string;
   barbeariaNome: string;
   barbeariaSlug?: string;
+  /** Com quem foi atendido — usado pra sugerir o mesmo profissional. */
+  barbeiroId?: string;
   data: string;
   hora: string;
   servicos: string[];

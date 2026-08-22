@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useLoja } from "@/lib/loja-context";
 import { caminhoLoja } from "@/lib/slug";
+import { getClienteLogado } from "@/lib/cliente-db";
 import {
   cartTotal,
   removeProdutoFromCart,
@@ -51,6 +52,18 @@ export default function CheckoutPage() {
   const [email, setEmail] = useState(cart.cliente?.email ?? "");
   const [clienteReconhecido, setClienteReconhecido] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+
+  // Quem está logado não devia digitar de novo o que já cadastrou. Só
+  // preenche o que está vazio: se a pessoa começou a escrever outro nome
+  // (marcando pro filho, por exemplo), o que ela digitou manda.
+  const { dados: clienteLogado } = useAsync(() => getClienteLogado(), []);
+  const [preencheu, setPreencheu] = useState(false);
+  if (clienteLogado && !preencheu) {
+    setNome((atual) => atual || clienteLogado.nome);
+    setTelefone((atual) => atual || clienteLogado.telefone);
+    setEmail((atual) => atual || clienteLogado.email);
+    setPreencheu(true);
+  }
 
   // Os horários ocupados vêm do banco, então mudam quando outra pessoa
   // marca — recarrega sempre que o dia escolhido muda. Precisa ficar antes

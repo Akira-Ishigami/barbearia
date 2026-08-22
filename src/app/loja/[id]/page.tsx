@@ -14,6 +14,7 @@ import {
 import { WEEKDAYS } from "@/lib/types";
 import { LojaTopBar } from "@/components/LojaTopBar";
 import { ScrollRail } from "@/components/ScrollRail";
+import { RetomarVisita } from "@/components/RetomarVisita";
 
 const TODOS = "Todos";
 
@@ -142,6 +143,9 @@ export default function LojaPublicaPage() {
           </div>
         </div>
       </header>
+
+      {/* Atalho de cliente da casa — some sozinho pra quem nunca veio. */}
+      <RetomarVisita barbearia={barbearia} servicos={servicos} barbeiros={barbeiros} />
 
       {/* ── SERVIÇOS ─────────────────────────────────────── */}
       <section id="servicos" className="px-6 py-16">

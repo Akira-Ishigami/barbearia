@@ -69,7 +69,7 @@ export async function getHistoricoCliente(clienteId: string): Promise<VisitaClie
   const [{ data: agendamentos }, { data: itens }] = await Promise.all([
     db
       .from("agendamentos")
-      .select("pedido_id, servico_nome, data, hora, status")
+      .select("pedido_id, servico_nome, data, hora, status, barbeiro_id")
       .in("pedido_id", ids),
     db.from("pedido_produtos").select("pedido_id, produto_nome, quantidade").in("pedido_id", ids),
   ]);
@@ -88,6 +88,7 @@ export async function getHistoricoCliente(clienteId: string): Promise<VisitaClie
         barbeariaId: p.barbearia_id as string,
         barbeariaNome: barbearia?.nome ?? "Barbearia",
         barbeariaSlug: barbearia?.slug ?? undefined,
+        barbeiroId: (primeiro?.barbeiro_id as string) ?? undefined,
         // Pedido sem agendamento não deveria existir, mas se existir não
         // pode derrubar a tela inteira do histórico.
         data: (primeiro?.data as string) ?? (p.criado_em as string).slice(0, 10),
