@@ -7,6 +7,8 @@ import { useLoja } from "@/lib/loja-context";
 import { caminhoLoja } from "@/lib/slug";
 import { getClienteLogado } from "@/lib/cliente-db";
 import {
+  addProdutoToCart,
+  addServicoToCart,
   cartTotal,
   removeProdutoFromCart,
   removeServicoFromCart,
@@ -32,7 +34,7 @@ function preco(v: number) {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { barbearia, barbeiros } = useLoja();
+  const { barbearia, barbeiros, servicos, produtos, isPro } = useLoja();
   const cart = useCart(barbearia?.id ?? "");
 
   const [etapa, setEtapa] = useState<EtapaIndex>(0);
@@ -61,6 +63,7 @@ export default function CheckoutPage() {
   // Quando a pessoa clica em "alterar" no resumo, ela quer ver o formulário
   // mesmo estando logada — normalmente pra marcar pra outra pessoa.
   const [editarDados, setEditarDados] = useState(false);
+  const [adicionando, setAdicionando] = useState(false);
 
   if (clienteLogado && !preencheu) {
     setNome((atual) => atual || clienteLogado.nome);
@@ -87,6 +90,20 @@ export default function CheckoutPage() {
 
   const nServicos = cart.servicos.length;
   const carrinhoVazio = nServicos === 0 && cart.produtos.length === 0;
+
+  // O que ainda dá pra somar à visita. Produto só entra no Pro, e o que já
+  // está no carrinho fica de fora pra a lista não repetir escolha feita.
+  const faltando = {
+    servicos: servicos.filter(
+      (sv) => sv.ativo && !cart.servicos.some((c) => c.servicoId === sv.id),
+    ),
+    produtos: isPro
+      ? produtos.filter(
+          (pr) =>
+            pr.ativo && pr.estoque > 0 && !cart.produtos.some((c) => c.produtoId === pr.id),
+        )
+      : [],
+  };
   const barbeiroEspecifico =
     selecaoBarbeiro === SEM_PREFERENCIA
       ? null
@@ -365,12 +382,84 @@ export default function CheckoutPage() {
               </p>
             )}
 
-            <Link
-              href={`${caminhoLoja(barbearia)}`}
-              className="mt-6 inline-block font-body text-sm text-bone-dim underline underline-offset-4 hover:text-bone"
-            >
-              Adicionar mais itens
-            </Link>
+            {/* Lista aqui mesmo em vez de mandar de volta pro catálogo: na
+                maioria das vezes é só um item esquecido, e voltar faria a
+                pessoa refazer a rolagem toda pra achar. */}
+            {!adicionando ? (
+              <button
+                onClick={() => setAdicionando(true)}
+                className="mt-6 font-body text-sm text-bone-dim underline underline-offset-4 hover:text-bone"
+              >
+                Esqueceu algo? Adicionar mais
+              </button>
+            ) : (
+              <div className="mt-6 rounded-2xl border border-line bg-ink-elev p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-accent text-[11px] uppercase tracking-[0.18em] text-muted">
+                    Adicionar à visita
+                  </p>
+                  <button
+                    onClick={() => setAdicionando(false)}
+                    className="font-body text-xs text-bone-dim hover:text-bone"
+                  >
+                    fechar
+                  </button>
+                </div>
+
+                <div className="mt-3 space-y-1.5">
+                  {faltando.servicos.map((sv) => (
+                    <button
+                      key={sv.id}
+                      onClick={() => addServicoToCart(barbearia.id, sv)}
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-line px-3.5 py-2.5 text-left transition-colors hover:border-bone/40"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-body text-sm text-bone">
+                          {sv.nome}
+                        </span>
+                        <span className="font-body text-[11px] text-muted">
+                          {sv.duracaoMin} min
+                        </span>
+                      </span>
+                      <span className="shrink-0 font-accent text-xs text-bone-dim">
+                        + {preco(sv.preco)}
+                      </span>
+                    </button>
+                  ))}
+
+                  {faltando.produtos.map((pr) => (
+                    <button
+                      key={pr.id}
+                      onClick={() => addProdutoToCart(barbearia.id, pr)}
+                      className="flex w-full items-center justify-between gap-3 rounded-xl border border-line px-3.5 py-2.5 text-left transition-colors hover:border-bone/40"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-body text-sm text-bone">
+                          {pr.nome}
+                        </span>
+                        <span className="font-body text-[11px] text-muted">produto</span>
+                      </span>
+                      <span className="shrink-0 font-accent text-xs text-bone-dim">
+                        + {preco(pr.preco)}
+                      </span>
+                    </button>
+                  ))}
+
+                  {faltando.servicos.length === 0 && faltando.produtos.length === 0 && (
+                    <p className="py-3 text-center font-body text-xs text-muted">
+                      Você já adicionou tudo que a barbearia oferece.
+                    </p>
+                  )}
+                </div>
+
+                <Link
+                  href={`${caminhoLoja(barbearia)}`}
+                  className="mt-3 block text-center font-body text-xs text-bone-dim underline underline-offset-4 hover:text-bone"
+                >
+                  Ver catálogo completo
+                </Link>
+              </div>
+            )}
           </section>
         )}
 
