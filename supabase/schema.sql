@@ -205,6 +205,11 @@ alter table barbearias add column if not exists slug text;
 -- Formato: {"seg": {"abre": "09:00", "fecha": "19:00"}, ...}
 alter table barbearias add column if not exists horarios_dia jsonb;
 
+-- O CEP era só estado da tela: preenchia, virava endereço e sumia no
+-- reload. Guardar ele deixa o campo voltar preenchido na próxima edição,
+-- em vez de o dono ter que digitar de novo pra mexer no número.
+alter table barbearias add column if not exists cep text;
+
 alter table pedidos add column if not exists cliente_id uuid references clientes(id) on delete set null;
 create index if not exists pedidos_cliente_idx on pedidos (cliente_id, criado_em desc);
 create unique index if not exists barbearias_slug_unico on barbearias (slug) where slug is not null;

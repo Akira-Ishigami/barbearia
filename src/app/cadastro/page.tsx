@@ -18,6 +18,7 @@ function CadastroForm() {
   const [barbeariaNome, setBarbeariaNome] = useState("");
   const [telefone, setTelefone] = useState("");
   const [endereco, setEndereco] = useState("");
+  const [cep, setCep] = useState("");
   const [dias, setDias] = useState<Weekday[]>(["seg", "ter", "qua", "qui", "sex", "sab"]);
   const [abertura, setAbertura] = useState("09:00");
   const [fechamento, setFechamento] = useState("20:00");
@@ -67,6 +68,7 @@ function CadastroForm() {
           barbeariaNome,
           telefone,
           endereco,
+          cep: cep.trim() || undefined,
           diasFuncionamento: dias,
           horarioAbertura: abertura,
           horarioFechamento: fechamento,
@@ -180,7 +182,12 @@ function CadastroForm() {
                 />
               </label>
 
-              <EnderecoCepField valor={endereco} onChange={setEndereco} />
+              <EnderecoCepField
+                valor={endereco}
+                onChange={setEndereco}
+                cep={cep}
+                onCepChange={setCep}
+              />
             </fieldset>
 
             <fieldset className="space-y-3">

@@ -71,3 +71,21 @@ export function cidadeDoEndereco(endereco: string): string {
   // "Vilhena/RO" -> "Vilhena/RO"; texto muito longo provavelmente não é cidade.
   return ultima.length <= 40 ? ultima : "";
 }
+
+/**
+ * Endereço do mapa embutido (`output=embed` não pede chave de API).
+ *
+ * Passar o link do Maps inteiro como `q=` faz o Google tratar a URL como
+ * termo de busca e devolver o mundo inteiro — então quando o link tem
+ * coordenada a gente extrai só ela, que é o que centraliza o pino. Sem
+ * coordenada, cai no endereço escrito, que o Google geocodifica sozinho.
+ */
+export function mapaEmbedSrc(
+  linkMaps: string | undefined,
+  endereco: string,
+  zoom = 16,
+): string {
+  const coord = coordenadaDoLink(linkMaps);
+  const q = coord ? `${coord.lat},${coord.lng}` : endereco;
+  return `https://www.google.com/maps?q=${encodeURIComponent(q)}&z=${zoom}&output=embed`;
+}

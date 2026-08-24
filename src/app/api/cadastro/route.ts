@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
     barbeariaNome?: string;
     telefone?: string;
     endereco?: string;
+    cep?: string;
     diasFuncionamento?: string[];
     horarioAbertura?: string;
     horarioFechamento?: string;
@@ -94,6 +95,7 @@ export async function POST(request: NextRequest) {
         slug: await slugDisponivel(db, nomeBarbearia),
         telefone: (c.telefone ?? "").trim(),
         endereco: (c.endereco ?? "").trim(),
+        cep: c.cep?.trim() || null,
         dias_funcionamento: c.diasFuncionamento?.length
           ? c.diasFuncionamento
           : ["seg", "ter", "qua", "qui", "sex"],

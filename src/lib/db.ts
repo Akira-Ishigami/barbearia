@@ -56,6 +56,7 @@ function paraBarbearia(l: LinhaBarbearia): Barbearia {
     plano: l.plano as Barbearia["plano"],
     slug: (l.slug as string) ?? undefined,
     linkMaps: (l.link_maps as string) ?? undefined,
+    cep: (l.cep as string) ?? undefined,
     foto: (l.foto as string) ?? undefined,
     sobre: (l.sobre as string) ?? undefined,
     galeria: (l.galeria ?? []) as string[],
@@ -156,6 +157,7 @@ export async function updateBarbearia(id: string, patch: Partial<Barbearia>): Pr
   if (patch.horarioFechamento !== undefined) linha.horario_fechamento = patch.horarioFechamento;
   if (patch.plano !== undefined) linha.plano = patch.plano;
   if (patch.linkMaps !== undefined) linha.link_maps = patch.linkMaps ?? null;
+  if (patch.cep !== undefined) linha.cep = patch.cep ?? null;
   if (patch.foto !== undefined) linha.foto = patch.foto ?? null;
   if (patch.sobre !== undefined) linha.sobre = patch.sobre ?? null;
   if (patch.galeria !== undefined) linha.galeria = patch.galeria;

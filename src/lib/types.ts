@@ -50,6 +50,8 @@ export interface Barbearia {
   /** Endereço da página pública: /loja/<slug>. Cai no id quando não houver. */
   slug?: string;
   linkMaps?: string;
+  /** CEP do endereço, guardado pro campo voltar preenchido na edição. */
+  cep?: string;
   criadaEm: string;
   /** Assinatura do sistema: 'trial' | 'ativa' | 'vencida'. */
   assinaturaStatus?: "trial" | "ativa" | "vencida";

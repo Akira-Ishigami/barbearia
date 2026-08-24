@@ -12,6 +12,7 @@ import {
 } from "@/lib/cart";
 import { WEEKDAYS } from "@/lib/types";
 import { horarioDoDia } from "@/lib/date";
+import { mapaEmbedSrc } from "@/lib/geo";
 import { LojaTopBar } from "@/components/LojaTopBar";
 import { ScrollRail } from "@/components/ScrollRail";
 import { Lightbox } from "@/components/Lightbox";
@@ -592,7 +593,7 @@ export default function LojaPublicaPage() {
             <div className="mt-6 overflow-hidden rounded-2xl border border-line">
               <iframe
                 title={`Mapa — ${barbearia.nome}`}
-                src={`https://www.google.com/maps?q=${encodeURIComponent(barbearia.endereco)}&output=embed`}
+                src={mapaEmbedSrc(barbearia.linkMaps, barbearia.endereco)}
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
                 className="h-64 w-full border-0"

@@ -6,6 +6,7 @@ import { getBarbearia, updateBarbearia } from "@/lib/db";
 import { useAsync } from "@/lib/use-async";
 import { useSession } from "@/lib/use-session";
 import { EnderecoCepField } from "@/components/EnderecoCepField";
+import { mapaEmbedSrc } from "@/lib/geo";
 import { WEEKDAYS, type Weekday } from "@/lib/types";
 import { PRESET_CAPA, PRESET_GALERIA, prepararFoto } from "@/lib/imagem";
 import { gerarSlug } from "@/lib/slug";
@@ -21,6 +22,7 @@ export default function LocalizacaoPage() {
   const [loaded, setLoaded] = useState(false);
   const [telefone, setTelefone] = useState("");
   const [endereco, setEndereco] = useState("");
+  const [cep, setCep] = useState("");
   const [linkMaps, setLinkMaps] = useState("");
   const [slug, setSlug] = useState("");
   const [copiado, setCopiado] = useState(false);
@@ -42,6 +44,7 @@ export default function LocalizacaoPage() {
   if (barbearia && !loaded) {
     setTelefone(barbearia.telefone);
     setEndereco(barbearia.endereco);
+    setCep(barbearia.cep ?? "");
     setLinkMaps(barbearia.linkMaps ?? "");
     setSlug(barbearia.slug ?? "");
     setDias(barbearia.diasFuncionamento);
@@ -168,6 +171,7 @@ export default function LocalizacaoPage() {
         endereco,
         slug: slug.trim() || undefined,
         linkMaps: linkMaps.trim() || undefined,
+        cep: cep.trim() || undefined,
         diasFuncionamento: dias,
         horarioAbertura: abertura,
         horarioFechamento: fechamento,
@@ -379,6 +383,11 @@ export default function LocalizacaoPage() {
             setEndereco(v);
             setSaved(false);
           }}
+          cep={cep}
+          onCepChange={(v) => {
+            setCep(v);
+            setSaved(false);
+          }}
         />
 
         <div>
@@ -554,9 +563,7 @@ export default function LocalizacaoPage() {
           {endereco.trim() ? (
             <iframe
               title="Mapa da barbearia"
-              src={`https://www.google.com/maps?q=${encodeURIComponent(
-                linkMaps.trim() || endereco,
-              )}&output=embed`}
+              src={mapaEmbedSrc(linkMaps, endereco)}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
               className="h-72 w-full border-0"

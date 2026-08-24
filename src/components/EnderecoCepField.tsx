@@ -18,11 +18,15 @@ const LABEL =
 export function EnderecoCepField({
   valor,
   onChange,
+  cep,
+  onCepChange,
 }: {
   valor: string;
   onChange: (endereco: string) => void;
+  /** Controlado por quem usa, pra o CEP sobreviver ao reload da página. */
+  cep: string;
+  onCepChange: (cep: string) => void;
 }) {
-  const [cep, setCep] = useState("");
   const [numero, setNumero] = useState("");
   const [complemento, setComplemento] = useState("");
   const [buscando, setBuscando] = useState(false);
@@ -36,7 +40,7 @@ export function EnderecoCepField({
 
   async function handleCep(v: string) {
     const formatado = formatCep(v);
-    setCep(formatado);
+    onCepChange(formatado);
     setAviso(null);
 
     if (!isValidCep(formatado)) return;
