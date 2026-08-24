@@ -6,6 +6,8 @@ import {
   formatDayLabel,
   formatWeekRangeLabel,
   generateTimeSlots,
+  horarioDaData,
+  horarioDoDia,
   startOfWeek,
   toISODate,
   weekDates,
@@ -40,7 +42,30 @@ export function WeekAgenda({
   const [weekStart, setWeekStart] = useState(() => startOfWeek(today));
 
   const dias = weekDates(weekStart, barbearia.diasFuncionamento);
-  const horarios = generateTimeSlots(barbearia.horarioAbertura, barbearia.horarioFechamento);
+
+  // A grade cobre do primeiro horário que abre ao último que fecha na semana:
+  // com horário por dia, usar só o padrão esconderia o sábado que abre mais
+  // cedo. Cada célula depois marca se aquele dia está aberto naquela hora.
+  const janelas = barbearia.diasFuncionamento
+    .map((d) => horarioDoDia(barbearia, d))
+    .filter((h): h is { abre: string; fecha: string } => Boolean(h));
+
+  const abreMaisCedo = janelas.reduce(
+    (min, h) => (h.abre < min ? h.abre : min),
+    barbearia.horarioAbertura,
+  );
+  const fechaMaisTarde = janelas.reduce(
+    (max, h) => (h.fecha > max ? h.fecha : max),
+    barbearia.horarioFechamento,
+  );
+
+  const horarios = generateTimeSlots(abreMaisCedo, fechaMaisTarde);
+
+  /** A barbearia atende nesse dia e nessa hora? */
+  function aberto(data: string, hora: string) {
+    const h = horarioDaData(barbearia, data);
+    return Boolean(h && hora >= h.abre && hora < h.fecha);
+  }
 
   const accentText = accent === "gold" ? "text-gold-bright" : "text-cyan-bright";
   const accentBg = accent === "gold" ? "bg-gold-bright" : "bg-cyan-bright";
@@ -119,16 +144,33 @@ export function WeekAgenda({
           {/* time rows */}
           {horarios.map((hora) => (
             <div key={hora} className="contents">
-              <div className="sticky left-0 z-10 flex items-start justify-end border-r border-t border-line bg-ink-elev px-2 py-2 font-accent text-[11px] text-muted">
+              {/* Hora cheia marcada mais forte: com uma linha a cada 30 min,
+                  a grade vira um borrão sem esse respiro visual. */}
+              <div
+                className={`sticky left-0 z-10 flex items-start justify-end border-r bg-ink-elev px-2 py-2 font-accent text-[11px] ${
+                  hora.endsWith(":00")
+                    ? "border-t border-line text-bone-dim"
+                    : "border-t border-line/40 text-muted/60"
+                }`}
+              >
                 {hora}
               </div>
               {dias.map((dia) => {
                 const itens = agendamentosNoSlot(dia, hora);
+                const atende = aberto(dia, hora);
                 return (
                   <div
                     key={dia + hora}
-                    className={`min-h-12 border-t border-line/60 px-1.5 py-1.5 ${
-                      dia === today ? accentBgSoft : ""
+                    className={`min-h-12 px-1.5 py-1.5 ${
+                      hora.endsWith(":00") ? "border-t border-line" : "border-t border-line/40"
+                    } ${
+                      // Fora do expediente daquele dia fica visivelmente
+                      // inerte, pra ninguém procurar horário onde não abre.
+                      !atende
+                        ? "bg-bone/[0.03]"
+                        : dia === today
+                          ? accentBgSoft
+                          : ""
                     }`}
                   >
                     {itens.map((a) => (

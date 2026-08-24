@@ -19,7 +19,14 @@ import {
 } from "@/lib/cart";
 import { buscarClientePorTelefone, getHorariosOcupados } from "@/lib/db";
 import { useAsync } from "@/lib/use-async";
-import { addDays, addMinutes, generateTimeSlots, toISODate, weekdayOf } from "@/lib/date";
+import {
+  addDays,
+  addMinutes,
+  generateTimeSlots,
+  horarioDaData,
+  toISODate,
+  weekdayOf,
+} from "@/lib/date";
 import { formatPhone, isValidEmail, isValidPhone } from "@/lib/format";
 import { SLOT_MIN, WEEKDAYS, slotsDe } from "@/lib/types";
 import type { BarbeiroPerfil } from "@/lib/types";
@@ -114,7 +121,12 @@ export default function CheckoutPage() {
   const diasDisponiveis = Array.from({ length: DIAS_VISIVEIS }, (_, i) => addDays(hoje, i)).filter(
     (d) => barbearia.diasFuncionamento.includes(weekdayOf(d)),
   );
-  const todosHorarios = generateTimeSlots(barbearia.horarioAbertura, barbearia.horarioFechamento);
+  // Cada dia pode ter horário próprio (sábado que fecha mais cedo, etc.),
+  // então a grade sai do horário daquele dia, não do padrão da barbearia.
+  const horarioDoDiaEscolhido = dia ? horarioDaData(barbearia, dia) : null;
+  const todosHorarios = horarioDoDiaEscolhido
+    ? generateTimeSlots(horarioDoDiaEscolhido.abre, horarioDoDiaEscolhido.fecha)
+    : [];
   const candidatos = barbeiroEspecifico ? [barbeiroEspecifico] : barbeiros;
 
   // Quantos blocos de 30 min a visita inteira ocupa (soma das durações).

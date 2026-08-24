@@ -70,6 +70,11 @@ export default function MinhaContaPage() {
     }, new Map<string, { id: string; nome: string; slug?: string; visitas: number; ultima: string }>()),
   ).map(([, b]) => b);
 
+  // Última barbearia visitada — é pra ela que o "voltar" leva.
+  const lojaDeVolta = barbearias.length
+    ? [...barbearias].sort((a, b) => b.ultima.localeCompare(a.ultima))[0]
+    : null;
+
   const totalGasto = historico
     .filter((v) => v.status !== "cancelado")
     .reduce((t, v) => t + v.total, 0);
@@ -78,22 +83,26 @@ export default function MinhaContaPage() {
     <div className="theme-light loja-light grain flex flex-1 flex-col bg-ink text-bone">
       <header className="border-b border-line px-6 py-5">
         <div className="mx-auto flex max-w-4xl items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-gold/40 bg-gold/10 text-gold-bright">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.6}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-4 w-4"
-              >
-                <path d="M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.5 8.5l11 11M20 4 8.5 15.5" />
-              </svg>
-            </span>
-            <span className="font-display text-lg font-semibold text-bone">Navalha</span>
-          </Link>
+          {/* Volta pra barbearia de onde a pessoa veio, não pra home do
+              sistema: o cliente entrou pela loja, é lá que ele quer voltar. */}
+          {lojaDeVolta ? (
+            <Link
+              href={`/loja/${lojaDeVolta.slug || lojaDeVolta.id}`}
+              className="flex min-w-0 items-center gap-2 font-body text-sm text-bone-dim transition-colors hover:text-bone"
+            >
+              <span aria-hidden>←</span>
+              <span className="truncate font-display font-semibold text-bone">
+                {lojaDeVolta.nome}
+              </span>
+            </Link>
+          ) : (
+            <Link
+              href="/barbearias"
+              className="flex items-center gap-2 font-body text-sm text-bone-dim transition-colors hover:text-bone"
+            >
+              <span aria-hidden>←</span> Voltar
+            </Link>
+          )}
           <button
             onClick={async () => {
               await supabase().auth.signOut();
@@ -160,57 +169,6 @@ export default function MinhaContaPage() {
             </div>
           </section>
         )}
-
-        <section className="mt-10">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-display text-lg font-semibold text-bone">
-              Barbearias que você já foi
-            </h2>
-            <Link
-              href="/barbearias"
-              className="font-body text-xs font-semibold text-gold-bright hover:underline"
-            >
-              Descobrir outras →
-            </Link>
-          </div>
-
-          {barbearias.length === 0 ? (
-            <div className="mt-4 rounded-2xl border border-dashed border-line-strong px-5 py-10 text-center">
-              <p className="font-body text-sm text-bone-dim">
-                Você ainda não agendou por aqui.
-              </p>
-              <Link
-                href="/barbearias"
-                className="mt-4 inline-block rounded-full bg-gold-bright px-6 py-3 font-body text-sm font-semibold text-ink transition-transform hover:scale-[1.03]"
-              >
-                Encontrar uma barbearia
-              </Link>
-            </div>
-          ) : (
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {barbearias.map((b) => (
-                <Link
-                  key={b.id}
-                  href={`/loja/${b.slug || b.id}`}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-ink-elev/60 px-5 py-4 transition-colors hover:border-gold-bright/40"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate font-body text-sm font-semibold text-bone">
-                      {b.nome}
-                    </p>
-                    <p className="font-body text-xs text-muted">
-                      {b.visitas} visita{b.visitas > 1 ? "s" : ""} · última em{" "}
-                      {formatDayLabel(b.ultima)}
-                    </p>
-                  </div>
-                  <span className="shrink-0 font-body text-xs font-semibold text-gold-bright">
-                    Agendar →
-                  </span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
 
         {passados.length > 0 && (
           <section className="mt-10">

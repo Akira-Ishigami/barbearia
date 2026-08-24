@@ -64,6 +64,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const planoEscolhido = c.plano === "pro" ? "pro" : "basico";
+
   const db = supabaseAdmin();
 
   const { data: criado, error: erroAuth } = await db.auth.admin.createUser({
@@ -97,7 +99,11 @@ export async function POST(request: NextRequest) {
           : ["seg", "ter", "qua", "qui", "sex"],
         horario_abertura: c.horarioAbertura ?? "09:00",
         horario_fechamento: c.horarioFechamento ?? "20:00",
-        plano: c.plano === "pro" ? "pro" : "basico",
+        plano: planoEscolhido,
+        // O período grátis é só do Básico. O Pro nasce vencido de propósito:
+        // libera quando o pagamento entrar, senão bastava escolher Pro no
+        // cadastro pra usar tudo de graça por uma semana.
+        assinatura_status: planoEscolhido === "pro" ? "vencida" : "trial",
       })
       .select("id")
       .single();

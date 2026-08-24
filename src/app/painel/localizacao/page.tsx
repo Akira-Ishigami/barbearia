@@ -28,6 +28,9 @@ export default function LocalizacaoPage() {
   const [dias, setDias] = useState<Weekday[]>([]);
   const [abertura, setAbertura] = useState("09:00");
   const [fechamento, setFechamento] = useState("20:00");
+  const [horariosDia, setHorariosDia] = useState<
+    Partial<Record<Weekday, { abre: string; fecha: string }>>
+  >({});
   const [foto, setFoto] = useState<string | undefined>(undefined);
   const [sobre, setSobre] = useState("");
   const [galeria, setGaleria] = useState<string[]>([]);
@@ -44,6 +47,7 @@ export default function LocalizacaoPage() {
     setDias(barbearia.diasFuncionamento);
     setAbertura(barbearia.horarioAbertura);
     setFechamento(barbearia.horarioFechamento);
+    setHorariosDia(barbearia.horariosDia ?? {});
     setFoto(barbearia.foto);
     setSobre(barbearia.sobre ?? "");
     setGaleria(barbearia.galeria ?? []);
@@ -105,6 +109,28 @@ export default function LocalizacaoPage() {
     setSaved(false);
   }
 
+  /** Grava o horário próprio de um dia; o campo não mexido mantém o valor. */
+  function setHorarioDoDia(dia: Weekday, abre?: string, fecha?: string) {
+    setHorariosDia((prev) => {
+      const atual = prev[dia] ?? { abre: abertura, fecha: fechamento };
+      return {
+        ...prev,
+        [dia]: { abre: abre ?? atual.abre, fecha: fecha ?? atual.fecha },
+      };
+    });
+    setSaved(false);
+  }
+
+  /** Volta o dia pro horário padrão da barbearia. */
+  function limparHorarioDoDia(dia: Weekday) {
+    setHorariosDia((prev) => {
+      const copia = { ...prev };
+      delete copia[dia];
+      return copia;
+    });
+    setSaved(false);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
@@ -126,6 +152,15 @@ export default function LocalizacaoPage() {
       setError("O horário de fechamento precisa ser depois do de abertura.");
       return;
     }
+    // Um dia com horário invertido geraria uma grade vazia sem explicação.
+    for (const d of dias) {
+      const h = horariosDia[d];
+      if (h && h.abre >= h.fecha) {
+        const nome = WEEKDAYS.find((w) => w.id === d)?.label ?? d;
+        setError(`Em ${nome}, o horário de fechar precisa ser depois do de abrir.`);
+        return;
+      }
+    }
 
     try {
       await updateBarbearia(barbearia!.id, {
@@ -136,6 +171,10 @@ export default function LocalizacaoPage() {
         diasFuncionamento: dias,
         horarioAbertura: abertura,
         horarioFechamento: fechamento,
+        // Só guarda exceção dos dias que abrem; dia fechado não tem horário.
+        horariosDia: Object.fromEntries(
+          Object.entries(horariosDia).filter(([d]) => dias.includes(d as Weekday)),
+        ),
         foto,
         sobre: sobre.trim() || undefined,
         galeria,
@@ -172,19 +211,21 @@ export default function LocalizacaoPage() {
 
   return (
     <div>
-      <p className="font-accent text-xs uppercase tracking-[0.2em] text-gold-bright">
-        Localização
-      </p>
-      <h1 className="mt-1 font-display text-3xl font-semibold text-bone">
-        Endereço e horário de funcionamento
-      </h1>
-      <p className="mt-1 max-w-lg font-body text-sm text-bone-dim">
-        Essas informações aparecem na sua página pública.
-      </p>
+      <div className="mx-auto max-w-xl">
+        <p className="font-accent text-xs uppercase tracking-[0.2em] text-gold-bright">
+          Localização
+        </p>
+        <h1 className="mt-1 font-display text-3xl font-semibold text-bone">
+          Endereço e horário de funcionamento
+        </h1>
+        <p className="mt-1 font-body text-sm text-bone-dim">
+          Essas informações aparecem na sua página pública.
+        </p>
+      </div>
 
       <form
         onSubmit={handleSubmit}
-        className="mt-6 max-w-xl space-y-5 rounded-2xl border border-line bg-ink-elev/60 p-6"
+        className="mx-auto mt-6 max-w-xl space-y-5 rounded-2xl border border-line bg-ink-elev/60 p-6"
       >
         <div>
           <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
@@ -365,32 +406,101 @@ export default function LocalizacaoPage() {
           </div>
         </div>
 
+        {/* Um horário por dia: sábado que fecha mais cedo era o caso que o
+            campo único não cobria. Quem trabalha no mesmo horário todo dia
+            não precisa mexer em nada — o padrão continua valendo. */}
         <div>
           <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
-            Dias de funcionamento
+            Dias e horários
           </span>
-          <div className="flex flex-wrap gap-2">
-            {WEEKDAYS.map((d) => (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => toggleDia(d.id)}
-                className={`rounded-lg border px-3 py-1.5 font-body text-xs transition-colors ${
-                  dias.includes(d.id)
-                    ? "border-gold-bright/50 bg-gold-bright/10 text-gold-bright"
-                    : "border-line text-bone-dim hover:border-line-strong"
-                }`}
-              >
-                {d.label}
-              </button>
-            ))}
+          <p className="mb-3 font-body text-[11px] text-muted">
+            Marque os dias que abre. Toque no horário pra mudar só naquele dia.
+          </p>
+
+          <div className="space-y-2">
+            {WEEKDAYS.map((d) => {
+              const aberto = dias.includes(d.id);
+              const h = horariosDia[d.id];
+              const proprio = Boolean(h);
+              return (
+                <div
+                  key={d.id}
+                  className={`flex flex-wrap items-center gap-3 rounded-xl border px-3.5 py-2.5 transition-colors ${
+                    aberto ? "border-line-strong bg-bone/[0.02]" : "border-line opacity-60"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleDia(d.id)}
+                    aria-pressed={aberto}
+                    className={`flex w-24 shrink-0 items-center gap-2 font-body text-sm transition-colors ${
+                      aberto ? "text-bone" : "text-muted"
+                    }`}
+                  >
+                    <span
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                        aberto
+                          ? "border-gold-bright bg-gold-bright text-ink"
+                          : "border-line-strong"
+                      }`}
+                    >
+                      {aberto && (
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-2.5 w-2.5"
+                        >
+                          <path d="M20 6 9 17l-5-5" />
+                        </svg>
+                      )}
+                    </span>
+                    {d.label}
+                  </button>
+
+                  {aberto ? (
+                    <div className="flex flex-1 flex-wrap items-center gap-2">
+                      <input
+                        type="time"
+                        value={h?.abre ?? abertura}
+                        onChange={(e) => setHorarioDoDia(d.id, e.target.value, undefined)}
+                        className="rounded-lg border border-line-strong bg-bone/[0.03] px-2.5 py-1.5 font-accent text-sm text-bone outline-none focus:border-gold-bright"
+                      />
+                      <span className="font-body text-xs text-muted">às</span>
+                      <input
+                        type="time"
+                        value={h?.fecha ?? fechamento}
+                        onChange={(e) => setHorarioDoDia(d.id, undefined, e.target.value)}
+                        className="rounded-lg border border-line-strong bg-bone/[0.03] px-2.5 py-1.5 font-accent text-sm text-bone outline-none focus:border-gold-bright"
+                      />
+                      {proprio && (
+                        <button
+                          type="button"
+                          onClick={() => limparHorarioDoDia(d.id)}
+                          title="Voltar pro horário padrão"
+                          className="font-body text-[11px] text-bone-dim underline underline-offset-4 hover:text-bone"
+                        >
+                          usar padrão
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="font-body text-xs text-muted">Fechado</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        {/* Padrão pra quem não quer configurar dia a dia. */}
+        <div className="grid grid-cols-2 gap-4 border-t border-line pt-5">
           <label className="block">
             <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
-              Abre às
+              Horário padrão — abre
             </span>
             <input
               type="time"
@@ -404,7 +514,7 @@ export default function LocalizacaoPage() {
           </label>
           <label className="block">
             <span className="mb-1.5 block font-body text-xs font-medium uppercase tracking-wide text-muted">
-              Fecha às
+              Horário padrão — fecha
             </span>
             <input
               type="time"
@@ -437,37 +547,59 @@ export default function LocalizacaoPage() {
         </button>
       </form>
 
-      <div className="mt-6 max-w-xl">
-        <div className="grid-field relative overflow-hidden rounded-2xl border border-line bg-ink-elev/60 p-10 text-center">
-          <div className="relative">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="mx-auto h-8 w-8 text-gold-bright"
-            >
-              <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-            <p className="mt-2 font-display text-lg font-semibold text-bone">
-              {endereco || "Endereço não informado"}
-            </p>
-            {linkMaps ? (
+      {/* Mapa de verdade em vez de um ícone: o dono confere na hora se o
+          pino caiu no lugar certo, que é o que o cliente vai ver. */}
+      <div className="mx-auto mt-6 max-w-xl">
+        <div className="overflow-hidden rounded-2xl border border-line bg-ink-elev">
+          {endereco.trim() ? (
+            <iframe
+              title="Mapa da barbearia"
+              src={`https://www.google.com/maps?q=${encodeURIComponent(
+                linkMaps.trim() || endereco,
+              )}&output=embed`}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              className="h-72 w-full border-0"
+            />
+          ) : (
+            <div className="flex h-72 items-center justify-center px-6 text-center">
+              <p className="font-body text-sm text-muted">
+                Preencha o endereço acima pra ver o mapa.
+              </p>
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4">
+            <div className="flex min-w-0 items-start gap-2.5">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.6}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mt-0.5 h-4 w-4 shrink-0 text-gold-bright"
+              >
+                <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              <p className="min-w-0 font-body text-sm text-bone">
+                {endereco || "Endereço não informado"}
+              </p>
+            </div>
+
+            {endereco.trim() && (
               <a
-                href={linkMaps}
+                href={
+                  linkMaps.trim() ||
+                  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`
+                }
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-2 inline-block font-body text-xs text-cyan-bright hover:underline"
+                className="shrink-0 rounded-full border border-line-strong px-4 py-2 font-body text-xs font-semibold text-bone-dim transition-colors hover:border-gold-bright/40 hover:text-gold-bright"
               >
-                Abrir no Google Maps ↗
+                Abrir no Maps ↗
               </a>
-            ) : (
-              <p className="mt-1 font-body text-xs text-muted">
-                Adicione um link de localização acima pra exibir aqui.
-              </p>
             )}
           </div>
         </div>

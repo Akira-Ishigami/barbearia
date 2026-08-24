@@ -10,6 +10,8 @@ export interface Plan {
   tagline: string;
   features: string[];
   highlight: boolean;
+  /** Só o Básico tem período grátis; o Pro é pago desde o primeiro dia. */
+  temTrial: boolean;
 }
 
 export const TRIAL_DAYS = 7;
@@ -17,6 +19,7 @@ export const TRIAL_DAYS = 7;
 export const PLANS: Plan[] = [
   {
     id: "basico",
+    temTrial: true,
     name: "Básico",
     price: "159,99",
     valor: 159.99,
@@ -33,6 +36,7 @@ export const PLANS: Plan[] = [
   },
   {
     id: "pro",
+    temTrial: false,
     name: "Pro",
     price: "259,95",
     valor: 259.95,

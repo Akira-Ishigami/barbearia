@@ -31,13 +31,11 @@ export function LojaTopBar({
     <div className="sticky top-0 z-40 border-b border-line bg-ink/85 backdrop-blur-xl">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          {/* A tesoura é a marca da Navalha, não da barbearia: leva pro
-              diretório, onde dá pra achar outras. O nome ao lado é que
-              volta pro topo desta loja. */}
+          {/* Fica na própria loja: mandar o cliente pra um diretório de
+              concorrentes no meio do agendamento não ajuda ninguém. */}
           <Link
-            href="/barbearias"
-            aria-label="Ver outras barbearias"
-            title="Ver outras barbearias"
+            href={`/loja/${barbeariaId}`}
+            aria-label={barbeariaNome}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-bone text-ink transition-transform hover:scale-105"
           >
             <svg

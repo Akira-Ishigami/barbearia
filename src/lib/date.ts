@@ -79,3 +79,35 @@ export function generateTimeSlots(
   }
   return slots;
 }
+
+/**
+ * Horário de funcionamento de um dia específico.
+ *
+ * A barbearia tem um horário padrão e pode ter exceções por dia (sábado que
+ * fecha mais cedo, por exemplo). Tudo que monta grade de horário passa por
+ * aqui pra não espalhar essa regra por várias telas.
+ */
+export function horarioDoDia(
+  barbearia: {
+    diasFuncionamento: Weekday[];
+    horariosDia?: Partial<Record<Weekday, { abre: string; fecha: string }>>;
+    horarioAbertura: string;
+    horarioFechamento: string;
+  },
+  dia: Weekday,
+): { abre: string; fecha: string } | null {
+  if (!barbearia.diasFuncionamento.includes(dia)) return null;
+
+  const especifico = barbearia.horariosDia?.[dia];
+  if (especifico?.abre && especifico?.fecha) return especifico;
+
+  return { abre: barbearia.horarioAbertura, fecha: barbearia.horarioFechamento };
+}
+
+/** Mesma coisa, a partir de uma data ISO. */
+export function horarioDaData(
+  barbearia: Parameters<typeof horarioDoDia>[0],
+  dataISO: string,
+) {
+  return horarioDoDia(barbearia, weekdayOf(dataISO));
+}

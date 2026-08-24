@@ -39,6 +39,11 @@ export interface Barbearia {
   telefone: string;
   endereco: string;
   diasFuncionamento: Weekday[];
+  /**
+   * Horário próprio de cada dia. Ausente = o dia usa
+   * horarioAbertura/horarioFechamento, que seguem valendo como padrão.
+   */
+  horariosDia?: Partial<Record<Weekday, { abre: string; fecha: string }>>;
   horarioAbertura: string;
   horarioFechamento: string;
   plano: PlanId;

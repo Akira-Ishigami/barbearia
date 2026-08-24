@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   addBarbeiroComAcesso,
@@ -13,6 +12,7 @@ import { useSession } from "@/lib/use-session";
 import { useAsync } from "@/lib/use-async";
 import { SenhaField } from "@/components/SenhaField";
 import type { BarbeiroPerfil } from "@/lib/types";
+import { BotaoUpgrade } from "@/components/BotaoUpgrade";
 import { PRESET_AVATAR, prepararFoto } from "@/lib/imagem";
 import { EditarBarbeiroModal } from "@/components/EditarBarbeiroModal";
 
@@ -127,12 +127,7 @@ export default function BarbeirosPage() {
             pro Pro pra ter <strong>barbeiros ilimitados</strong>, cada um com
             sua própria agenda.
           </p>
-          <Link
-            href="/#planos"
-            className="mt-3 inline-block rounded-full bg-gold-bright px-5 py-2.5 font-body text-xs font-semibold text-ink transition-transform hover:scale-[1.03]"
-          >
-            Ver plano Pro
-          </Link>
+          <BotaoUpgrade className="mt-3 inline-block rounded-full bg-gold-bright px-5 py-2.5 font-body text-xs font-semibold text-ink transition-transform hover:scale-[1.03]" />
         </div>
       )}
 

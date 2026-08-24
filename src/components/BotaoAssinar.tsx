@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { TRIAL_DAYS, type PlanId } from "@/lib/plans";
+import { TRIAL_DAYS, getPlan, type PlanId } from "@/lib/plans";
 
 /**
- * Botão dos planos na home. Leva pro cadastro — os {TRIAL_DAYS} dias são
- * grátis, então ninguém paga nada aqui. A cobrança só aparece dentro do
- * painel quando o trial vence.
+ * Botão dos planos na home. Leva pro cadastro em qualquer caso — a cobrança
+ * do Pro acontece dentro do painel, não aqui.
+ *
+ * O período grátis é só do Básico: prometer "grátis" no Pro seria mentira,
+ * já que ele é cobrado desde o primeiro dia.
  */
 export function BotaoAssinar({
   plano,
@@ -15,6 +17,8 @@ export function BotaoAssinar({
   plano: PlanId;
   destaque: boolean;
 }) {
+  const p = getPlan(plano);
+
   return (
     <Link
       href={`/cadastro?plano=${plano}`}
@@ -24,7 +28,7 @@ export function BotaoAssinar({
           : "border border-line-strong text-bone hover:border-gold-bright hover:text-gold-bright"
       }`}
     >
-      Começar grátis por {TRIAL_DAYS} dias
+      {p.temTrial ? `Começar grátis por ${TRIAL_DAYS} dias` : `Assinar o ${p.name}`}
     </Link>
   );
 }

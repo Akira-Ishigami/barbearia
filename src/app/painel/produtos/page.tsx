@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   addProduto,
@@ -14,6 +13,7 @@ import { useSession } from "@/lib/use-session";
 import { useAsync } from "@/lib/use-async";
 import { CategoriaField } from "@/components/CategoriaField";
 import { PRODUTO_CATEGORIAS_PRESET, type Produto } from "@/lib/types";
+import { BotaoUpgrade } from "@/components/BotaoUpgrade";
 import { PRESET_CATALOGO, prepararFoto } from "@/lib/imagem";
 
 const ESTOQUE_BAIXO = 5;
@@ -62,12 +62,7 @@ export default function ProdutosPage() {
             Pro. Faça upgrade pra vender produtos direto na sua página
             pública.
           </p>
-          <Link
-            href="/#planos"
-            className="mt-5 inline-block rounded-full bg-gold-bright px-6 py-3 font-body text-sm font-semibold text-ink transition-transform hover:scale-[1.03]"
-          >
-            Ver plano Pro
-          </Link>
+          <BotaoUpgrade />
         </div>
       </div>
     );

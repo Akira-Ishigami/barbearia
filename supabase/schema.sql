@@ -196,6 +196,15 @@ create table if not exists movimentos_estoque (
 
 -- Coluna adicionada depois: bancos criados antes disso não a têm.
 alter table barbearias add column if not exists slug text;
+-- Horário por dia da semana. Antes a barbearia tinha um horário só pra
+-- todos os dias, o que não fecha com a realidade: sábado quase sempre abre
+-- e fecha em horário diferente. Fica como JSON pra não criar sete colunas —
+-- e continua nulo pra quem usa o mesmo horário todo dia, caindo no
+-- horario_abertura/fechamento de sempre.
+--
+-- Formato: {"seg": {"abre": "09:00", "fecha": "19:00"}, ...}
+alter table barbearias add column if not exists horarios_dia jsonb;
+
 alter table pedidos add column if not exists cliente_id uuid references clientes(id) on delete set null;
 create index if not exists pedidos_cliente_idx on pedidos (cliente_id, criado_em desc);
 create unique index if not exists barbearias_slug_unico on barbearias (slug) where slug is not null;

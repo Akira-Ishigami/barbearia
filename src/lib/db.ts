@@ -50,6 +50,7 @@ function paraBarbearia(l: LinhaBarbearia): Barbearia {
     telefone: (l.telefone as string) ?? "",
     endereco: (l.endereco as string) ?? "",
     diasFuncionamento: (l.dias_funcionamento ?? []) as Barbearia["diasFuncionamento"],
+    horariosDia: (l.horarios_dia as Barbearia["horariosDia"]) ?? undefined,
     horarioAbertura: l.horario_abertura as string,
     horarioFechamento: l.horario_fechamento as string,
     plano: l.plano as Barbearia["plano"],
@@ -150,6 +151,7 @@ export async function updateBarbearia(id: string, patch: Partial<Barbearia>): Pr
   if (patch.telefone !== undefined) linha.telefone = patch.telefone;
   if (patch.endereco !== undefined) linha.endereco = patch.endereco;
   if (patch.diasFuncionamento !== undefined) linha.dias_funcionamento = patch.diasFuncionamento;
+  if (patch.horariosDia !== undefined) linha.horarios_dia = patch.horariosDia ?? null;
   if (patch.horarioAbertura !== undefined) linha.horario_abertura = patch.horarioAbertura;
   if (patch.horarioFechamento !== undefined) linha.horario_fechamento = patch.horarioFechamento;
   if (patch.plano !== undefined) linha.plano = patch.plano;

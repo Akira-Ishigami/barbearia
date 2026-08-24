@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useLoja } from "@/lib/loja-context";
 import {
@@ -12,8 +11,10 @@ import {
   useCart,
 } from "@/lib/cart";
 import { WEEKDAYS } from "@/lib/types";
+import { horarioDoDia } from "@/lib/date";
 import { LojaTopBar } from "@/components/LojaTopBar";
 import { ScrollRail } from "@/components/ScrollRail";
+import { Lightbox } from "@/components/Lightbox";
 import { RetomarVisita } from "@/components/RetomarVisita";
 
 const TODOS = "Todos";
@@ -37,6 +38,7 @@ export default function LojaPublicaPage() {
   const { barbearia, servicos, produtos, barbeiros, isPro } = useLoja();
   const cart = useCart(barbearia?.id ?? "");
   const [filtro, setFiltro] = useState<string>(TODOS);
+  const [fotoAberta, setFotoAberta] = useState<number | null>(null);
 
   if (!barbearia) return null;
 
@@ -59,6 +61,21 @@ export default function LojaPublicaPage() {
   const noCarrinho = (id: string) => cart.servicos.some((s) => s.servicoId === id);
   const qtdNoCarrinho = (id: string) =>
     cart.produtos.find((p) => p.produtoId === id)?.quantidade ?? 0;
+
+  // Com horário por dia, um valor só mentiria: mostramos a faixa da semana
+  // (do que abre mais cedo ao que fecha mais tarde) e o detalhe fica na
+  // seção "Como chegar", dia a dia.
+  const faixasDaSemana = barbearia.diasFuncionamento
+    .map((d) => horarioDoDia(barbearia, d))
+    .filter((h): h is { abre: string; fecha: string } => Boolean(h));
+
+  const faixaDeHorario = faixasDaSemana.length
+    ? (() => {
+        const abre = faixasDaSemana.reduce((m, h) => (h.abre < m ? h.abre : m), "23:59");
+        const fecha = faixasDaSemana.reduce((m, h) => (h.fecha > m ? h.fecha : m), "00:00");
+        return `${abre} — ${fecha}`;
+      })()
+    : "Fechado";
 
   const diasLabel = barbearia.diasFuncionamento
     .map((d) => WEEKDAYS.find((w) => w.id === d)?.label)
@@ -130,7 +147,7 @@ export default function LojaPublicaPage() {
           <div className="grid divide-y divide-line rounded-2xl border border-line bg-ink-elev shadow-[0_18px_50px_-24px_rgba(17,18,20,0.4)] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             {[
               ["Funcionamento", diasLabel],
-              ["Horário", `${barbearia.horarioAbertura} — ${barbearia.horarioFechamento}`],
+              ["Horário", faixaDeHorario],
               ["Contato", barbearia.telefone],
             ].map(([label, value]) => (
               <div key={label} className="px-5 py-4 text-center">
@@ -526,17 +543,19 @@ export default function LojaPublicaPage() {
             <div className="mt-8">
               <ScrollRail ariaLabel="Fotos da barbearia">
                 {galeria.map((src, i) => (
-                  <div
+                  <button
                     key={i}
-                    className="aspect-[4/3] w-72 shrink-0 snap-start overflow-hidden rounded-2xl border border-line bg-ink-elev-2 sm:w-96"
+                    onClick={() => setFotoAberta(i)}
+                    aria-label={`Ver foto ${i + 1} maior`}
+                    className="group aspect-[4/3] w-72 shrink-0 snap-start overflow-hidden rounded-2xl border border-line bg-ink-elev-2 sm:w-96"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={src}
                       alt={`${barbearia.nome} — foto ${i + 1}`}
-                      className="h-full w-full object-cover transition-transform duration-300 hover:scale-[1.03]"
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
                     />
-                  </div>
+                  </button>
                 ))}
               </ScrollRail>
             </div>
@@ -598,7 +617,10 @@ export default function LojaPublicaPage() {
                       className={`font-accent text-xs ${aberto ? "text-gold-bright" : "text-muted"}`}
                     >
                       {aberto
-                        ? `${barbearia.horarioAbertura} — ${barbearia.horarioFechamento}`
+                        ? (() => {
+                            const h = horarioDoDia(barbearia, d.id);
+                            return h ? `${h.abre} — ${h.fecha}` : "Fechado";
+                          })()
                         : "Fechado"}
                     </span>
                   </li>
@@ -608,26 +630,27 @@ export default function LojaPublicaPage() {
           </div>
         </div>
 
-        <div className="mt-14 space-y-1.5 text-center font-body text-[11px] text-muted">
-          <p>
-            Página feita com{" "}
-            <Link href="/" className="text-gold-bright hover:underline">
-              Navalha
-            </Link>
-          </p>
-          <p>
-            Desenvolvido por{" "}
-            <a
-              href="https://instagram.com/dev__akira"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-bone-dim hover:text-gold-bright hover:underline"
-            >
-              Akira Ishigami
-            </a>
-          </p>
-        </div>
+        <p className="mt-14 text-center font-body text-[11px] text-muted">
+          Desenvolvido por{" "}
+          <a
+            href="https://instagram.com/dev__akira"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-bone-dim hover:text-gold-bright hover:underline"
+          >
+            Akira Ishigami
+          </a>
+        </p>
       </section>
+
+      {fotoAberta !== null && (
+        <Lightbox
+          fotos={galeria}
+          indice={fotoAberta}
+          onFechar={() => setFotoAberta(null)}
+          onNavegar={setFotoAberta}
+        />
+      )}
     </>
   );
 }

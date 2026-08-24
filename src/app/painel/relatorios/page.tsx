@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { getAgendamentos, getBarbearia, getBarbeiros, getProdutos } from "@/lib/db";
 import { toISODate } from "@/lib/date";
 import { useSession } from "@/lib/use-session";
 import { useAsync } from "@/lib/use-async";
+import { BotaoUpgrade } from "@/components/BotaoUpgrade";
 
 const ESTOQUE_BAIXO = 5;
 const MES_ATUAL = new Date().toLocaleDateString("pt-BR", {
@@ -52,12 +52,7 @@ export default function RelatoriosPage() {
             Acompanhe faturamento por barbeiro, taxa de conclusão e o
             histórico completo de agendamentos fazendo upgrade pro Pro.
           </p>
-          <Link
-            href="/#planos"
-            className="mt-5 inline-block rounded-full bg-gold-bright px-6 py-3 font-body text-sm font-semibold text-ink transition-transform hover:scale-[1.03]"
-          >
-            Ver plano Pro
-          </Link>
+          <BotaoUpgrade />
         </div>
       </div>
     );

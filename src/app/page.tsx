@@ -416,7 +416,7 @@ export default function Home() {
           <div className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full border border-cyan-bright/30 bg-cyan/10 px-4 py-1.5 font-body text-xs font-semibold text-cyan-bright">
               <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-cyan-bright" />
-              {TRIAL_DAYS} dias grátis em qualquer plano
+              {TRIAL_DAYS} dias grátis no plano Básico
             </span>
             <p className="mt-5 font-accent text-xs uppercase tracking-[0.2em] text-gold-bright">
               Planos
@@ -425,8 +425,8 @@ export default function Home() {
               Preço justo pra quem tá começando ou já vive lotado.
             </h2>
             <p className="mx-auto mt-4 max-w-xl font-body text-bone-dim">
-              Sem taxa por agendamento, sem contrato de fidelidade. Teste
-              {" "}{TRIAL_DAYS} dias de graça e cancele quando quiser.
+              Sem taxa por agendamento, sem contrato de fidelidade. Comece
+              pelo Básico com {TRIAL_DAYS} dias de graça e cancele quando quiser.
             </p>
           </div>
 
@@ -479,7 +479,9 @@ export default function Home() {
 
                 <BotaoAssinar plano={plan.id} destaque={plan.highlight} />
                 <p className="mt-3 text-center font-body text-xs text-muted">
-                  Depois, R$ {plan.price}/mês. Cancele quando quiser.
+                  {plan.temTrial
+                    ? `Depois, R$ ${plan.price}/mês. Cancele quando quiser.`
+                    : `R$ ${plan.price}/mês desde o primeiro dia. Cancele quando quiser.`}
                 </p>
               </div>
             ))}
@@ -487,8 +489,8 @@ export default function Home() {
 
           <p className="mt-8 flex items-center justify-center gap-2 text-center font-body text-xs text-muted">
             <Icon path={ICONS.card} className="h-3.5 w-3.5" />
-            Pagamento processado pelo Mercado Pago. Sem cobrança durante o
-            período de teste.
+            Pagamento processado pelo Mercado Pago. O período grátis vale
+            pro plano Básico.
           </p>
         </div>
       </section>
