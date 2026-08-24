@@ -22,6 +22,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { METODO_LABEL, type Agendamento } from "@/lib/types";
 
 const STATUS_LABEL: Record<Agendamento["status"], string> = {
+  aguardando_pagamento: "Pagamento não concluído",
   pendente: "Aguardando confirmação",
   confirmado: "Confirmado",
   concluido: "Concluído",
@@ -29,6 +30,7 @@ const STATUS_LABEL: Record<Agendamento["status"], string> = {
 };
 
 const STATUS_CLASS: Record<Agendamento["status"], string> = {
+  aguardando_pagamento: "bg-bone/5 text-muted",
   pendente: "bg-warn-soft text-warn",
   confirmado: "bg-ok-soft text-ok",
   concluido: "bg-bone/5 text-muted",

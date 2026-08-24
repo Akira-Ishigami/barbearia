@@ -22,6 +22,7 @@ import { useAsync } from "@/lib/use-async";
 import { getPlan } from "@/lib/plans";
 import { METODO_LABEL, type Agendamento } from "@/lib/types";
 import { agruparEmVisitas } from "@/lib/agrupar";
+import { contaNoCaixa, getLancamentos, resumirCaixa } from "@/lib/caixa";
 import { caminhoLoja } from "@/lib/slug";
 
 function dinheiro(v: number) {
@@ -29,6 +30,7 @@ function dinheiro(v: number) {
 }
 
 const STATUS_LABEL: Record<Agendamento["status"], string> = {
+  aguardando_pagamento: "Pagamento não concluído",
   pendente: "Aguardando confirmação",
   confirmado: "Confirmado",
   concluido: "Concluído",
@@ -36,6 +38,7 @@ const STATUS_LABEL: Record<Agendamento["status"], string> = {
 };
 
 const STATUS_CLASS: Record<Agendamento["status"], string> = {
+  aguardando_pagamento: "bg-bone/5 text-muted",
   pendente: "bg-warn-soft text-warn",
   confirmado: "bg-ok-soft text-ok",
   concluido: "bg-bone/5 text-muted",
@@ -65,7 +68,19 @@ export default function PainelPage() {
         .then((r) => r.json())
         .catch(() => ({ conectada: false }));
 
-      return { barbearia, agendamentos, produtos, mpConectado: Boolean(mp.conectada) };
+      // O caixa vem da mesma fonte da tela de Caixa pra as duas não
+      // discordarem — e porque produto vendido mora em outra tabela, fora
+      // do `agendamentos.preco`.
+      const hojeISO = toISODate(new Date());
+      const lancamentos = await getLancamentos(id, hojeISO, hojeISO);
+
+      return {
+        barbearia,
+        agendamentos,
+        produtos,
+        lancamentos,
+        mpConectado: Boolean(mp.conectada),
+      };
     },
     [session?.barbeariaId],
     { pular: !dono },
@@ -88,32 +103,34 @@ export default function PainelPage() {
   const pendentes = agruparEmVisitas(agendamentos.filter((a) => a.status === "pendente"));
   const visitasDoDia = agruparEmVisitas(agendamentos);
 
-  // Pendente é quem ainda nem foi confirmado — não entra em faturamento
-  // nenhum, senão o dono contaria dinheiro que pode não aparecer.
-  const valendo = agendamentos.filter((a) => a.status !== "pendente");
-  const soma = (lista: Agendamento[]) => lista.reduce((t, a) => t + a.preco, 0);
+  // Só conta o que virou atendimento de verdade: pendente ainda nem foi
+  // confirmado e "aguardando_pagamento" é checkout do MP abandonado — os
+  // dois inflariam o dia com dinheiro que não existe.
+  const valendo = agendamentos.filter((a) => contaNoCaixa(a.status));
 
-  // A separação que importa pro caixa: o que já caiu na conta do Mercado
-  // Pago e o que ainda vai ser cobrado no balcão.
-  const jaPago = valendo.filter((a) => a.formaPagamento === "online");
-  const aReceber = valendo.filter((a) => a.formaPagamento === "local");
-  const totalJaPago = soma(jaPago);
-  const totalAReceber = soma(aReceber);
-  const faturamentoHoje = totalJaPago + totalAReceber;
+  // Dinheiro sai do caixa (serviço + produto); a agenda cuida do resto.
+  const caixa = resumirCaixa(dados?.lancamentos ?? []);
+  const totalJaPago = caixa.recebido;
+  const totalAReceber = caixa.aReceber;
+  const faturamentoHoje = caixa.total;
+  const ticketMedio = caixa.ticketMedio;
+  const produtosVendidosHoje = caixa.emProdutos;
 
   // O que já foi atendido vs o que ainda está por vir.
   const concluidos = valendo.filter((a) => a.status === "concluido");
   const aAtender = valendo.filter((a) => a.status === "confirmado");
-  const aguardandoNoBalcao = aReceber.filter((a) => a.status === "confirmado");
+  const aguardandoNoBalcao = valendo.filter(
+    (a) => a.formaPagamento === "local" && a.status === "confirmado",
+  );
+  const aReceber = valendo.filter((a) => a.formaPagamento === "local");
 
-  const visitasValendo = agruparEmVisitas(valendo);
-  const ticketMedio = visitasValendo.length
-    ? faturamentoHoje / visitasValendo.length
-    : 0;
-
-  const produtosVendidosHoje = concluidos
-    .flatMap((a) => a.produtosComprados ?? [])
-    .reduce((t, p) => t + p.preco * p.quantidade, 0);
+  // Quantas vendas online — por cliente, não por serviço da linha.
+  const pagosOnline = (dados?.lancamentos ?? []).filter(
+    (l) =>
+      l.formaPagamento === "online" &&
+      l.status !== "pendente" &&
+      l.status !== "cancelado",
+  ).length;
 
   const agora = new Date().toTimeString().slice(0, 5);
   const proximo =
@@ -208,14 +225,23 @@ export default function PainelPage() {
       </div>
 
       {/* CAIXA DO DIA — o que já entrou e o que ainda falta receber */}
-      <div className="mt-8 grid gap-4 lg:grid-cols-3">
+      <div className="mt-8 flex items-baseline justify-between gap-3">
+        <p className="font-display text-lg font-semibold text-bone">Caixa de hoje</p>
+        <Link
+          href="/painel/caixa"
+          className="font-body text-xs font-semibold text-gold-bright hover:underline"
+        >
+          Ver tudo que foi vendido →
+        </Link>
+      </div>
+      <div className="mt-3 grid gap-4 lg:grid-cols-3">
         <div className="rounded-2xl border border-line bg-ink-elev/60 p-5 lg:col-span-1">
           <p className="font-body text-xs text-muted">Total do dia</p>
           <p className="mt-1 font-accent text-3xl text-bone">
             {dinheiro(faturamentoHoje)}
           </p>
           <p className="mt-1.5 font-body text-xs text-muted">
-            {visitasValendo.length} cliente(s) · ticket médio {dinheiro(ticketMedio)}
+            {caixa.clientes} cliente(s) · ticket médio {dinheiro(ticketMedio)}
           </p>
         </div>
 
@@ -238,9 +264,9 @@ export default function PainelPage() {
           </div>
           <p className="mt-2 font-accent text-3xl text-bone">{dinheiro(totalJaPago)}</p>
           <p className="mt-1.5 font-body text-xs text-bone-dim">
-            {jaPago.length === 0
+            {pagosOnline === 0
               ? "Nenhum pagamento online hoje"
-              : `${jaPago.length} serviço(s) · caiu na sua conta`}
+              : `${pagosOnline} venda(s) · caiu na sua conta`}
           </p>
         </div>
 
@@ -294,7 +320,8 @@ export default function PainelPage() {
           {
             label: "Produtos vendidos",
             valor: dinheiro(produtosVendidosHoje),
-            nota: barbearia?.plano === "pro" ? "junto dos atendimentos" : "exclusivo do Pro",
+            nota:
+              barbearia?.plano === "pro" ? "junto dos atendimentos" : "exclusivo do Pro",
           },
         ].map((c) => (
           <div

@@ -15,6 +15,7 @@ import { ModalUpgrade } from "@/components/ModalUpgrade";
 const NAV = [
   { href: "/painel", label: "Visão geral", pro: false },
   { href: "/painel/agenda", label: "Agenda", pro: false },
+  { href: "/painel/caixa", label: "Caixa", pro: false },
   { href: "/painel/servicos", label: "Serviços", pro: false },
   { href: "/painel/produtos", label: "Produtos", pro: true },
   { href: "/painel/estoque", label: "Estoque", pro: true },

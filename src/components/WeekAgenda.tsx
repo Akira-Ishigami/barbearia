@@ -17,6 +17,7 @@ import { WEEKDAYS } from "@/lib/types";
 import type { Agendamento, Barbearia, BarbeiroPerfil } from "@/lib/types";
 
 const STATUS_DOT: Record<Agendamento["status"], string> = {
+  aguardando_pagamento: "border-line-strong bg-bone/5 text-muted",
   pendente: "border-warn-line bg-warn-soft text-warn",
   confirmado: "",
   concluido: "border-line-strong bg-bone/5 text-muted",

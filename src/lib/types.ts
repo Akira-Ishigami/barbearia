@@ -192,9 +192,17 @@ export interface MovimentoEstoque {
   data: string;
 }
 
+// "aguardando_pagamento": foi pro checkout do Mercado Pago e ainda não
+// pagou — o horário fica preso, mas o dinheiro NÃO entrou. Vira
+// "confirmado" só quando o webhook confirma o pagamento.
 // "pendente": cliente escolheu pagar no local — precisa ser confirmado no
-// painel antes de virar "confirmado". Pagamento online já entra confirmado.
-export type AgendamentoStatus = "pendente" | "confirmado" | "concluido" | "cancelado";
+// painel antes de virar "confirmado".
+export type AgendamentoStatus =
+  | "aguardando_pagamento"
+  | "pendente"
+  | "confirmado"
+  | "concluido"
+  | "cancelado";
 export type FormaPagamento = "online" | "local";
 
 /** Como o cliente pagou quando escolheu pagar online. */
