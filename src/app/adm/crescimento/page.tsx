@@ -1,0 +1,289 @@
+"use client";
+
+import Link from "next/link";
+import { useAsync } from "@/lib/use-async";
+import { cabecalhosPlataforma, usePlataforma } from "@/lib/use-plataforma";
+import {
+  Aviso,
+  Cabecalho,
+  Fila,
+  Medida,
+  Proporcao,
+  SELO,
+  Secao,
+  Selo,
+  Serie,
+  data,
+  dinheiro,
+} from "@/components/adm/ui";
+import { ROTULO_FORMA, type Visao } from "../tipos";
+
+/**
+ * Estação 03 — os números.
+ *
+ * Aqui mora o que a estação 01 tira do caminho: o retrato da plataforma.
+ * A separação é o ponto — misturar "quanto eu tenho" com "o que eu faço
+ * hoje" faz a segunda pergunta se perder no meio da primeira.
+ *
+ * Uma nota que vale repetir na tela: o único dinheiro aqui é a mensalidade
+ * das assinaturas, que é receita da Navalha. Quanto cada barbearia fatura
+ * não é lido em lugar nenhum do sistema.
+ */
+
+export default function AdmCrescimentoPage() {
+  const acesso = usePlataforma();
+
+  const { dados: d, carregando, erro } = useAsync<Visao>(
+    async () => {
+      const r = await fetch("/api/adm/visao", { headers: await cabecalhosPlataforma() });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erro ?? "Falha ao carregar.");
+      return r.json();
+    },
+    [acesso?.email],
+    { pular: !acesso },
+  );
+
+  if (!acesso) return null;
+
+  const totalForma = d ? Object.values(d.uso.porForma).reduce((a, b) => a + b, 0) : 0;
+  const agenda = d?.uso.statusAgenda ?? {};
+  const totalAgenda = Object.values(agenda).reduce((a, b) => a + b, 0);
+  const maiorUso = Math.max(1, ...(d?.ranking ?? []).map((r) => r.pedidos));
+
+  return (
+    <div>
+      <Cabecalho
+        secao="Estação 03"
+        titulo="Crescimento"
+        linha="O retrato da plataforma inteira. O que precisa de ação hoje fica na estação 01."
+      />
+
+      {erro && (
+        <div className="mt-8">
+          <Aviso tom="off">{erro}</Aviso>
+        </div>
+      )}
+      {carregando && !d && (
+        <p className="mt-8 font-accent text-[11px] uppercase tracking-[0.22em] text-muted">
+          Carregando
+        </p>
+      )}
+
+      {d && (
+        <>
+          {/* ---------- Receita ---------- */}
+          <Secao
+            titulo="Receita da Navalha"
+            nota="A mensalidade das assinaturas. O que o cliente paga à barbearia não passa pela Navalha e não é lido em lugar nenhum."
+          >
+            <Fila>
+              <Medida
+                rotulo="Por mês"
+                valor={dinheiro(d.receita.mensalRecorrente)}
+                nota={`${d.barbearias.ativa} assinatura(s) em dia`}
+                tom="ok"
+              />
+              <Medida
+                rotulo="Convertem"
+                valor={d.conversao.taxa === null ? "—" : `${d.conversao.taxa}%`}
+                nota={
+                  d.conversao.saiuDoTeste === 0
+                    ? "ninguém terminou o teste ainda"
+                    : `${d.conversao.jaPagaram} de ${d.conversao.saiuDoTeste} que saíram do teste`
+                }
+                tom="acento"
+              />
+              <Medida
+                rotulo="Em teste"
+                valor={String(d.barbearias.trial)}
+                nota="ainda não decidiram"
+                tom="warn"
+              />
+              <Medida
+                rotulo="Perderam acesso"
+                valor={String(d.barbearias.vencida)}
+                nota="teste acabou ou não pagaram"
+                tom={d.barbearias.vencida > 0 ? "off" : "neutro"}
+              />
+            </Fila>
+          </Secao>
+
+          {/* ---------- Séries ---------- */}
+          <Secao
+            titulo="Últimas 10 semanas"
+            nota="Duas medidas, dois desenhos. Passe o mouse numa barra pra ver a semana."
+            atraso={60}
+          >
+            <div className="grid gap-8 sm:grid-cols-2">
+              <Serie titulo="Barbearias novas" semanas={d.semanas} campo="cadastros" />
+              <Serie titulo="Agendamentos" semanas={d.semanas} campo="pedidos" />
+            </div>
+          </Secao>
+
+          {/* ---------- Composição ---------- */}
+          <Secao titulo="Composição da base" atraso={120}>
+            <div className="grid gap-10 lg:grid-cols-3">
+              <div>
+                <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                  Situação
+                </p>
+                <div className="mt-4">
+                  <Proporcao
+                    total={d.barbearias.total}
+                    itens={[
+                      { rotulo: "Pagando", valor: d.barbearias.ativa, tom: "ok" },
+                      { rotulo: "Em teste", valor: d.barbearias.trial, tom: "warn" },
+                      { rotulo: "Vencida", valor: d.barbearias.vencida, tom: "off" },
+                    ]}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                  Plano
+                </p>
+                <div className="mt-4">
+                  <Proporcao
+                    total={d.barbearias.total}
+                    itens={[
+                      { rotulo: "Básico", valor: d.planos.basico ?? 0 },
+                      { rotulo: "Pro", valor: d.planos.pro ?? 0 },
+                    ]}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                  Como recebem
+                </p>
+                <div className="mt-4">
+                  <Proporcao
+                    total={d.barbearias.total}
+                    itens={[
+                      { rotulo: "Mercado Pago", valor: d.pagamentos.comMercadoPago },
+                      { rotulo: "Pix na chave", valor: d.pagamentos.comPixDireto },
+                      {
+                        rotulo: "Só no balcão",
+                        valor: d.pagamentos.semRecebimentoOnline,
+                        tom: "warn",
+                      },
+                    ]}
+                  />
+                </div>
+              </div>
+            </div>
+          </Secao>
+
+          {/* ---------- Uso ---------- */}
+          <Secao
+            titulo="Uso da plataforma"
+            nota="Contagem de agendamentos. Nenhum valor entra nesta conta."
+            atraso={180}
+          >
+            <Fila>
+              <Medida rotulo="Últimas 24h" valor={String(d.uso.pedidos24h)} nota="agendamentos" />
+              <Medida
+                rotulo="7 dias"
+                valor={String(d.uso.pedidos7Dias)}
+                nota={`${d.uso.barbeariasAtivas7Dias} barbearia(s) com movimento`}
+              />
+              <Medida rotulo="30 dias" valor={String(d.uso.pedidos30Dias)} nota="agendamentos" />
+              <Medida
+                rotulo="Contas de cliente"
+                valor={String(d.uso.clientes)}
+                nota="quem agenda — estação 04"
+              />
+            </Fila>
+
+            <div className="mt-10 grid gap-10 lg:grid-cols-2">
+              <div>
+                <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                  O que acontece com o horário · 30 dias
+                </p>
+                <div className="mt-4">
+                  <Proporcao
+                    total={totalAgenda}
+                    itens={[
+                      { rotulo: "Concluído", valor: agenda.concluido ?? 0, tom: "ok" },
+                      { rotulo: "Confirmado", valor: agenda.confirmado ?? 0 },
+                      { rotulo: "Aguardando o dono", valor: agenda.pendente ?? 0, tom: "warn" },
+                      {
+                        rotulo: "Checkout abandonado",
+                        valor: agenda.aguardando_pagamento ?? 0,
+                        tom: "off",
+                      },
+                      { rotulo: "Cancelado", valor: agenda.cancelado ?? 0, tom: "off" },
+                    ]}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                  Como o cliente paga · 30 dias
+                </p>
+                <div className="mt-4">
+                  <Proporcao
+                    total={totalForma}
+                    itens={Object.keys(ROTULO_FORMA).map((f) => ({
+                      rotulo: ROTULO_FORMA[f],
+                      valor: d.uso.porForma[f] ?? 0,
+                    }))}
+                  />
+                </div>
+              </div>
+            </div>
+          </Secao>
+
+          {/* ---------- Quem mais usa ---------- */}
+          <Secao
+            titulo="Quem mais usa"
+            nota={`Agendamentos nos últimos ${d.janelaDias} dias. Ordenado por quantidade — o valor de cada barbearia não entra aqui.`}
+            atraso={240}
+          >
+            <div className="border-t border-line">
+              {d.ranking.slice(0, 12).map((r) => (
+                <Link
+                  key={r.id}
+                  href={`/adm/barbearias/${r.id}`}
+                  className="group flex items-center gap-4 border-b border-line py-3 transition-colors hover:bg-bone/[0.025]"
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate font-body text-sm text-bone group-hover:text-cyan">
+                        {r.nome}
+                      </span>
+                      <Selo
+                        tom={
+                          r.status === "ativa" ? "ok" : r.status === "trial" ? "warn" : "off"
+                        }
+                      >
+                        {SELO[r.status].texto}
+                      </Selo>
+                    </span>
+                    <span className="mt-1.5 block h-[3px] w-full bg-bone/[0.07]">
+                      <span
+                        className="block h-full bg-cyan/70 transition-colors group-hover:bg-cyan"
+                        style={{ width: `${Math.max(1, (r.pedidos / maiorUso) * 100)}%` }}
+                      />
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-right">
+                    <span className="tabular block font-accent text-sm text-bone">
+                      {r.pedidos}
+                    </span>
+                    <span className="block font-body text-[10px] text-muted">
+                      último {data(r.ultimoPedido)}
+                    </span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </Secao>
+        </>
+      )}
+    </div>
+  );
+}

@@ -114,6 +114,87 @@
   display: none;
 }
 
+/* ============================================================
+   Área da plataforma (/adm) — "sala de controle em papel"
+   ============================================================
+   O painel da barbearia é escuro e dourado; a loja é clara e geométrica.
+   A plataforma precisa ser a terceira coisa: quem tem os três acessos tem
+   que saber onde está antes de clicar em qualquer botão.
+
+   A escolha aqui é papel: fundo quente, tinta quase preta, fio de cabelo
+   no lugar de caixa, número em mono e display em serifa. Lê como relatório
+   impresso de operação — que é literalmente o que a tela é. Serifa em
+   painel administrativo é incomum de propósito; é o que faz esta área não
+   parecer as outras duas.
+   ============================================================ */
+.adm-paper {
+  --ink: #f4f2ec;
+  --ink-elev: #fffefb;
+  --ink-elev-2: #eae6dc;
+  --bone: #14161a;
+  --bone-dim: #4b5058;
+  --muted: #8a8a80;
+  --cyan: #0d6b66;
+  --cyan-bright: #084f4b;
+  --gold: #8a5a06;
+  --gold-bright: #6f4805;
+  --gold-deep: #4a3003;
+  --line: rgba(20, 22, 26, 0.1);
+  --line-strong: rgba(20, 22, 26, 0.2);
+
+  --ok: #0f6a42;
+  --ok-soft: rgba(15, 106, 66, 0.09);
+  --ok-line: rgba(15, 106, 66, 0.3);
+  --off: #a81f27;
+  --off-soft: rgba(168, 31, 39, 0.07);
+  --off-line: rgba(168, 31, 39, 0.26);
+  --warn: #8a5a06;
+  --warn-soft: rgba(138, 90, 6, 0.09);
+  --warn-line: rgba(138, 90, 6, 0.28);
+  --warn-solid: #fdf6e6;
+
+  --font-display: var(--font-adm-display);
+}
+
+/* Papel milimetrado bem apagado. Dá textura sem virar padrão de fundo —
+   a 22px a grade some na leitura e só aparece quando se procura por ela. */
+.adm-grade {
+  background-image:
+    linear-gradient(rgba(20, 22, 26, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(20, 22, 26, 0.028) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-position: -1px -1px;
+}
+
+/* Números sempre da mesma largura: coluna de valor que não dança quando o
+   número muda de 9 pra 10 é o mínimo pra uma tela que se relê todo dia. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Entrada em cascata. Uma vez, no carregamento — não em cada rolagem. */
+@keyframes adm-sobe {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.adm-entra {
+  animation: adm-sobe 0.44s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-entra {
+    animation: none;
+  }
+}
+
 html {
   scroll-behavior: smooth;
 }

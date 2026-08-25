@@ -5,34 +5,30 @@ import { PLANS } from "@/lib/plans";
 import { faixaDeUso } from "@/lib/privacidade";
 
 /**
- * Tudo que está acontecendo na Navalha, numa resposta só.
+ * O estado da plataforma inteira, numa resposta só.
  *
- * Roda com service role de propósito — é a única forma de somar dados de
- * todas as barbearias, já que a RLS existe justamente pra impedir isso.
- * Quem chega aqui já passou por `autenticarPlataforma`.
+ * O QUE ESTA ROTA NÃO LÊ, em nenhuma hipótese (ver `lib/privacidade.ts`):
  *
- * A conta pesada fica aqui e não na tela: o navegador não tem permissão pra
- * ler a base inteira e, mesmo que tivesse, mandar todos os pedidos pra ele
- * somar seria jogar dado de cliente na rede à toa.
+ *   — nome, telefone ou e-mail de quem agendou
+ *   — valor de venda, de pedido ou faturamento, de UMA barbearia ou da
+ *     soma de todas
  *
- * A LINHA DA PRIVACIDADE (ver `lib/privacidade.ts`): somar TODAS as
- * barbearias é o negócio da Navalha; abrir UMA e ler a vida dela não é.
- * Por isso o dinheiro só aparece agregado — a resposta não traz quanto cada
- * barbearia faturou, nem quem agendou nela, nem por quanto. O ranking é por
- * QUANTIDADE de pedidos, que responde "quem está usando" sem responder
- * "quem está ganhando".
+ * O dinheiro que o cliente paga à barbearia nunca passa pela Navalha e não
+ * é receita dela: é faturamento de outra empresa. Saber quanto cada uma
+ * ganha não ajuda a cobrar, a dar suporte nem a saber se o produto está
+ * funcionando — e esses três são os únicos motivos que a plataforma tem
+ * pra ler dado de quem usa. O que sobra é contagem, que responde "está
+ * sendo usada?" sem responder "quanto ela ganha?".
  *
- * Um limite honesto disso: com pouquíssimo movimento, o agregado deixa de
- * esconder. Havendo um único pedido pago na plataforma inteira, o total do
- * mês É aquele pedido. Não dá pra saber de qual barbearia ele veio — o
- * ranking não traz valor —, mas se só uma tiver pedido, a conta se fecha.
- * Some sozinho conforme a base cresce; suprimir o total agora custaria ao
- * dono da plataforma a métrica principal do próprio negócio, o que é pior.
+ * A receita que aparece aqui é a da própria Navalha: a mensalidade das
+ * assinaturas. Essa é dela.
+ *
+ * A conta pesada fica no servidor porque o navegador não tem permissão de
+ * ler a base inteira — e, mesmo que tivesse, mandar tudo pra ele somar
+ * seria espalhar dado à toa.
  */
 
 const DIA = 24 * 60 * 60 * 1000;
-
-/** Janela dos dados de movimento. Fora dela nada é somado — e a tela diz isso. */
 const JANELA_DIAS = 120;
 const SEMANAS_NA_LINHA = 10;
 
@@ -43,14 +39,8 @@ function diasAtras(n: number): string {
   return new Date(Date.now() - n * DIA).toISOString();
 }
 
-function inicioDoMes(): number {
-  const d = new Date();
-  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
-}
-
 type Status = "trial" | "ativa" | "vencida";
 
-/** Status de verdade da assinatura, aplicando o vencimento na data de hoje. */
 function statusReal(b: {
   assinatura_status: string;
   trial_termina_em: string | null;
@@ -68,26 +58,14 @@ function statusReal(b: {
   return "vencida";
 }
 
-const centavos = (v: number) => Math.round(v * 100) / 100;
-
 interface LinhaBarbearia {
   id: string;
   nome: string;
-  slug: string | null;
   plano: string;
   assinatura_status: string;
   trial_termina_em: string | null;
   assinatura_ate: string | null;
   criada_em: string;
-}
-
-interface LinhaPedido {
-  id: string;
-  barbearia_id: string;
-  total: number | string;
-  status_pagamento: string;
-  forma_pagamento: string;
-  criado_em: string;
 }
 
 export async function GET(request: NextRequest) {
@@ -113,18 +91,13 @@ export async function GET(request: NextRequest) {
   ] = await Promise.all([
     db
       .from("barbearias")
-      .select(
-        "id, nome, slug, plano, assinatura_status, trial_termina_em, assinatura_ate, criada_em",
-      )
+      .select("id, nome, plano, assinatura_status, trial_termina_em, assinatura_ate, criada_em")
       .order("criada_em", { ascending: false }),
+    // Sem `total` e sem `cliente_nome`: nem o valor nem a pessoa entram. O
+    // que se lê do pedido é que ele existiu, quando, e como foi pago.
     db
       .from("pedidos")
-      .select(
-        // Sem `cliente_nome`: o nome de quem agendou não é lido aqui em
-        // nenhuma hipótese. O total entra só pra somar o agregado da
-        // plataforma, e nunca sai por barbearia.
-        "id, barbearia_id, total, status_pagamento, forma_pagamento, criado_em",
-      )
+      .select("barbearia_id, status_pagamento, forma_pagamento, criado_em")
       .gte("criado_em", diasAtras(JANELA_DIAS))
       .order("criado_em", { ascending: false })
       .limit(5000),
@@ -138,51 +111,42 @@ export async function GET(request: NextRequest) {
       .from("plataforma_log")
       .select("id, email, acao, barbearia_id, detalhe, criado_em")
       .order("criado_em", { ascending: false })
-      .limit(8),
+      .limit(6),
   ]);
 
   const barbearias = (barbeariasRes.data ?? []) as LinhaBarbearia[];
-  const pedidos = (pedidosRes.data ?? []) as LinhaPedido[];
+  const pedidos = (pedidosRes.data ?? []) as {
+    barbearia_id: string;
+    status_pagamento: string;
+    forma_pagamento: string;
+    criado_em: string;
+  }[];
 
   const comMp = new Map(
     (contasMpRes.data ?? []).map((c) => [c.barbearia_id as string, c.expira_em as string]),
   );
   const comPix = new Set((contasPixRes.data ?? []).map((c) => c.barbearia_id as string));
 
-  const contarPorBarbearia = (linhas: { barbearia_id: string }[] | null) => {
+  const contarPor = (linhas: { barbearia_id: string }[] | null) => {
     const m = new Map<string, number>();
     for (const l of linhas ?? []) m.set(l.barbearia_id, (m.get(l.barbearia_id) ?? 0) + 1);
     return m;
   };
-  const servicosPor = contarPorBarbearia(
-    servicosRes.data as { barbearia_id: string }[] | null,
-  );
-  const barbeirosPor = contarPorBarbearia(
-    barbeirosRes.data as { barbearia_id: string }[] | null,
-  );
+  const servicosPor = contarPor(servicosRes.data as { barbearia_id: string }[] | null);
+  const barbeirosPor = contarPor(barbeirosRes.data as { barbearia_id: string }[] | null);
 
-  // ---------- Movimento por barbearia ----------
-  const pagos = pedidos.filter((p) => p.status_pagamento === "pago");
-  const uso = new Map<
-    string,
-    { pedidos: number; pagos: number; movimentado: number; ultimoPedido: string | null }
-  >();
-  for (const b of barbearias) {
-    uso.set(b.id, { pedidos: 0, pagos: 0, movimentado: 0, ultimoPedido: null });
-  }
+  // ---------- Uso por barbearia (contagem, nunca valor) ----------
+  const uso = new Map<string, { pedidos: number; ultimoPedido: string | null }>();
+  for (const b of barbearias) uso.set(b.id, { pedidos: 0, ultimoPedido: null });
   for (const p of pedidos) {
     const linha = uso.get(p.barbearia_id);
     if (!linha) continue;
     linha.pedidos += 1;
-    if (p.status_pagamento === "pago") {
-      linha.pagos += 1;
-      linha.movimentado += Number(p.total ?? 0);
-    }
-    // A consulta veio do mais novo pro mais velho: o primeiro é o último pedido.
+    // A consulta veio do mais novo pro mais velho: o primeiro é o último.
     if (!linha.ultimoPedido) linha.ultimoPedido = p.criado_em;
   }
 
-  // ---------- Assinatura e listas de atenção ----------
+  // ---------- Assinatura e pendências ----------
   const porStatus: Record<Status, number> = { trial: 0, ativa: 0, vencida: 0 };
   const porPlano: Record<string, number> = { basico: 0, pro: 0 };
   let mrr = 0;
@@ -194,8 +158,6 @@ export async function GET(request: NextRequest) {
   const paradas: { id: string; nome: string; diasParada: number | null }[] = [];
   const tokenMpVencendo: { id: string; nome: string; dias: number }[] = [];
 
-  // "Já pagou alguma vez" = tem data de assinatura. É o denominador honesto
-  // pra conversão: quem ainda está em teste não deu resposta nenhuma.
   let jaPagaram = 0;
   let saiuDoTeste = 0;
 
@@ -219,8 +181,6 @@ export async function GET(request: NextRequest) {
     }
 
     const servicos = servicosPor.get(b.id) ?? 0;
-    // Sem serviço a página pública não vende nada: é cadastro que nunca saiu
-    // do papel, e a melhor hora de ligar pra essa pessoa é agora.
     if (servicos === 0) {
       semCatalogo.push({ id: b.id, nome: b.nome, barbeiros: barbeirosPor.get(b.id) ?? 0 });
     }
@@ -248,20 +208,7 @@ export async function GET(request: NextRequest) {
   paradas.sort((a, b) => (b.diasParada ?? 9999) - (a.diasParada ?? 9999));
   tokenMpVencendo.sort((a, b) => a.dias - b.dias);
 
-  // ---------- Dinheiro ----------
-  const desdeMes = inicioDoMes();
-  const movimentadoMes = pagos
-    .filter((p) => new Date(p.criado_em).getTime() >= desdeMes)
-    .reduce((t, p) => t + Number(p.total ?? 0), 0);
-
-  const desde30 = Date.now() - 30 * DIA;
-  const pagos30 = pagos.filter((p) => new Date(p.criado_em).getTime() >= desde30);
-  const pedidos30 = pedidos.filter((p) => new Date(p.criado_em).getTime() >= desde30);
-  const movimentado30 = pagos30.reduce((t, p) => t + Number(p.total ?? 0), 0);
-
-  // ---------- Linha do tempo, semana a semana ----------
-  // Semanas fechadas de 7 dias contadas pra trás a partir de hoje: é o
-  // recorte que responde "está crescendo?" sem depender de dia da semana.
+  // ---------- Linha do tempo ----------
   const noIntervalo = (iso: string, inicio: number, fim: number) => {
     const t = new Date(iso).getTime();
     return t >= inicio && t < fim;
@@ -274,18 +221,10 @@ export async function GET(request: NextRequest) {
       inicio: new Date(inicio).toISOString(),
       cadastros: barbearias.filter((b) => noIntervalo(b.criada_em, inicio, fim)).length,
       pedidos: pedidos.filter((p) => noIntervalo(p.criado_em, inicio, fim)).length,
-      movimentado: centavos(
-        pagos
-          .filter((p) => noIntervalo(p.criado_em, inicio, fim))
-          .reduce((s, p) => s + Number(p.total ?? 0), 0),
-      ),
     };
   });
 
-  // ---------- Ranking ----------
-  // Ranking por QUANTOS pedidos, não por quanto entrou. Saber quem está
-  // usando o produto é conta da Navalha; saber quanto cada barbearia fatura
-  // não é — e a contagem já responde a pergunta que interessa.
+  // ---------- Ranking de uso ----------
   const ranking = barbearias
     .map((b) => {
       const linha = uso.get(b.id)!;
@@ -308,6 +247,7 @@ export async function GET(request: NextRequest) {
     statusAgenda[s] = (statusAgenda[s] ?? 0) + 1;
   }
 
+  const desde30 = Date.now() - 30 * DIA;
   const novasEm = (dias: number) =>
     barbearias.filter((b) => new Date(b.criada_em).getTime() >= Date.now() - dias * DIA).length;
 
@@ -324,17 +264,12 @@ export async function GET(request: NextRequest) {
 
     planos: porPlano,
 
-    receita: {
-      mensalRecorrente: centavos(mrr),
-      movimentadoNoMes: centavos(movimentadoMes),
-      movimentadoEm30Dias: centavos(movimentado30),
-      ticketMedio: pagos30.length ? centavos(movimentado30 / pagos30.length) : 0,
-    },
+    // Só a mensalidade das assinaturas — receita da própria Navalha.
+    receita: { mensalRecorrente: Math.round(mrr * 100) / 100 },
 
     conversao: {
       jaPagaram,
       saiuDoTeste,
-      // Quantos dos que terminaram o teste viraram cliente pagante.
       taxa: saiuDoTeste ? Math.round((jaPagaram / saiuDoTeste) * 100) : null,
     },
 
@@ -345,21 +280,28 @@ export async function GET(request: NextRequest) {
     },
 
     uso: {
-      pedidos30Dias: pedidos30.length,
-      pedidosPagos30Dias: pagos30.length,
+      pedidos24h: pedidos.filter((p) => new Date(p.criado_em).getTime() >= Date.now() - DIA)
+        .length,
+      pedidos7Dias: pedidos.filter((p) => new Date(p.criado_em).getTime() >= Date.now() - 7 * DIA)
+        .length,
+      pedidos30Dias: pedidos.filter((p) => new Date(p.criado_em).getTime() >= desde30).length,
+      barbeariasAtivas7Dias: new Set(
+        pedidos
+          .filter((p) => new Date(p.criado_em).getTime() >= Date.now() - 7 * DIA)
+          .map((p) => p.barbearia_id),
+      ).size,
       clientes: clientesRes.count ?? 0,
       agendamentos30Dias: (agendamentosRes.data ?? []).length,
       statusAgenda,
+      porForma: pedidos
+        .filter((p) => new Date(p.criado_em).getTime() >= desde30)
+        .reduce<Record<string, number>>((acc, p) => {
+          acc[p.forma_pagamento] = (acc[p.forma_pagamento] ?? 0) + 1;
+          return acc;
+        }, {}),
     },
 
-    atencao: {
-      trialAcabando,
-      vencidas,
-      semRecebimento,
-      semCatalogo,
-      paradas,
-      tokenMpVencendo,
-    },
+    atencao: { trialAcabando, vencidas, semRecebimento, semCatalogo, paradas, tokenMpVencendo },
 
     semanas,
     ranking,
@@ -371,29 +313,6 @@ export async function GET(request: NextRequest) {
       status: statusReal(b),
       criadaEm: b.criada_em,
     })),
-
-    // Movimento das últimas 24h/7d por contagem. A lista de pedidos com
-    // nome de quem agendou e valor da venda saiu daqui: isso é a agenda da
-    // barbearia com o cliente dela, não painel de plataforma.
-    movimento: {
-      pedidos24h: pedidos.filter(
-        (p) => new Date(p.criado_em).getTime() >= Date.now() - DIA,
-      ).length,
-      pedidos7Dias: pedidos.filter(
-        (p) => new Date(p.criado_em).getTime() >= Date.now() - 7 * DIA,
-      ).length,
-      barbeariasAtivas7Dias: new Set(
-        pedidos
-          .filter((p) => new Date(p.criado_em).getTime() >= Date.now() - 7 * DIA)
-          .map((p) => p.barbearia_id),
-      ).size,
-      porForma: pedidos
-        .filter((p) => new Date(p.criado_em).getTime() >= desde30)
-        .reduce<Record<string, number>>((acc, p) => {
-          acc[p.forma_pagamento] = (acc[p.forma_pagamento] ?? 0) + 1;
-          return acc;
-        }, {}),
-    },
 
     log: logRes.data ?? [],
   });

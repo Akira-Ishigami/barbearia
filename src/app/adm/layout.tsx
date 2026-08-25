@@ -7,22 +7,36 @@ import { sair } from "@/lib/use-session";
 import { usePlataforma } from "@/lib/use-plataforma";
 
 /**
- * Área da plataforma — Navalha olhando pra si mesma, não pra uma barbearia.
+ * Área da plataforma — a Navalha olhando pra si mesma.
  *
- * Fica em cyan de propósito: o painel da barbearia é dourado, e quem tem os
- * dois acessos precisa saber num relance em qual dos dois está antes de
- * clicar em alguma coisa.
+ * É papel: fundo quente, tinta preta, fio de cabelo, serifa nos títulos.
+ * O painel da barbearia é escuro e dourado, a loja é clara e geométrica.
+ * Quem tem os três acessos precisa saber onde está antes de clicar em
+ * qualquer coisa, e a cor resolve isso sem precisar de aviso na tela.
  *
- * Esta camada é só de conveniência — quem realmente barra é a API. Cada
- * rota confere o nível de novo, então esconder um botão aqui não é a
- * proteção, é só não mostrar o que não vai funcionar.
+ * O menu é numerado como estação de trabalho: cada tela responde uma
+ * pergunta e só ela. Tela que responde cinco perguntas obriga a pessoa a
+ * procurar a que interessa toda vez que abre.
+ *
+ * Esta camada é conveniência — quem barra de verdade é a API. Cada rota
+ * confere o nível outra vez, então esconder um item aqui não é proteção,
+ * é só não mostrar o que não ia funcionar.
  */
 
-const NAV = [
-  { href: "/adm", label: "Visão geral", soAdmin: false },
-  { href: "/adm/barbearias", label: "Barbearias", soAdmin: false },
-  { href: "/adm/clientes", label: "Clientes", soAdmin: false },
-  { href: "/adm/equipe", label: "Equipe", soAdmin: true },
+const ESTACOES = [
+  { href: "/adm", n: "01", label: "Hoje", nota: "o que resolver", soAdmin: false },
+  { href: "/adm/barbearias", n: "02", label: "Barbearias", nota: "a base", soAdmin: false },
+  { href: "/adm/crescimento", n: "03", label: "Crescimento", nota: "os números", soAdmin: false },
+  { href: "/adm/clientes", n: "04", label: "Clientes", nota: "quem agenda", soAdmin: false },
+  { href: "/adm/registro", n: "05", label: "Registro", nota: "o que foi feito", soAdmin: false },
+  { href: "/adm/equipe", n: "06", label: "Equipe", nota: "quem tem acesso", soAdmin: true },
+  {
+    href: "/adm/privacidade",
+    n: "07",
+    label: "Privacidade",
+    nota: "o que não vemos",
+    soAdmin: false,
+  },
 ];
 
 export default function AdmLayout({ children }: { children: React.ReactNode }) {
@@ -37,83 +51,123 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
 
   if (acesso === undefined) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-ink">
-        <p className="font-body text-sm text-muted">Verificando acesso…</p>
+      <div className="adm-paper flex flex-1 items-center justify-center bg-ink">
+        <p className="font-accent text-[11px] uppercase tracking-[0.22em] text-muted">
+          Verificando acesso
+        </p>
       </div>
     );
   }
 
-  if (!acesso) return <div className="flex-1 bg-ink" />;
+  if (!acesso) return <div className="adm-paper flex-1 bg-ink" />;
 
   const admin = acesso.nivel === "admin";
+  const visiveis = ESTACOES.filter((e) => !e.soAdmin || admin);
+
+  const ativa = (href: string) =>
+    href === "/adm" ? pathname === "/adm" : pathname.startsWith(href);
 
   return (
-    <div className="grain flex flex-1 flex-col bg-ink md:flex-row">
-      <aside className="flex border-b border-line bg-ink-elev/60 px-5 py-6 md:sticky md:top-0 md:max-h-screen md:w-60 md:shrink-0 md:flex-col md:border-b-0 md:border-r">
-        <div className="hidden md:block">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-cyan/40 bg-cyan/10 font-accent text-xs text-cyan-bright">
-              N
+    <div className="adm-paper adm-grade flex flex-1 flex-col bg-ink text-bone lg:flex-row">
+      {/* ---------- Estações ---------- */}
+      <aside className="border-b border-line-strong bg-ink-elev/60 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:border-b-0 lg:border-r">
+        <div className="flex h-full flex-col px-5 py-5 lg:px-6 lg:py-7">
+          <div className="flex items-center justify-between gap-3">
+            <Link href="/" className="flex items-baseline gap-2.5">
+              <span className="font-display text-2xl leading-none text-bone">Navalha</span>
+              <span className="font-accent text-[9px] uppercase tracking-[0.2em] text-cyan">
+                plataforma
+              </span>
+            </Link>
+            <span className="font-accent text-[10px] uppercase tracking-wider text-muted lg:hidden">
+              {admin ? "Admin" : "Suporte"}
             </span>
-            <span className="font-display text-lg font-semibold text-bone">Navalha</span>
-          </Link>
-
-          <div className="mt-4 rounded-lg border border-cyan/30 bg-cyan/5 px-3 py-2">
-            <p className="font-body text-xs font-semibold text-cyan-bright">
-              {admin ? "Administrador" : "Suporte"}
-            </p>
-            <p className="truncate font-body text-[11px] text-muted">{acesso.email}</p>
           </div>
-        </div>
 
-        <span className="mr-2 flex shrink-0 items-center rounded-lg border border-cyan/30 bg-cyan/5 px-2.5 font-body text-[11px] font-semibold text-cyan-bright md:hidden">
-          {admin ? "Admin" : "Suporte"}
-        </span>
+          <nav className="mt-5 flex gap-1 overflow-x-auto lg:mt-8 lg:flex-col lg:gap-0 lg:overflow-visible">
+            {visiveis.map((e) => {
+              const on = ativa(e.href);
+              return (
+                <Link
+                  key={e.href}
+                  href={e.href}
+                  className={`flex shrink-0 items-baseline gap-3 whitespace-nowrap border-line py-2.5 transition-colors lg:border-t lg:px-1 ${
+                    on ? "text-cyan" : "text-bone-dim hover:text-bone"
+                  }`}
+                >
+                  <span
+                    className={`tabular font-accent text-[10px] ${on ? "text-cyan" : "text-muted"}`}
+                  >
+                    {e.n}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block font-body text-sm font-medium">{e.label}</span>
+                    <span className="hidden font-body text-[11px] text-muted lg:block">
+                      {e.nota}
+                    </span>
+                  </span>
+                  {on && (
+                    <span aria-hidden className="ml-auto hidden font-accent text-cyan lg:block">
+                      ·
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
 
-        <nav className="flex min-w-0 gap-2 overflow-x-auto md:mt-4 md:w-full md:flex-col md:gap-1 md:overflow-visible">
-          {NAV.filter((item) => !item.soAdmin || admin).map((item) => {
-            const ativo =
-              item.href === "/adm" ? pathname === "/adm" : pathname.startsWith(item.href);
-            return (
+          <div className="mt-auto hidden pt-8 lg:block">
+            <div className="border-t border-line-strong pt-3">
+              <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-cyan">
+                {admin ? "Administrador" : "Suporte"}
+              </p>
+              <p className="mt-0.5 truncate font-body text-[11px] text-muted">{acesso.email}</p>
+            </div>
+            <div className="mt-4 flex gap-2">
               <Link
-                key={item.href}
-                href={item.href}
-                className={`whitespace-nowrap rounded-lg px-3.5 py-2.5 text-left font-body text-sm transition-colors ${
-                  ativo
-                    ? "bg-cyan/10 text-cyan-bright"
-                    : "text-bone-dim hover:bg-bone/5 hover:text-bone"
-                }`}
+                href="/painel"
+                className="border border-line-strong px-3 py-1.5 font-body text-[11px] text-bone-dim transition-colors hover:border-cyan hover:text-cyan"
               >
-                {item.label}
+                Meu painel
               </Link>
-            );
-          })}
-        </nav>
+              <button
+                onClick={async () => {
+                  await sair();
+                  router.push("/login");
+                }}
+                className="border border-line-strong px-3 py-1.5 font-body text-[11px] text-bone-dim transition-colors hover:border-off-line hover:text-off"
+              >
+                Sair
+              </button>
+            </div>
+          </div>
 
-        {/* No celular a barra vira uma linha só: estes botões precisam ficar
-            nela, senão quem abre a área pelo telefone não tem como voltar
-            pro painel nem sair. */}
-        <div className="ml-auto flex shrink-0 items-center gap-2 pl-2 md:ml-0 md:mt-auto md:block md:space-y-2 md:pl-0 md:pt-8">
-          <Link
-            href="/painel"
-            className="whitespace-nowrap rounded-lg border border-line-strong px-3.5 py-2.5 font-body text-sm text-bone-dim transition-colors hover:border-cyan/40 hover:text-cyan-bright md:block"
-          >
-            <span className="md:hidden">Painel</span>
-            <span className="hidden md:inline">Ir pro painel</span>
-          </Link>
-          <button
-            onClick={async () => {
-              await sair();
-              router.push("/login");
-            }}
-            className="whitespace-nowrap rounded-lg border border-line-strong px-3.5 py-2.5 text-left font-body text-sm text-bone-dim transition-colors hover:border-off-line hover:text-off md:w-full"
-          >
-            Sair
-          </button>
+          {/* No celular a barra vira uma linha só; sem isto não há como
+              voltar pro painel nem sair de dentro da área. */}
+          <div className="mt-3 flex gap-2 lg:hidden">
+            <Link
+              href="/painel"
+              className="border border-line-strong px-3 py-1.5 font-body text-[11px] text-bone-dim"
+            >
+              Meu painel
+            </Link>
+            <button
+              onClick={async () => {
+                await sair();
+                router.push("/login");
+              }}
+              className="border border-line-strong px-3 py-1.5 font-body text-[11px] text-bone-dim"
+            >
+              Sair
+            </button>
+          </div>
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1 px-6 py-8 md:px-10 md:py-10">{children}</main>
+      {/* ---------- Folha ---------- */}
+      <main className="min-w-0 flex-1">
+        <div className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10 md:py-14">{children}</div>
+      </main>
     </div>
   );
 }
