@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useAsync } from "@/lib/use-async";
 import { cabecalhosPlataforma, usePlataforma } from "@/lib/use-plataforma";
 
@@ -80,13 +81,16 @@ function emQuantosDias(iso: string | null): string {
   return `vence em ${dias} dia(s)`;
 }
 
-export default function AdmBarbeariasPage() {
+function BarbeariasConteudo() {
   const acesso = usePlataforma();
   const admin = acesso?.nivel === "admin";
+  const params = useSearchParams();
 
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<Status | "todas">("todas");
-  const [aberta, setAberta] = useState<string | null>(null);
+  // A visão geral linka pra cá com `?abrir=<id>`: clicar num alerta lá tem
+  // que cair direto na barbearia, não na lista pra procurar de novo.
+  const [aberta, setAberta] = useState<string | null>(() => params.get("abrir"));
   const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
@@ -547,5 +551,17 @@ export default function AdmBarbeariasPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * `useSearchParams` obriga um limite de Suspense — sem ele o build de
+ * produção falha ao tentar pré-renderizar esta rota.
+ */
+export default function AdmBarbeariasPage() {
+  return (
+    <Suspense fallback={null}>
+      <BarbeariasConteudo />
+    </Suspense>
   );
 }
