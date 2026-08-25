@@ -13,7 +13,7 @@ import { supabaseAdmin, supabaseConfigurado } from "@/lib/supabase";
  * Tudo passa pelo `plataforma_log`.
  */
 
-const SO_ADMIN = new Set(["marcar_paga", "mudar_plano", "bloquear"]);
+const SO_ADMIN = new Set(["marcar_paga", "mudar_plano", "bloquear", "excluir"]);
 
 /** O suporte estende o teste, mas em doses pequenas. */
 const MAX_DIAS_SUPORTE = 7;
@@ -24,6 +24,8 @@ interface Corpo {
   dias?: number;
   plano?: string;
   motivo?: string;
+  /** Só pra excluir: tem que ser o nome exato da barbearia. */
+  confirmacao?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -151,6 +153,56 @@ export async function POST(request: NextRequest) {
 
       await registrarAcao(quem, "bloquear", c.barbeariaId, c.motivo ?? "");
       return NextResponse.json({ ok: true });
+    }
+
+    case "excluir": {
+      // Apagar leva junto agenda, pedidos, catálogo, equipe e credenciais —
+      // as chaves estrangeiras são `on delete cascade`. Não tem desfazer.
+      //
+      // Por isso a confirmação é o nome digitado, e não um "tem certeza?":
+      // clicar errado numa lista acontece, digitar o nome de outra
+      // barbearia por acidente não.
+      if ((c.confirmacao ?? "").trim() !== barbearia.nome) {
+        return NextResponse.json(
+          { erro: "Digite o nome exato da barbearia pra confirmar a exclusão." },
+          { status: 400 },
+        );
+      }
+
+      // As contas do Supabase Auth não são apagadas pela cascata: `usuarios`
+      // guarda o auth_user_id, mas sem chave estrangeira pra lá. Sem isto o
+      // dono continuaria conseguindo entrar, numa conta sem barbearia.
+      const { data: equipe } = await db
+        .from("usuarios")
+        .select("auth_user_id")
+        .eq("barbearia_id", c.barbeariaId);
+
+      const { error: erroExclusao } = await db
+        .from("barbearias")
+        .delete()
+        .eq("id", c.barbeariaId);
+
+      if (erroExclusao) {
+        return NextResponse.json({ erro: erroExclusao.message }, { status: 500 });
+      }
+
+      for (const u of equipe ?? []) {
+        if (!u.auth_user_id) continue;
+        // Uma conta que não sai não pode derrubar a exclusão, que já
+        // aconteceu — fica registrada no log e some no acerto seguinte.
+        await db.auth.admin.deleteUser(u.auth_user_id as string).catch(() => {});
+      }
+
+      // O log tem `on delete set null` na barbearia, então o id some daqui a
+      // pouco: o nome vai no detalhe pra sobrar rastro de quem foi apagada.
+      await registrarAcao(
+        quem,
+        "excluir",
+        null,
+        `"${barbearia.nome}" (${c.barbeariaId}) · ${(equipe ?? []).length} conta(s) de acesso. ${c.motivo ?? ""}`.trim(),
+      );
+
+      return NextResponse.json({ ok: true, excluida: barbearia.nome });
     }
 
     case "desconectar_mp": {

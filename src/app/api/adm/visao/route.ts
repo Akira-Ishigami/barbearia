@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { autenticarPlataforma } from "@/lib/plataforma";
 import { supabaseAdmin, supabaseConfigurado } from "@/lib/supabase";
 import { PLANS } from "@/lib/plans";
+import { faixaDeUso } from "@/lib/privacidade";
 
 /**
  * Tudo que está acontecendo na Navalha, numa resposta só.
@@ -13,6 +14,20 @@ import { PLANS } from "@/lib/plans";
  * A conta pesada fica aqui e não na tela: o navegador não tem permissão pra
  * ler a base inteira e, mesmo que tivesse, mandar todos os pedidos pra ele
  * somar seria jogar dado de cliente na rede à toa.
+ *
+ * A LINHA DA PRIVACIDADE (ver `lib/privacidade.ts`): somar TODAS as
+ * barbearias é o negócio da Navalha; abrir UMA e ler a vida dela não é.
+ * Por isso o dinheiro só aparece agregado — a resposta não traz quanto cada
+ * barbearia faturou, nem quem agendou nela, nem por quanto. O ranking é por
+ * QUANTIDADE de pedidos, que responde "quem está usando" sem responder
+ * "quem está ganhando".
+ *
+ * Um limite honesto disso: com pouquíssimo movimento, o agregado deixa de
+ * esconder. Havendo um único pedido pago na plataforma inteira, o total do
+ * mês É aquele pedido. Não dá pra saber de qual barbearia ele veio — o
+ * ranking não traz valor —, mas se só uma tiver pedido, a conta se fecha.
+ * Some sozinho conforme a base cresce; suprimir o total agora custaria ao
+ * dono da plataforma a métrica principal do próprio negócio, o que é pior.
  */
 
 const DIA = 24 * 60 * 60 * 1000;
@@ -69,7 +84,6 @@ interface LinhaBarbearia {
 interface LinhaPedido {
   id: string;
   barbearia_id: string;
-  cliente_nome: string;
   total: number | string;
   status_pagamento: string;
   forma_pagamento: string;
@@ -106,7 +120,10 @@ export async function GET(request: NextRequest) {
     db
       .from("pedidos")
       .select(
-        "id, barbearia_id, cliente_nome, total, status_pagamento, forma_pagamento, criado_em",
+        // Sem `cliente_nome`: o nome de quem agendou não é lido aqui em
+        // nenhuma hipótese. O total entra só pra somar o agregado da
+        // plataforma, e nunca sai por barbearia.
+        "id, barbearia_id, total, status_pagamento, forma_pagamento, criado_em",
       )
       .gte("criado_em", diasAtras(JANELA_DIAS))
       .order("criado_em", { ascending: false })
@@ -127,7 +144,6 @@ export async function GET(request: NextRequest) {
   const barbearias = (barbeariasRes.data ?? []) as LinhaBarbearia[];
   const pedidos = (pedidosRes.data ?? []) as LinhaPedido[];
 
-  const nomePorId = new Map(barbearias.map((b) => [b.id, b.nome]));
   const comMp = new Map(
     (contasMpRes.data ?? []).map((c) => [c.barbearia_id as string, c.expira_em as string]),
   );
@@ -267,6 +283,9 @@ export async function GET(request: NextRequest) {
   });
 
   // ---------- Ranking ----------
+  // Ranking por QUANTOS pedidos, não por quanto entrou. Saber quem está
+  // usando o produto é conta da Navalha; saber quanto cada barbearia fatura
+  // não é — e a contagem já responde a pergunta que interessa.
   const ranking = barbearias
     .map((b) => {
       const linha = uso.get(b.id)!;
@@ -276,13 +295,11 @@ export async function GET(request: NextRequest) {
         status: statusReal(b),
         plano: b.plano,
         pedidos: linha.pedidos,
-        movimentado: centavos(linha.movimentado),
+        uso: faixaDeUso(linha.pedidos),
         ultimoPedido: linha.ultimoPedido,
       };
     })
-    // Desempata por quantidade: barbearia nova costuma ter pedido sem
-    // pagamento confirmado, e a lista ficaria toda em zero sem ordem nenhuma.
-    .sort((a, b) => b.movimentado - a.movimentado || b.pedidos - a.pedidos);
+    .sort((a, b) => b.pedidos - a.pedidos);
 
   // ---------- Agenda ----------
   const statusAgenda: Record<string, number> = {};
@@ -355,16 +372,28 @@ export async function GET(request: NextRequest) {
       criadaEm: b.criada_em,
     })),
 
-    ultimosPedidos: pedidos.slice(0, 12).map((p) => ({
-      id: p.id,
-      barbeariaId: p.barbearia_id,
-      barbearia: nomePorId.get(p.barbearia_id) ?? "—",
-      cliente: p.cliente_nome,
-      total: Number(p.total ?? 0),
-      status: p.status_pagamento,
-      forma: p.forma_pagamento,
-      criadoEm: p.criado_em,
-    })),
+    // Movimento das últimas 24h/7d por contagem. A lista de pedidos com
+    // nome de quem agendou e valor da venda saiu daqui: isso é a agenda da
+    // barbearia com o cliente dela, não painel de plataforma.
+    movimento: {
+      pedidos24h: pedidos.filter(
+        (p) => new Date(p.criado_em).getTime() >= Date.now() - DIA,
+      ).length,
+      pedidos7Dias: pedidos.filter(
+        (p) => new Date(p.criado_em).getTime() >= Date.now() - 7 * DIA,
+      ).length,
+      barbeariasAtivas7Dias: new Set(
+        pedidos
+          .filter((p) => new Date(p.criado_em).getTime() >= Date.now() - 7 * DIA)
+          .map((p) => p.barbearia_id),
+      ).size,
+      porForma: pedidos
+        .filter((p) => new Date(p.criado_em).getTime() >= desde30)
+        .reduce<Record<string, number>>((acc, p) => {
+          acc[p.forma_pagamento] = (acc[p.forma_pagamento] ?? 0) + 1;
+          return acc;
+        }, {}),
+    },
 
     log: logRes.data ?? [],
   });

@@ -21,6 +21,7 @@ import { usePlataforma } from "@/lib/use-plataforma";
 const NAV = [
   { href: "/adm", label: "Visão geral", soAdmin: false },
   { href: "/adm/barbearias", label: "Barbearias", soAdmin: false },
+  { href: "/adm/clientes", label: "Clientes", soAdmin: false },
   { href: "/adm/equipe", label: "Equipe", soAdmin: true },
 ];
 

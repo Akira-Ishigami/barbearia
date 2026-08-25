@@ -166,6 +166,55 @@ Duas decisões de segurança que valem saber:
 - Tudo que suporte e admin fazem cai em `plataforma_log`, com e-mail e data.
   Acesso amplo sem trilha não se sustenta.
 
+### 7.1 O que a plataforma NÃO enxerga
+
+A regra está escrita em [`src/lib/privacidade.ts`](src/lib/privacidade.ts) e
+vale pra toda tela de `/adm`:
+
+> Somar **todas** as barbearias é o negócio da Navalha.
+> Abrir **uma** e ler a vida dela não é.
+
+| Pode | Não pode |
+|---|---|
+| Status da assinatura, plano, datas de cobrança | Faturamento de uma barbearia específica |
+| Se conectou Mercado Pago / Pix e quando expira | A chave Pix, o nome do beneficiário, o apelido da conta MP |
+| Quantos serviços, produtos, pedidos e pessoas na equipe | O catálogo, os valores, o nome e o e-mail da equipe |
+| Se está sendo usada e quando foi o último pedido | Quem agendou, quando, com quem e por quanto |
+
+O teste é simples: se o dado só serve pra **cobrar**, pra **dar suporte** ou
+pra saber se o **produto está funcionando**, pode. Se serve pra saber quanto
+ela ganha ou quem passa por lá, não.
+
+Os totais em dinheiro da visão geral são sempre a soma da plataforma inteira —
+nenhum deles é atribuível a uma barbearia.
+
+### 7.2 Apagar uma barbearia
+
+`/adm/barbearias` → abrir uma → **Apagar esta barbearia**. Só administrador.
+
+Leva junto, por cascata do banco: catálogo, estoque, equipe, agenda, pedidos e
+as credenciais de recebimento. As contas do Supabase Auth são apagadas à parte,
+porque `usuarios.auth_user_id` não tem chave estrangeira pra `auth.users` — sem
+isso o dono continuaria conseguindo entrar numa conta sem barbearia.
+
+**Não tem desfazer.** A confirmação é digitar o nome exato da barbearia, e não
+um "tem certeza?": clicar errado numa lista acontece, digitar o nome de outra
+barbearia por acidente não. A exclusão fica no `plataforma_log` com o nome, já
+que o id deixa de existir.
+
+### 7.3 Clientes (quem agenda)
+
+`/adm/clientes` responde se a base cresce e se as pessoas voltam — com
+contagem, não com lista de gente.
+
+A lista existe, mas mascarada: `Akira M.`, `ak•••@gmail.com`,
+`(11) ••••-7777`. Dá pra confirmar que é a pessoa certa quando ela liga pro
+suporte; não dá pra montar uma base de contatos a partir da tela. Em qual
+barbearia cada pessoa foi atendida não aparece.
+
+A busca só bate no e-mail inteiro ou no telefone — pedaço não devolve nada,
+senão "a" traria a base toda — e **fica registrada no `plataforma_log`**.
+
 ---
 
 ## 8. Período de teste

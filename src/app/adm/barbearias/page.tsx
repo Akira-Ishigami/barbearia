@@ -8,10 +8,11 @@ import { cabecalhosPlataforma, usePlataforma } from "@/lib/use-plataforma";
 /**
  * A tela que o suporte abre quando alguém liga com problema.
  *
- * Procura pelo nome ou telefone, abre a barbearia e mostra tudo que importa
- * pra resolver na hora: assinatura, como ela recebe, quem é a equipe e os
- * últimos pedidos. As ações ficam ao lado, com quem pode fazer o quê
- * separado — o suporte destrava, o admin mexe em dinheiro.
+ * Mostra o que é preciso pra cobrar, pra destravar e pra saber se a conta
+ * está de pé — e só isso. Nome de quem agendou lá, valor das vendas,
+ * faturamento, e-mail da equipe e chave Pix não passam por aqui: nada disso
+ * ajuda a resolver o problema de quem ligou, e abrir a barbearia de alguém
+ * pra olhar é o tipo de coisa que só se percebe quando já virou hábito.
  */
 
 type Status = "trial" | "ativa" | "vencida";
@@ -31,30 +32,26 @@ interface LinhaBarbearia {
 }
 
 interface Detalhe {
-  barbearia: LinhaBarbearia & { endereco: string; comissaoPadrao: number };
-  equipe: { id: string; nome: string; email: string; role: string }[];
-  mercadoPago: {
-    apelido: string;
-    ambiente: string;
-    conectadoEm: string;
-    expiraEm: string;
-  } | null;
-  pix: { tipo: string; chave: string; beneficiario: string; cidade: string; ativo: boolean } | null;
-  numeros: {
+  barbearia: LinhaBarbearia & { endereco: string };
+  equipe: { total: number; donos: number; barbeiros: number };
+  recebimento: {
+    mercadoPago: {
+      ambiente: string;
+      conectadoEm: string;
+      expiraEm: string;
+      aceitaPix: boolean;
+      aceitaCartao: boolean;
+    } | null;
+    pix: { tipo: string } | null;
+  };
+  saude: {
     servicos: number;
     produtos: number;
-    pedidos: number;
-    pedidosPagos: number;
-    movimentado: number;
+    pedidosTotal: number;
+    pedidos30Dias: number;
+    uso: { rotulo: string; nivel: 0 | 1 | 2 | 3 };
+    ultimoPedidoEm: string | null;
   };
-  ultimosPedidos: {
-    id: string;
-    cliente_nome: string;
-    total: number;
-    forma_pagamento: string;
-    status_pagamento: string;
-    criado_em: string;
-  }[];
 }
 
 const ROTULO: Record<Status, { texto: string; classe: string }> = {
@@ -63,9 +60,7 @@ const ROTULO: Record<Status, { texto: string; classe: string }> = {
   vencida: { texto: "Vencida", classe: "border-off-line bg-off-soft text-off" },
 };
 
-function dinheiro(v: number) {
-  return `R$ ${v.toFixed(2).replace(".", ",")}`;
-}
+const COR_USO = ["text-muted", "text-warn", "text-bone", "text-ok"] as const;
 
 function data(iso: string | null) {
   if (!iso) return "—";
@@ -93,6 +88,8 @@ function BarbeariasConteudo() {
   const [aberta, setAberta] = useState<string | null>(() => params.get("abrir"));
   const [mensagem, setMensagem] = useState<{ tipo: "ok" | "erro"; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [confirmacao, setConfirmacao] = useState("");
 
   const lista = useAsync<{ barbearias: LinhaBarbearia[] }>(
     async () => {
@@ -131,6 +128,13 @@ function BarbeariasConteudo() {
     );
   });
 
+  function selecionar(id: string | null) {
+    setAberta(id);
+    setMensagem(null);
+    setExcluindo(false);
+    setConfirmacao("");
+  }
+
   async function agir(acao: string, corpo: Record<string, unknown> = {}) {
     if (!aberta) return;
     setOcupado(true);
@@ -144,6 +148,10 @@ function BarbeariasConteudo() {
       const c = await r.json().catch(() => ({}));
       if (!r.ok) {
         setMensagem({ tipo: "erro", texto: c.erro ?? "Não foi possível." });
+      } else if (acao === "excluir") {
+        selecionar(null);
+        lista.recarregar();
+        setMensagem({ tipo: "ok", texto: `"${c.excluida}" foi apagada.` });
       } else {
         setMensagem({ tipo: "ok", texto: "Feito." });
         detalhe.recarregar();
@@ -163,9 +171,9 @@ function BarbeariasConteudo() {
         {admin ? "Administração" : "Suporte"}
       </p>
       <h1 className="mt-1 font-display text-3xl font-semibold text-bone">Barbearias</h1>
-      <p className="mt-1 max-w-xl font-body text-sm text-bone-dim">
+      <p className="mt-1 max-w-2xl font-body text-sm text-bone-dim">
         Procure pelo nome, telefone ou endereço da página. Abrindo uma, você vê a
-        situação dela e o que dá pra resolver daqui.
+        situação da conta dela — assinatura, integrações e se a loja está de pé.
       </p>
 
       <div className="mt-6 flex flex-wrap items-center gap-2">
@@ -190,12 +198,21 @@ function BarbeariasConteudo() {
         ))}
       </div>
 
-      {lista.carregando && (
-        <p className="mt-6 font-body text-sm text-bone-dim">Carregando…</p>
-      )}
+      {lista.carregando && <p className="mt-6 font-body text-sm text-bone-dim">Carregando…</p>}
       {lista.erro && (
         <p className="mt-6 rounded-xl border border-off-line bg-off-soft px-4 py-3 font-body text-sm text-off">
           {lista.erro}
+        </p>
+      )}
+      {!aberta && mensagem && (
+        <p
+          className={`mt-6 max-w-2xl rounded-xl border px-4 py-3 font-body text-sm ${
+            mensagem.tipo === "ok"
+              ? "border-ok-line bg-ok-soft text-ok"
+              : "border-off-line bg-off-soft text-off"
+          }`}
+        >
+          {mensagem.texto}
         </p>
       )}
 
@@ -211,10 +228,7 @@ function BarbeariasConteudo() {
           {filtradas.map((b) => (
             <button
               key={b.id}
-              onClick={() => {
-                setAberta(b.id);
-                setMensagem(null);
-              }}
+              onClick={() => selecionar(b.id)}
               className={`w-full rounded-xl border px-4 py-3.5 text-left transition-colors ${
                 aberta === b.id
                   ? "border-cyan bg-cyan/[0.06]"
@@ -223,9 +237,7 @@ function BarbeariasConteudo() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate font-body text-sm font-semibold text-bone">
-                    {b.nome}
-                  </p>
+                  <p className="truncate font-body text-sm font-semibold text-bone">{b.nome}</p>
                   <p className="truncate font-body text-xs text-muted">
                     {b.telefone || "sem telefone"} · plano {b.plano}
                   </p>
@@ -264,7 +276,7 @@ function BarbeariasConteudo() {
           {!aberta && (
             <div className="rounded-2xl border border-dashed border-line-strong px-6 py-12 text-center">
               <p className="font-body text-sm text-muted">
-                Escolha uma barbearia na lista pra ver os detalhes.
+                Escolha uma barbearia na lista pra ver a situação da conta.
               </p>
             </div>
           )}
@@ -275,6 +287,7 @@ function BarbeariasConteudo() {
 
           {aberta && d && (
             <div className="space-y-4">
+              {/* Identificação e cobrança */}
               <div className="rounded-2xl border border-line bg-ink-elev p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -282,7 +295,8 @@ function BarbeariasConteudo() {
                       {d.barbearia.nome}
                     </p>
                     <p className="font-body text-xs text-muted">
-                      {d.barbearia.endereco || "sem endereço"}
+                      {d.barbearia.telefone || "sem telefone"}
+                      {d.barbearia.endereco && ` · ${d.barbearia.endereco}`}
                     </p>
                     <p className="mt-0.5 font-body text-xs text-muted">
                       Cliente desde {data(d.barbearia.criadaEm)}
@@ -321,22 +335,57 @@ function BarbeariasConteudo() {
                     </p>
                   </div>
                 </div>
+              </div>
+
+              {/* Saúde da conta */}
+              <div className="rounded-2xl border border-line bg-ink-elev p-5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="font-display text-base font-semibold text-bone">
+                    A loja está de pé?
+                  </p>
+                  <span
+                    className={`font-body text-xs font-semibold ${COR_USO[d.saude.uso.nivel]}`}
+                  >
+                    {d.saude.uso.rotulo}
+                  </span>
+                </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {[
-                    { r: "Serviços", v: d.numeros.servicos },
-                    { r: "Produtos", v: d.numeros.produtos },
-                    { r: "Pedidos", v: d.numeros.pedidos },
-                    { r: "Movimentado", v: dinheiro(d.numeros.movimentado) },
+                    { r: "Serviços", v: d.saude.servicos, alerta: d.saude.servicos === 0 },
+                    { r: "Produtos", v: d.saude.produtos, alerta: false },
+                    { r: "Equipe", v: d.equipe.total, alerta: false },
+                    {
+                      r: "Pedidos 30d",
+                      v: d.saude.pedidos30Dias,
+                      alerta: d.saude.pedidos30Dias === 0,
+                    },
                   ].map((x) => (
                     <div key={x.r}>
                       <p className="font-body text-[11px] uppercase tracking-wide text-muted">
                         {x.r}
                       </p>
-                      <p className="font-accent text-base text-bone">{x.v}</p>
+                      <p
+                        className={`font-accent text-base ${x.alerta ? "text-warn" : "text-bone"}`}
+                      >
+                        {x.v}
+                      </p>
                     </div>
                   ))}
                 </div>
+
+                <p className="mt-3 font-body text-[11px] text-muted">
+                  {d.equipe.donos} dono(s) e {d.equipe.barbeiros} barbeiro(s) ·{" "}
+                  {d.saude.pedidosTotal} pedido(s) no total · último em{" "}
+                  {data(d.saude.ultimoPedidoEm)}
+                </p>
+
+                {d.saude.servicos === 0 && (
+                  <p className="mt-3 rounded-lg border border-warn-line bg-warn-soft px-3 py-2 font-body text-xs text-warn">
+                    Sem nenhum serviço cadastrado — a página pública dela não vende
+                    nada. É a conta que mais precisa de uma ligação.
+                  </p>
+                )}
               </div>
 
               {/* Recebimento */}
@@ -348,13 +397,13 @@ function BarbeariasConteudo() {
                   <div className="flex items-start justify-between gap-3">
                     <span className="text-bone-dim">Mercado Pago</span>
                     <span className="text-right">
-                      {d.mercadoPago ? (
+                      {d.recebimento.mercadoPago ? (
                         <>
                           <span className="text-ok">conectado</span>
                           <span className="block font-body text-[11px] text-muted">
-                            {d.mercadoPago.apelido || "conta sem apelido"} ·{" "}
-                            {d.mercadoPago.ambiente} · token até{" "}
-                            {data(d.mercadoPago.expiraEm)}
+                            {d.recebimento.mercadoPago.ambiente} · desde{" "}
+                            {data(d.recebimento.mercadoPago.conectadoEm)} · autorização
+                            até {data(d.recebimento.mercadoPago.expiraEm)}
                           </span>
                         </>
                       ) : (
@@ -365,11 +414,11 @@ function BarbeariasConteudo() {
                   <div className="flex items-start justify-between gap-3 border-t border-line pt-2">
                     <span className="text-bone-dim">Pix direto</span>
                     <span className="text-right">
-                      {d.pix?.ativo ? (
+                      {d.recebimento.pix ? (
                         <>
                           <span className="text-ok">ativo</span>
                           <span className="block font-body text-[11px] text-muted">
-                            {d.pix.beneficiario} · {d.pix.tipo} {d.pix.chave}
+                            chave do tipo {d.recebimento.pix.tipo}
                           </span>
                         </>
                       ) : (
@@ -378,67 +427,11 @@ function BarbeariasConteudo() {
                     </span>
                   </div>
                 </div>
-                {d.pix?.ativo && (
-                  <p className="mt-3 font-body text-[11px] text-muted">
-                    A chave aparece parcialmente escondida de propósito: dá pra
-                    conferir com o dono sem o suporte enxergar o dado inteiro.
-                  </p>
-                )}
-              </div>
-
-              {/* Equipe */}
-              <div className="rounded-2xl border border-line bg-ink-elev p-5">
-                <p className="font-display text-base font-semibold text-bone">
-                  Equipe ({d.equipe.length})
+                <p className="mt-3 font-body text-[11px] text-muted">
+                  A chave Pix não aparece aqui nem escondida. Se precisar conferir,
+                  peça pro dono ler a dele em Pagamentos.
                 </p>
-                <div className="mt-3 space-y-1.5">
-                  {d.equipe.map((u) => (
-                    <div
-                      key={u.id}
-                      className="flex items-center justify-between gap-3 font-body text-sm"
-                    >
-                      <span className="min-w-0 truncate text-bone-dim">
-                        {u.nome}{" "}
-                        <span className="text-muted">· {u.email}</span>
-                      </span>
-                      <span className="shrink-0 font-body text-[11px] text-muted">
-                        {u.role}
-                      </span>
-                    </div>
-                  ))}
-                </div>
               </div>
-
-              {/* Últimos pedidos */}
-              {d.ultimosPedidos.length > 0 && (
-                <div className="rounded-2xl border border-line bg-ink-elev p-5">
-                  <p className="font-display text-base font-semibold text-bone">
-                    Últimos pedidos
-                  </p>
-                  <div className="mt-3 space-y-1.5">
-                    {d.ultimosPedidos.map((p) => (
-                      <div
-                        key={p.id}
-                        className="flex items-center justify-between gap-3 font-body text-xs"
-                      >
-                        <span className="min-w-0 truncate text-bone-dim">
-                          {p.cliente_nome}
-                        </span>
-                        <span className="shrink-0 text-muted">
-                          {dinheiro(Number(p.total))} · {p.forma_pagamento} ·{" "}
-                          <span
-                            className={
-                              p.status_pagamento === "pago" ? "text-ok" : "text-muted"
-                            }
-                          >
-                            {p.status_pagamento}
-                          </span>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
 
               {/* Ações */}
               <div className="rounded-2xl border border-cyan/25 bg-cyan/[0.04] p-5">
@@ -487,7 +480,7 @@ function BarbeariasConteudo() {
                       Conexão do Mercado Pago
                     </p>
                     <button
-                      disabled={ocupado || !d.mercadoPago}
+                      disabled={ocupado || !d.recebimento.mercadoPago}
                       onClick={() => agir("desconectar_mp")}
                       className="mt-1.5 rounded-full border border-line-strong px-3.5 py-1.5 font-body text-xs text-bone-dim transition-colors hover:border-off-line hover:text-off disabled:opacity-40"
                     >
@@ -524,15 +517,7 @@ function BarbeariasConteudo() {
                         </button>
                         <button
                           disabled={ocupado}
-                          onClick={() => {
-                            if (
-                              window.confirm(
-                                `Bloquear "${d.barbearia.nome}"? O dono perde o acesso ao painel na hora.`,
-                              )
-                            ) {
-                              agir("bloquear");
-                            }
-                          }}
+                          onClick={() => agir("bloquear")}
                           className="rounded-full border border-off-line bg-off-soft px-3.5 py-1.5 font-body text-xs text-off transition-transform hover:scale-105 disabled:opacity-50"
                         >
                           Bloquear acesso
@@ -546,6 +531,68 @@ function BarbeariasConteudo() {
                   Toda ação daqui fica registrada com o seu e-mail.
                 </p>
               </div>
+
+              {/* Exclusão — separada de tudo, porque não tem desfazer */}
+              {admin && (
+                <div className="rounded-2xl border border-off-line bg-off-soft p-5">
+                  <p className="font-display text-base font-semibold text-off">
+                    Apagar esta barbearia
+                  </p>
+                  <p className="mt-1 font-body text-xs text-bone-dim">
+                    Some tudo junto: {d.saude.servicos} serviço(s), {d.saude.produtos}{" "}
+                    produto(s), {d.saude.pedidosTotal} pedido(s), a agenda inteira,{" "}
+                    {d.equipe.total} conta(s) de acesso e as credenciais de
+                    recebimento. <strong className="text-off">Não tem desfazer.</strong>
+                  </p>
+
+                  {d.barbearia.status === "ativa" && (
+                    <p className="mt-3 rounded-lg border border-off-line bg-ink-elev/60 px-3 py-2 font-body text-xs text-off">
+                      ⚠️ Esta barbearia está <strong>pagando</strong>. Confirme que é
+                      mesmo ela antes de continuar.
+                    </p>
+                  )}
+
+                  {!excluindo ? (
+                    <button
+                      onClick={() => setExcluindo(true)}
+                      className="mt-3 rounded-full border border-off-line px-5 py-2 font-body text-xs font-semibold text-off transition-colors hover:bg-off hover:text-white"
+                    >
+                      Quero apagar
+                    </button>
+                  ) : (
+                    <div className="mt-3">
+                      <p className="font-body text-xs text-bone-dim">
+                        Digite <strong className="text-bone">{d.barbearia.nome}</strong>{" "}
+                        pra confirmar:
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <input
+                          value={confirmacao}
+                          onChange={(e) => setConfirmacao(e.target.value)}
+                          placeholder={d.barbearia.nome}
+                          className="min-w-48 flex-1 rounded-full border border-off-line bg-ink-elev px-4 py-2 font-body text-sm text-bone outline-none placeholder:text-muted"
+                        />
+                        <button
+                          disabled={ocupado || confirmacao.trim() !== d.barbearia.nome}
+                          onClick={() => agir("excluir", { confirmacao })}
+                          className="rounded-full bg-off px-5 py-2 font-body text-xs font-semibold text-white transition-transform hover:scale-105 disabled:opacity-40 disabled:hover:scale-100"
+                        >
+                          {ocupado ? "Apagando…" : "Apagar pra sempre"}
+                        </button>
+                        <button
+                          onClick={() => {
+                            setExcluindo(false);
+                            setConfirmacao("");
+                          }}
+                          className="rounded-full border border-line-strong px-5 py-2 font-body text-xs text-bone-dim hover:text-bone"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

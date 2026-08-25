@@ -76,25 +76,21 @@ interface Visao {
     status: string;
     plano: string;
     pedidos: number;
-    movimentado: number;
+    uso: { rotulo: string; nivel: 0 | 1 | 2 | 3 };
     ultimoPedido: string | null;
   }[];
+  movimento: {
+    pedidos24h: number;
+    pedidos7Dias: number;
+    barbeariasAtivas7Dias: number;
+    porForma: Record<string, number>;
+  };
   ultimosCadastros: {
     id: string;
     nome: string;
     plano: string;
     status: string;
     criadaEm: string;
-  }[];
-  ultimosPedidos: {
-    id: string;
-    barbeariaId: string;
-    barbearia: string;
-    cliente: string;
-    total: number;
-    status: string;
-    forma: string;
-    criadoEm: string;
   }[];
   log: { id: string; email: string; acao: string; detalhe: string; criado_em: string }[];
 }
@@ -103,13 +99,6 @@ const ROTULO_STATUS: Record<string, { texto: string; classe: string }> = {
   ativa: { texto: "Pagando", classe: "border-ok-line bg-ok-soft text-ok" },
   trial: { texto: "Em teste", classe: "border-warn-line bg-warn-soft text-warn" },
   vencida: { texto: "Vencida", classe: "border-off-line bg-off-soft text-off" },
-};
-
-const ROTULO_PAGAMENTO: Record<string, string> = {
-  pago: "pago",
-  pendente: "aguardando",
-  recusado: "recusado",
-  expirado: "expirou",
 };
 
 const ROTULO_FORMA: Record<string, string> = {
@@ -157,7 +146,7 @@ export default function AdmVisaoPage() {
     : 0;
 
   const agenda = d?.uso.statusAgenda ?? {};
-  const maiorMovimento = Math.max(1, ...(d?.ranking ?? []).map((r) => r.movimentado));
+  const maiorUso = Math.max(1, ...(d?.ranking ?? []).map((r) => r.pedidos));
 
   return (
     <div>
@@ -170,8 +159,10 @@ export default function AdmVisaoPage() {
             O que anda acontecendo
           </h1>
           <p className="mt-1 max-w-xl font-body text-sm text-bone-dim">
-            Olá, {acesso.nome.split(" ")[0]}. Aqui é a soma de todas as barbearias —
-            nenhuma delas enxerga a outra, só esta tela enxerga todas.
+            Olá, {acesso.nome.split(" ")[0]}. Aqui é a <strong className="text-bone">soma</strong>{" "}
+            de todas as barbearias. Quanto cada uma fatura e quem agenda nelas
+            fica de fora de propósito — isso é a vida delas, não métrica da
+            Navalha.
           </p>
         </div>
         <button
@@ -477,11 +468,11 @@ export default function AdmVisaoPage() {
           {/* ================= RANKING ================= */}
           <section className="mt-10">
             <h2 className="font-display text-xl font-semibold text-bone">
-              Quem mais movimenta
+              Quem mais usa
             </h2>
             <p className="mt-1 font-body text-xs text-muted">
-              Pedidos pagos nos últimos {d.janelaDias} dias. Fora dessa janela nada é
-              somado aqui.
+              Quantidade de pedidos nos últimos {d.janelaDias} dias — quem está
+              rodando e quem parou. O valor de cada barbearia não entra nesta conta.
             </p>
 
             <div className="mt-3 space-y-1.5">
@@ -505,16 +496,14 @@ export default function AdmVisaoPage() {
                     <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-bone/10">
                       <div
                         className="h-full rounded-full bg-cyan transition-colors group-hover:bg-cyan-bright"
-                        style={{
-                          width: `${Math.max(1, (r.movimentado / maiorMovimento) * 100)}%`,
-                        }}
+                        style={{ width: `${Math.max(1, (r.pedidos / maiorUso) * 100)}%` }}
                       />
                     </div>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="font-accent text-sm text-bone">{dinheiro(r.movimentado)}</p>
+                    <p className="font-accent text-sm text-bone">{r.pedidos}</p>
                     <p className="font-body text-[10px] text-muted">
-                      {r.pedidos} pedido(s) · último {data(r.ultimoPedido)}
+                      {r.uso.rotulo} · último {data(r.ultimoPedido)}
                     </p>
                   </div>
                 </button>
@@ -526,39 +515,58 @@ export default function AdmVisaoPage() {
           <section className="mt-10 grid gap-4 lg:grid-cols-2">
             <div>
               <h2 className="font-display text-xl font-semibold text-bone">
-                Últimos pedidos
+                Movimento
               </h2>
               <p className="mt-1 font-body text-xs text-muted">
-                De todas as barbearias, o mais recente primeiro.
+                Quantos agendamentos entraram na plataforma. Quem agendou e por
+                quanto não aparece aqui — isso é a agenda da barbearia com o
+                cliente dela.
               </p>
-              <div className="mt-3 space-y-1.5">
-                {d.ultimosPedidos.length === 0 && (
-                  <p className="rounded-xl border border-line bg-ink-elev px-4 py-5 text-center font-body text-sm text-muted">
-                    Nenhum pedido na janela.
-                  </p>
-                )}
-                {d.ultimosPedidos.map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-line bg-ink-elev px-4 py-2.5"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-body text-sm text-bone">{p.cliente}</p>
-                      <p className="truncate font-body text-[11px] text-muted">
-                        {p.barbearia} · {ROTULO_FORMA[p.forma] ?? p.forma}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="font-accent text-sm text-bone">{dinheiro(p.total)}</p>
-                      <p className="font-body text-[10px]">
-                        <span className={p.status === "pago" ? "text-ok" : "text-muted"}>
-                          {ROTULO_PAGAMENTO[p.status] ?? p.status}
-                        </span>
-                        <span className="text-muted"> · {quando(p.criadoEm)}</span>
-                      </p>
-                    </div>
-                  </div>
-                ))}
+
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <Numero
+                  tom="cyan"
+                  titulo="Últimas 24h"
+                  valor={String(d.movimento.pedidos24h)}
+                  detalhe="pedidos em toda a plataforma"
+                />
+                <Numero
+                  titulo="Últimos 7 dias"
+                  valor={String(d.movimento.pedidos7Dias)}
+                  detalhe={`${d.movimento.barbeariasAtivas7Dias} barbearia(s) com movimento`}
+                />
+              </div>
+
+              <div className="mt-3 rounded-2xl border border-line bg-ink-elev p-5">
+                <p className="font-body text-xs font-semibold uppercase tracking-wide text-bone-dim">
+                  Como pagaram · 30 dias
+                </p>
+                <div className="mt-3 space-y-2.5 font-body text-sm">
+                  {Object.keys(ROTULO_FORMA).map((forma) => {
+                    const qtd = d.movimento.porForma[forma] ?? 0;
+                    const total = Object.values(d.movimento.porForma).reduce(
+                      (a, b) => a + b,
+                      0,
+                    );
+                    const pct = total ? Math.round((qtd / total) * 100) : 0;
+                    return (
+                      <div key={forma}>
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-bone-dim">{ROTULO_FORMA[forma]}</span>
+                          <span className="text-bone">
+                            {qtd} <span className="text-muted">({pct}%)</span>
+                          </span>
+                        </div>
+                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-bone/10">
+                          <div
+                            className="h-full rounded-full bg-cyan"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 

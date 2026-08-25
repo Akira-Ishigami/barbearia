@@ -1,16 +1,24 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { autenticarPlataforma } from "@/lib/plataforma";
 import { supabaseAdmin, supabaseConfigurado } from "@/lib/supabase";
+import { faixaDeUso } from "@/lib/privacidade";
 
 /**
  * Lista de barbearias pro suporte e pro admin.
  *
- * Sem `?id`: a lista, com o que dá pra decidir de bate-pronto (status da
- * assinatura, plano, se recebe online). Com `?id`: o detalhe de uma, pra
- * quando alguém liga com problema.
+ * Sem `?id`: a lista, com o que dá pra decidir de bate-pronto. Com `?id`: o
+ * detalhe de uma, pra quando alguém liga com problema.
  *
- * Nunca devolve token do Mercado Pago nem chave Pix crua — o suporte
- * precisa saber SE está conectado, não QUAL é a credencial.
+ * O QUE ESTA ROTA NÃO DEVOLVE, de propósito (ver `lib/privacidade.ts`):
+ *   — nome de cliente que agendou naquela barbearia
+ *   — valor de venda ou faturamento dela
+ *   — nome e e-mail da equipe dela
+ *   — chave Pix, nem mascarada, nem o nome do beneficiário
+ *   — apelido da conta do Mercado Pago
+ *
+ * Nada disso é preciso pra cobrar, pra dar suporte ou pra saber se o
+ * produto está funcionando — e esses três são os únicos motivos que a
+ * Navalha tem pra abrir a barbearia de alguém.
  */
 
 function statusReal(b: {
@@ -30,12 +38,6 @@ function statusReal(b: {
   return "vencida";
 }
 
-/** Mostra só o começo e o fim da chave — o suficiente pra conferir. */
-function mascarar(chave: string): string {
-  if (chave.length <= 6) return "•".repeat(chave.length);
-  return `${chave.slice(0, 3)}${"•".repeat(Math.max(3, chave.length - 6))}${chave.slice(-3)}`;
-}
-
 export async function GET(request: NextRequest) {
   if (!supabaseConfigurado()) {
     return NextResponse.json({ erro: "Banco não configurado." }, { status: 503 });
@@ -49,36 +51,58 @@ export async function GET(request: NextRequest) {
 
   // ---------- Detalhe de uma barbearia ----------
   if (id) {
-    const { data: b } = await db.from("barbearias").select("*").eq("id", id).maybeSingle();
+    const { data: b } = await db
+      .from("barbearias")
+      .select(
+        "id, nome, slug, telefone, endereco, plano, criada_em, assinatura_status, trial_termina_em, assinatura_ate",
+      )
+      .eq("id", id)
+      .maybeSingle();
     if (!b) return NextResponse.json({ erro: "Barbearia não encontrada." }, { status: 404 });
 
-    const [equipe, mp, pix, servicos, produtos, pedidos, ultimos] = await Promise.all([
-      db.from("usuarios").select("id, nome, email, role, criado_em").eq("barbearia_id", id),
-      db
-        .from("mp_contas")
-        .select("apelido, ambiente, expira_em, conectado_em, aceita_pix, aceita_cartao")
-        .eq("barbearia_id", id)
-        .maybeSingle(),
-      db.from("pix_contas").select("tipo, chave, beneficiario, cidade, ativo").eq("barbearia_id", id).maybeSingle(),
-      db.from("servicos").select("id", { count: "exact", head: true }).eq("barbearia_id", id),
-      db.from("produtos").select("id", { count: "exact", head: true }).eq("barbearia_id", id),
-      db.from("pedidos").select("total, status_pagamento").eq("barbearia_id", id),
-      db
-        .from("pedidos")
-        .select("id, cliente_nome, total, forma_pagamento, status_pagamento, criado_em")
-        .eq("barbearia_id", id)
-        .order("criado_em", { ascending: false })
-        .limit(10),
-    ]);
+    const trintaDias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    const todosPedidos = pedidos.data ?? [];
-    const pagos = todosPedidos.filter((p) => p.status_pagamento === "pago");
+    const [equipe, mp, pix, servicos, produtos, pedidosTotal, pedidos30, ultimo] =
+      await Promise.all([
+        // Só o papel. Nome e e-mail da equipe não interessam pra cobrar
+        // nem pra dar suporte à conta da barbearia.
+        db.from("usuarios").select("role").eq("barbearia_id", id),
+        db
+          .from("mp_contas")
+          .select("ambiente, expira_em, conectado_em, aceita_pix, aceita_cartao")
+          .eq("barbearia_id", id)
+          .maybeSingle(),
+        // Só se existe e de que tipo é — a chave em si nunca sai daqui.
+        db.from("pix_contas").select("tipo, ativo").eq("barbearia_id", id).maybeSingle(),
+        db.from("servicos").select("id", { count: "exact", head: true }).eq("barbearia_id", id),
+        db.from("produtos").select("id", { count: "exact", head: true }).eq("barbearia_id", id),
+        db.from("pedidos").select("id", { count: "exact", head: true }).eq("barbearia_id", id),
+        db
+          .from("pedidos")
+          .select("id", { count: "exact", head: true })
+          .eq("barbearia_id", id)
+          .gte("criado_em", trintaDias),
+        // A data do último pedido responde "ela está usando?". O conteúdo
+        // do pedido — quem, quanto — não é da conta da Navalha.
+        db
+          .from("pedidos")
+          .select("criado_em")
+          .eq("barbearia_id", id)
+          .order("criado_em", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+
+    const papeis = (equipe.data ?? []) as { role: string }[];
+    const em30 = pedidos30.count ?? 0;
 
     return NextResponse.json({
       barbearia: {
         id: b.id,
         nome: b.nome,
         slug: b.slug,
+        // Telefone e endereço já estão na página pública da barbearia — é
+        // por eles que o suporte liga de volta.
         telefone: b.telefone,
         endereco: b.endereco,
         plano: b.plano,
@@ -86,38 +110,37 @@ export async function GET(request: NextRequest) {
         status: statusReal(b as never),
         trialTerminaEm: b.trial_termina_em,
         assinaturaAte: b.assinatura_ate,
-        comissaoPadrao: Number(b.comissao_padrao ?? 0),
       },
-      equipe: equipe.data ?? [],
-      mercadoPago: mp.data
-        ? {
-            apelido: mp.data.apelido,
-            ambiente: mp.data.ambiente,
-            conectadoEm: mp.data.conectado_em,
-            expiraEm: mp.data.expira_em,
-            aceitaPix: mp.data.aceita_pix,
-            aceitaCartao: mp.data.aceita_cartao,
-          }
-        : null,
-      pix: pix.data
-        ? {
-            tipo: pix.data.tipo,
-            // Mascarada: pode ser o CPF do dono. Suporte confere, não copia.
-            chave: mascarar(pix.data.chave as string),
-            beneficiario: pix.data.beneficiario,
-            cidade: pix.data.cidade,
-            ativo: pix.data.ativo,
-          }
-        : null,
-      numeros: {
+
+      equipe: {
+        total: papeis.length,
+        donos: papeis.filter((u) => u.role === "dono").length,
+        barbeiros: papeis.filter((u) => u.role === "barbeiro").length,
+      },
+
+      recebimento: {
+        mercadoPago: mp.data
+          ? {
+              ambiente: mp.data.ambiente,
+              conectadoEm: mp.data.conectado_em,
+              expiraEm: mp.data.expira_em,
+              aceitaPix: mp.data.aceita_pix,
+              aceitaCartao: mp.data.aceita_cartao,
+            }
+          : null,
+        pix: pix.data?.ativo ? { tipo: pix.data.tipo } : null,
+      },
+
+      // Saúde da conta: dá pra ver se ela montou a loja e se está rodando,
+      // sem abrir nem um centavo do que ela fatura.
+      saude: {
         servicos: servicos.count ?? 0,
         produtos: produtos.count ?? 0,
-        pedidos: todosPedidos.length,
-        pedidosPagos: pagos.length,
-        movimentado:
-          Math.round(pagos.reduce((t, p) => t + Number(p.total ?? 0), 0) * 100) / 100,
+        pedidosTotal: pedidosTotal.count ?? 0,
+        pedidos30Dias: em30,
+        uso: faixaDeUso(em30),
+        ultimoPedidoEm: ultimo.data?.criado_em ?? null,
       },
-      ultimosPedidos: ultimos.data ?? [],
     });
   }
 
