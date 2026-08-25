@@ -6,6 +6,7 @@ import { Suspense } from "react";
 import { useSession } from "@/lib/use-session";
 import { useAsync } from "@/lib/use-async";
 import { cabecalhosAutenticados } from "@/lib/db";
+import { PixDiretoCard } from "@/components/PixDiretoCard";
 import { useState } from "react";
 
 interface Conta {
@@ -126,12 +127,19 @@ function PagamentosConteudo() {
         Pagamentos
       </p>
       <h1 className="mt-1 font-display text-3xl font-semibold text-bone">
-        Receber pelo Mercado Pago
+        Como você recebe do cliente
       </h1>
       <p className="mt-1 max-w-xl font-body text-sm text-bone-dim">
-        Conecte a conta do Mercado Pago da <strong className="text-bone">sua barbearia</strong>.
-        O que o cliente pagar online cai direto nela — o dinheiro não passa pela Navalha.
+        Duas formas, e dá pra ter as duas ligadas ao mesmo tempo: o{" "}
+        <strong className="text-bone">Mercado Pago</strong>, que confirma o horário
+        sozinho, e o <strong className="text-bone">Pix na sua chave</strong>, sem taxa
+        mas com confirmação na mão. Em qualquer uma o dinheiro vai direto pra sua
+        conta — não passa pela Navalha.
       </p>
+
+      <h2 className="mt-8 font-display text-xl font-semibold text-bone">
+        Mercado Pago
+      </h2>
 
       {resultado === "conectado" && (
         <p className="mt-6 max-w-2xl rounded-xl border border-ok-line bg-ok-soft px-4 py-3 font-body text-sm text-ok">
@@ -241,10 +249,13 @@ function PagamentosConteudo() {
         </div>
       )}
 
+      <h2 className="mt-10 font-display text-xl font-semibold text-bone">Pix direto</h2>
+      <PixDiretoCard />
+
       <p className="mt-8 max-w-2xl rounded-xl border border-line bg-ink-elev/40 px-4 py-3 font-body text-xs text-muted">
-        <strong className="text-bone-dim">Segurança:</strong> as credenciais da sua conta
-        ficam guardadas no servidor e nunca chegam ao navegador. A Navalha só usa a
-        autorização pra criar as cobranças em nome da sua barbearia.
+        <strong className="text-bone-dim">Segurança:</strong> tanto as credenciais do
+        Mercado Pago quanto a sua chave Pix ficam guardadas no servidor e nunca chegam
+        ao navegador de ninguém. O cliente recebe só o código de pagamento já montado.
       </p>
     </div>
   );

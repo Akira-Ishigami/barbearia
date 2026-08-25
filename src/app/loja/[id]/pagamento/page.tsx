@@ -10,6 +10,7 @@ import { cabecalhosOpcionais, criarPedidoLocal } from "@/lib/db";
 import { useAsync } from "@/lib/use-async";
 import { addMinutes } from "@/lib/date";
 import { SLOT_MIN, slotsDe } from "@/lib/types";
+import { PixQr } from "@/components/PixQr";
 
 function preco(v: number) {
   return `R$ ${v.toFixed(2).replace(".", ",")}`;
@@ -18,6 +19,7 @@ function preco(v: number) {
 const ICONE_ONLINE =
   "M2 8h20M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2ZM6 15h4";
 const ICONE_BALCAO = "M3 21h18M5 21V10l7-5 7 5v11M10 21v-6h4v6";
+const ICONE_PIX = "M12 2 22 12 12 22 2 12 12 2Zm0 6L8 12l4 4 4-4-4-4Z";
 
 function PagamentoConteudo() {
   const router = useRouter();
@@ -28,6 +30,13 @@ function PagamentoConteudo() {
   const [erro, setErro] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [confirmado, setConfirmado] = useState<{ temProdutos: boolean } | null>(null);
+  // Pix direto não sai do site: o pedido é criado e o código aparece aqui
+  // mesmo, porque não existe checkout externo pra onde mandar a pessoa.
+  const [pix, setPix] = useState<{
+    brcode: string;
+    total: number;
+    beneficiario?: string;
+  } | null>(null);
 
   // Volta do Mercado Pago: `ok` significa que o pagamento foi aprovado. Quem
   // realmente confirma o horário é o webhook — isto aqui é só o aviso na tela.
@@ -38,6 +47,12 @@ function PagamentoConteudo() {
     conta?: { aceita_pix: boolean; aceita_cartao: boolean; parcelas_max: number } | null;
   }>(
     () => fetch(`/api/mp/status?barbearia=${barbearia!.id}`).then((r) => r.json()),
+    [barbearia?.id],
+    { pular: !barbearia },
+  );
+
+  const { dados: pixStatus } = useAsync<{ aceita: boolean; beneficiario?: string }>(
+    () => fetch(`/api/pix/status?barbearia=${barbearia!.id}`).then((r) => r.json()),
     [barbearia?.id],
     { pular: !barbearia },
   );
@@ -77,6 +92,38 @@ function PagamentoConteudo() {
             : undefined
         }
       />
+    );
+  }
+
+  // Vem antes da checagem de carrinho vazio de propósito: o carrinho foi
+  // esvaziado justamente porque o pedido já está criado no banco.
+  if (pix) {
+    return (
+      <div className="mx-auto w-full max-w-md px-6 py-12">
+        <p className="text-center font-display text-2xl font-bold text-bone">
+          Falta só o pagamento
+        </p>
+        <p className="mt-2 text-center font-body text-sm text-bone-dim">
+          Seu horário está reservado. Pague o Pix abaixo e a barbearia confirma assim
+          que o valor cair na conta dela.
+        </p>
+
+        <div className="mt-6">
+          <PixQr brcode={pix.brcode} total={pix.total} beneficiario={pix.beneficiario} />
+        </div>
+
+        <p className="mt-5 rounded-xl border border-warn-line bg-warn-soft px-4 py-3 font-body text-xs text-warn">
+          A confirmação não é automática: guarde o comprovante e, se puder, mande pra
+          barbearia. Sem o pagamento, o horário pode ser liberado pra outra pessoa.
+        </p>
+
+        <Link
+          href={caminhoLoja(barbearia)}
+          className="mt-6 block rounded-full border border-line-strong px-7 py-3 text-center font-body text-sm text-bone-dim transition-colors hover:border-bone hover:text-bone"
+        >
+          Voltar pro catálogo
+        </Link>
+      </div>
     );
   }
 
@@ -173,7 +220,40 @@ function PagamentoConteudo() {
     setConfirmado({ temProdutos });
   }
 
+  async function pagarComPix() {
+    setErro(null);
+    setEnviando(true);
+    try {
+      const resposta = await fetch("/api/pagamentos/pix", {
+        method: "POST",
+        headers: await cabecalhosOpcionais(),
+        body: JSON.stringify(corpoPedido),
+      });
+      const corpo = await resposta.json().catch(() => ({}));
+
+      if (!resposta.ok || !corpo.brcode) {
+        setErro(corpo.erro ?? "Não foi possível gerar o código Pix.");
+        setEnviando(false);
+        return;
+      }
+
+      // O horário já está preso no banco; esvaziar o carrinho evita que a
+      // pessoa volte e gere um segundo pedido pro mesmo horário.
+      clearCart(barbearia!.id);
+      setPix({
+        brcode: corpo.brcode,
+        total: corpo.total,
+        beneficiario: corpo.beneficiario,
+      });
+      setEnviando(false);
+    } catch {
+      setErro("Falha de conexão. Tente de novo.");
+      setEnviando(false);
+    }
+  }
+
   const aceitaOnline = Boolean(mp?.conectada);
+  const aceitaPixDireto = Boolean(pixStatus?.aceita);
   const parcelas = mp?.conta?.parcelas_max ?? 1;
   const meios = [
     mp?.conta?.aceita_pix && "Pix",
@@ -197,12 +277,14 @@ function PagamentoConteudo() {
 
       <div className="mx-auto w-full max-w-2xl px-6 py-10">
         <h1 className="font-display text-2xl font-bold text-bone">
-          {aceitaOnline ? "Como você prefere pagar?" : "Quase lá!"}
+          {aceitaOnline || aceitaPixDireto ? "Como você prefere pagar?" : "Quase lá!"}
         </h1>
         <p className="mt-1.5 font-body text-sm text-bone-dim">
           {aceitaOnline
             ? "Pagando agora, seu horário fica garantido na hora."
-            : "Esta barbearia recebe no balcão. É só enviar o pedido e aguardar a confirmação."}
+            : aceitaPixDireto
+              ? "Você pode adiantar no Pix ou acertar no balcão no dia."
+              : "Esta barbearia recebe no balcão. É só enviar o pedido e aguardar a confirmação."}
         </p>
 
         <div className="mt-7 rounded-2xl border border-line bg-ink-elev px-5 py-4">
@@ -244,6 +326,45 @@ function PagamentoConteudo() {
                 </span>
                 <span className="block font-body text-xs text-ink/70">
                   {meios.length ? meios.join(" ou ") : "Pix ou cartão"} · horário confirmado na hora
+                </span>
+              </span>
+            </button>
+          )}
+
+          {aceitaPixDireto && (
+            <button
+              onClick={pagarComPix}
+              disabled={enviando}
+              className={`flex w-full items-center gap-4 rounded-2xl px-5 py-4 text-left transition-transform hover:scale-[1.01] disabled:opacity-60 ${
+                // Vira o destaque quando não há Mercado Pago: aí ele é a
+                // única forma de pagar adiantado.
+                aceitaOnline
+                  ? "border border-line-strong hover:border-bone"
+                  : "bg-bone"
+              }`}
+            >
+              <span
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
+                  aceitaOnline ? "bg-ink-elev-2 text-bone-dim" : "bg-ink/15 text-ink"
+                }`}
+              >
+                <Icone d={ICONE_PIX} />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span
+                  className={`block font-body text-sm font-semibold ${
+                    aceitaOnline ? "text-bone" : "text-ink"
+                  }`}
+                >
+                  {enviando ? "Gerando código…" : `Pagar com Pix — ${preco(total)}`}
+                </span>
+                <span
+                  className={`block font-body text-xs ${
+                    aceitaOnline ? "text-muted" : "text-ink/70"
+                  }`}
+                >
+                  Código com o valor já preenchido · a barbearia confirma ao ver o
+                  pagamento
                 </span>
               </span>
             </button>

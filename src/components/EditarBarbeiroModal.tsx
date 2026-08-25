@@ -23,6 +23,10 @@ export function EditarBarbeiroModal({
   const [nome, setNome] = useState(barbeiro.nome);
   const [especialidade, setEspecialidade] = useState(barbeiro.especialidade);
   const [foto, setFoto] = useState<string | undefined>(barbeiro.foto);
+  const [comissao, setComissao] = useState(String(barbeiro.comissaoPercentual ?? 0));
+  const [comissaoProdutos, setComissaoProdutos] = useState(
+    String(barbeiro.comissaoProdutosPercentual ?? 0),
+  );
   const [erro, setErro] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -49,12 +53,16 @@ export function EditarBarbeiroModal({
       return;
     }
 
+    const pct = (v: string) => Math.min(100, Math.max(0, Number(v.replace(",", ".")) || 0));
+
     setSalvando(true);
     try {
       await onSalvar({
         nome: nome.trim(),
         especialidade: especialidade.trim(),
         foto: foto ?? undefined,
+        comissaoPercentual: pct(comissao),
+        comissaoProdutosPercentual: pct(comissaoProdutos),
       });
       onClose();
     } catch (e) {
@@ -132,6 +140,52 @@ export function EditarBarbeiroModal({
               className="w-full rounded-xl border border-line-strong bg-bone/[0.03] px-3.5 py-2.5 font-body text-sm text-bone outline-none focus:border-gold-bright"
             />
           </label>
+
+          {/* Percentual de serviço e de produto são separados porque quase
+              nunca são iguais: corte fica em 40–50%, pomada em 5–10%. */}
+          <div className="rounded-xl border border-line bg-bone/[0.02] p-4">
+            <p className="font-body text-xs font-semibold uppercase tracking-wide text-bone-dim">
+              Comissão
+            </p>
+            <p className="mt-0.5 font-body text-[11px] text-muted">
+              Quanto essa pessoa leva de cada atendimento concluído.
+            </p>
+
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="mb-1.5 block font-body text-[11px] text-muted">
+                  Serviços (%)
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.5"
+                  value={comissao}
+                  onChange={(e) => setComissao(e.target.value)}
+                  className="w-full rounded-lg border border-line-strong bg-bone/[0.03] px-3 py-2 font-body text-sm text-bone outline-none focus:border-gold-bright"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block font-body text-[11px] text-muted">
+                  Produtos (%)
+                </span>
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.5"
+                  value={comissaoProdutos}
+                  onChange={(e) => setComissaoProdutos(e.target.value)}
+                  className="w-full rounded-lg border border-line-strong bg-bone/[0.03] px-3 py-2 font-body text-sm text-bone outline-none focus:border-gold-bright"
+                />
+              </label>
+            </div>
+
+            <p className="mt-2.5 font-body text-[11px] text-muted">
+              Deixe em 0 se você paga por diária ou salário fixo.
+            </p>
+          </div>
         </div>
 
         {erro && (

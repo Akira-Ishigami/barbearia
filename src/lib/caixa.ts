@@ -206,7 +206,11 @@ export function resumirCaixa(lancamentos: Lancamento[]): ResumoCaixa {
   const validos = lancamentos.filter((l) => contaNoCaixa(l.status));
   const soma = (lista: Lancamento[]) => lista.reduce((t, l) => t + l.total, 0);
 
-  const online = validos.filter((l) => l.formaPagamento === "online");
+  // Pix direto entra junto com o online: quando o dono confirmou, é porque
+  // ele viu o valor no extrato — o dinheiro está lá, não no balcão.
+  const online = validos.filter(
+    (l) => l.formaPagamento === "online" || l.formaPagamento === "pix_direto",
+  );
   const local = validos.filter((l) => l.formaPagamento === "local");
   const naFila = lancamentos.filter((l) => l.status === "pendente");
   const naoPagos = lancamentos.filter((l) => l.status === "aguardando_pagamento");

@@ -32,6 +32,12 @@ banco/pagamento devolve um aviso em vez de quebrar.
 > A `service_role` ignora todas as regras de segurança do banco. Ela só pode
 > existir nas variáveis do servidor. Nunca num nome que comece com `NEXT_PUBLIC_`.
 
+### 2.1 Banco que já existe
+
+Rodar o `schema.sql` inteiro de novo é seguro (tudo usa `if not exists`). Se
+preferir aplicar só o que mudou, os arquivos em
+[`supabase/migrations/`](supabase/migrations/) trazem cada bloco separado.
+
 ---
 
 ## 3. Mercado Pago
@@ -112,19 +118,69 @@ já está no `.gitignore`.
 
 ---
 
-## O que ainda falta
+---
 
-O pagamento e a conexão com o Mercado Pago estão prontos, mas **o resto do app
-ainda lê e grava no `localStorage`** (`src/lib/mock-db.ts`). Isso significa que:
+## 6. Pix direto (sem Mercado Pago)
 
-- o agendamento que o cliente faz no celular dele **não aparece** no painel da
-  barbearia — cada navegador tem os próprios dados
-- as rotas de API já gravam no Supabase, então hoje as duas fontes convivem sem
-  conversar
+Não precisa configurar nada aqui — quem cadastra é cada barbearia, em
+`/painel/pagamentos → Pix direto`. Ela informa a chave, o nome de quem recebe e
+a cidade; o sistema monta o código "copia e cola" com o valor do pedido já
+travado, e o dinheiro cai direto na conta dela.
 
-O próximo passo é migrar as telas de `mock-db.ts` para o Supabase, usando o
-esquema que já está em `supabase/schema.sql`. Até lá, dá pra deployar e testar a
-conexão do Mercado Pago, mas não pra operar de verdade.
+**A diferença que precisa ficar clara pro dono:** Pix na chave **não tem
+webhook**. Ninguém avisa o sistema quando o dinheiro cai, então o agendamento
+entra como `pendente` e é o dono quem confirma, depois de ver o valor no
+extrato. Confirmação automática só com o Mercado Pago.
+
+A chave fica na tabela `pix_contas`, que — igual a `mp_contas` — **não tem
+policy de RLS**: só as rotas de API a enxergam. Isso é proposital, porque a
+chave costuma ser o CPF ou o celular do dono, e `barbearias` tem leitura
+pública.
+
+---
+
+## 7. Acesso de administrador e de suporte
+
+A área em `/adm` mostra todas as barbearias de uma vez — é a Navalha olhando
+pra si mesma, não pra uma barbearia.
+
+Quem entra está na tabela `plataforma_equipe`, identificado pelo **e-mail**:
+
+| Nível | O que faz |
+|---|---|
+| `suporte` | Vê todas as barbearias, estende o teste grátis (até 7 dias por vez) e solta uma conexão quebrada do Mercado Pago |
+| `admin` | Tudo isso + marcar assinatura como paga, trocar plano, bloquear acesso e gerenciar esta lista |
+
+O `schema.sql` já cadastra `akira.vha@gmail.com` como `admin`. Para que o acesso
+valha, essa pessoa precisa **entrar no sistema com uma conta que use esse mesmo
+e-mail** — o vínculo é feito na hora de autenticar, comparando o e-mail do token
+do Supabase Auth.
+
+Para liberar mais gente: `/adm/equipe` → informe o e-mail e o nível.
+
+Duas decisões de segurança que valem saber:
+
+- `plataforma_equipe` e `plataforma_log` **não têm policy de RLS**. Se o
+  navegador pudesse ler, qualquer um saberia quem é admin — e pior, um dono
+  conseguiria se adicionar. Todo acesso passa por rota de API.
+- Tudo que suporte e admin fazem cai em `plataforma_log`, com e-mail e data.
+  Acesso amplo sem trilha não se sustenta.
+
+---
+
+## 8. Comissão dos barbeiros
+
+Configurada por barbeiro em `/painel/barbeiros` (editar perfil), com percentual
+separado pra **serviço** e pra **produto** — quase nunca são iguais: corte fica
+em 40–50%, pomada vendida no balcão em 5–10%.
+
+O fechamento é em `/painel/comissoes` (plano Pro). Só entra atendimento
+**concluído**: confirmado ainda pode virar falta, e comissão paga em cima de
+falta é dinheiro que sai duas vezes. O que está confirmado mas ainda não
+aconteceu aparece à parte, como "previsto".
+
+Registrar o pagamento grava em `comissao_fechamentos`, que tem índice único por
+(barbeiro, período) — o mesmo intervalo não é fechado duas vezes.
 
 ## Segurança
 

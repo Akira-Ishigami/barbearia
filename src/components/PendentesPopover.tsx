@@ -136,10 +136,18 @@ export function PendentesPopover({
                 <p className="font-body text-[11px] text-bone-dim">
                   {formatDayLabel(v.data)} · {v.hora} · {v.servicos.join(" + ")}
                 </p>
-                <p className="font-body text-[11px] text-muted">
+                <p
+                  className={`font-body text-[11px] ${
+                    v.formaPagamento === "pix_direto" ? "text-warn" : "text-muted"
+                  }`}
+                >
                   {v.formaPagamento === "online"
                     ? `pago via ${v.metodoPagamento ? METODO_LABEL[v.metodoPagamento] : "online"}`
-                    : "paga no local"}
+                    : v.formaPagamento === "pix_direto"
+                      ? // Aqui o dono precisa conferir o extrato antes de
+                        // confirmar — o sistema não tem como saber sozinho.
+                        "Pix na sua chave · confira o extrato antes de confirmar"
+                      : "paga no local"}
                 </p>
                 {v.produtos.length > 0 && (
                   <p className="font-body text-[11px] text-cyan-bright">

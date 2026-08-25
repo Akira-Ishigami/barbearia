@@ -61,6 +61,7 @@ function paraBarbearia(l: LinhaBarbearia): Barbearia {
     sobre: (l.sobre as string) ?? undefined,
     galeria: (l.galeria ?? []) as string[],
     criadaEm: l.criada_em as string,
+    comissaoPadrao: Number(l.comissao_padrao ?? 0),
     assinaturaStatus: (l.assinatura_status as Barbearia["assinaturaStatus"]) ?? "trial",
     trialTerminaEm: (l.trial_termina_em as string) ?? null,
     assinaturaAte: (l.assinatura_ate as string) ?? null,
@@ -161,6 +162,7 @@ export async function updateBarbearia(id: string, patch: Partial<Barbearia>): Pr
   if (patch.foto !== undefined) linha.foto = patch.foto ?? null;
   if (patch.sobre !== undefined) linha.sobre = patch.sobre ?? null;
   if (patch.galeria !== undefined) linha.galeria = patch.galeria;
+  if (patch.comissaoPadrao !== undefined) linha.comissao_padrao = patch.comissaoPadrao;
 
   const { error } = await supabase().from("barbearias").update(linha).eq("id", id);
   erro(error);
@@ -294,6 +296,8 @@ function paraBarbeiro(l: LinhaBarbearia): BarbeiroPerfil {
     especialidade: (l.especialidade as string) ?? "",
     foto: (l.foto as string) ?? undefined,
     ativo: Boolean(l.ativo),
+    comissaoPercentual: Number(l.comissao_percentual ?? 0),
+    comissaoProdutosPercentual: Number(l.comissao_produtos_percentual ?? 0),
   };
 }
 
@@ -314,6 +318,12 @@ export async function updateBarbeiro(id: string, patch: Partial<BarbeiroPerfil>)
   if (patch.especialidade !== undefined) linha.especialidade = patch.especialidade;
   if (patch.foto !== undefined) linha.foto = patch.foto ?? null;
   if (patch.ativo !== undefined) linha.ativo = patch.ativo;
+  if (patch.comissaoPercentual !== undefined) {
+    linha.comissao_percentual = patch.comissaoPercentual;
+  }
+  if (patch.comissaoProdutosPercentual !== undefined) {
+    linha.comissao_produtos_percentual = patch.comissaoProdutosPercentual;
+  }
   const { error } = await supabase().from("barbeiros").update(linha).eq("id", id);
   erro(error);
 }

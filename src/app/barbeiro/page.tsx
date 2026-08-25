@@ -90,6 +90,29 @@ export default function PainelBarbeiroPage() {
 
   const aFazer = doDia.filter((a) => a.status === "pendente" || a.status === "confirmado");
   const concluidosHoje = doDia.filter((a) => a.status === "concluido");
+
+  // ---------- Comissão do mês ----------
+  // Mesma regra da tela do dono: só conta atendimento concluído. Mostrar
+  // o confirmado aqui daria um número que encolhe quando o cliente falta,
+  // e ninguém gosta de ver o próprio ganho diminuir.
+  const pctServicos = perfil?.comissaoPercentual ?? 0;
+  const pctProdutos = perfil?.comissaoProdutosPercentual ?? 0;
+  const temComissao = pctServicos > 0 || pctProdutos > 0;
+
+  const mesAtual = hoje.slice(0, 7);
+  const concluidosNoMes = agenda.filter(
+    (a) => a.status === "concluido" && a.data.startsWith(mesAtual),
+  );
+  const baseServicosMes = concluidosNoMes.reduce((s, a) => s + a.preco, 0);
+  // `produtosComprados` só vem preenchido no primeiro item de cada pedido,
+  // então somar a lista inteira não conta o mesmo produto duas vezes.
+  const baseProdutosMes = concluidosNoMes.reduce(
+    (s, a) =>
+      s + (a.produtosComprados ?? []).reduce((t, p) => t + p.preco * p.quantidade, 0),
+    0,
+  );
+  const comissaoMes =
+    (baseServicosMes * pctServicos) / 100 + (baseProdutosMes * pctProdutos) / 100;
   const ganhoHoje = doDia
     .filter((a) => a.status !== "pendente")
     .reduce((sum, a) => sum + a.preco, 0);
@@ -196,6 +219,33 @@ export default function PainelBarbeiroPage() {
             </div>
           ))}
         </div>
+
+        {/* COMISSÃO DO MÊS */}
+        {temComissao && (
+          <div className="mt-4 rounded-2xl border border-cyan/30 bg-cyan/[0.06] p-5">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="font-body text-xs font-semibold uppercase tracking-wide text-cyan-bright">
+                  Sua comissão neste mês
+                </p>
+                <p className="mt-1.5 font-accent text-3xl text-bone">
+                  {dinheiro(comissaoMes)}
+                </p>
+                <p className="mt-1 font-body text-xs text-bone-dim">
+                  {concluidosNoMes.length} atendimento(s) concluído(s) ·{" "}
+                  {dinheiro(baseServicosMes + baseProdutosMes)} produzidos
+                </p>
+              </div>
+              <div className="font-body text-xs text-muted">
+                <p>{pctServicos}% dos serviços</p>
+                {pctProdutos > 0 && <p>{pctProdutos}% dos produtos</p>}
+              </div>
+            </div>
+            <p className="mt-3 font-body text-[11px] text-muted">
+              Só entra o que você já concluiu. Quem confirma o pagamento é a barbearia.
+            </p>
+          </div>
+        )}
 
         {/* ABAS */}
         <div className="mt-8 flex gap-1 rounded-xl border border-line-strong p-1">

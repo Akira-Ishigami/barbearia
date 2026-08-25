@@ -8,6 +8,7 @@ import { sair, useSession } from "@/lib/use-session";
 import { useAsync } from "@/lib/use-async";
 import { usePendingAlerts } from "@/lib/use-pending-alerts";
 import { useTheme, themeClass } from "@/lib/use-theme";
+import { usePlataforma } from "@/lib/use-plataforma";
 import { PendentesPopover } from "@/components/PendentesPopover";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { ModalUpgrade } from "@/components/ModalUpgrade";
@@ -20,6 +21,7 @@ const NAV = [
   { href: "/painel/produtos", label: "Produtos", pro: true },
   { href: "/painel/estoque", label: "Estoque", pro: true },
   { href: "/painel/barbeiros", label: "Barbeiros", pro: false },
+  { href: "/painel/comissoes", label: "Comissões", pro: true },
   { href: "/painel/localizacao", label: "Localização", pro: false },
   { href: "/painel/pagamentos", label: "Pagamentos", pro: false },
   { href: "/painel/relatorios", label: "Relatórios", pro: true },
@@ -30,6 +32,8 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname();
   const session = useSession();
   const theme = useTheme();
+  // Só quem é da equipe da Navalha recebe algo aqui; pro dono comum é null.
+  const plataforma = usePlataforma();
   const [verUpgrade, setVerUpgrade] = useState(false);
   const { pendentes, flash } = usePendingAlerts(
     session?.role === "dono" ? session.barbeariaId : undefined,
@@ -167,6 +171,14 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
         </nav>
 
         <div className="mt-auto hidden space-y-3 pt-8 md:block">
+          {plataforma && (
+            <Link
+              href="/adm"
+              className="block rounded-lg border border-cyan/30 bg-cyan/5 px-3.5 py-2.5 font-body text-sm text-cyan-bright transition-colors hover:border-cyan/60"
+            >
+              Área da plataforma
+            </Link>
+          )}
           <ThemeToggle />
           <button
             onClick={async () => {

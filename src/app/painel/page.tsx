@@ -124,10 +124,11 @@ export default function PainelPage() {
   );
   const aReceber = valendo.filter((a) => a.formaPagamento === "local");
 
-  // Quantas vendas online — por cliente, não por serviço da linha.
+  // Quantas vendas adiantadas — por cliente, não por serviço da linha.
+  // Pix direto conta junto: também é dinheiro que entrou antes do dia.
   const pagosOnline = (dados?.lancamentos ?? []).filter(
     (l) =>
-      l.formaPagamento === "online" &&
+      (l.formaPagamento === "online" || l.formaPagamento === "pix_direto") &&
       l.status !== "pendente" &&
       l.status !== "cancelado",
   ).length;

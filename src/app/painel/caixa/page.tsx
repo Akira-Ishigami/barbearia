@@ -368,7 +368,8 @@ function LinhaLancamento({
   aberto: boolean;
   onToggle: () => void;
 }) {
-  const online = l.formaPagamento === "online";
+  // Pix direto também entrou antes do dia — o balcão é só o "local".
+  const online = l.formaPagamento !== "local";
   return (
     <div
       className={`rounded-2xl border border-line bg-ink-elev/60 ${

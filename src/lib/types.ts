@@ -65,6 +65,8 @@ export interface Barbearia {
   galeria?: string[];
   /** Conta do Mercado Pago da barbearia. Sem ela, só rola pagar no local. */
   mercadoPago?: MercadoPagoConta;
+  /** Percentual de comissão sugerido pra quem entrar na equipe. */
+  comissaoPadrao?: number;
 }
 
 export type UserRole = "dono" | "barbeiro";
@@ -177,6 +179,13 @@ export interface BarbeiroPerfil {
   especialidade: string;
   foto?: string;
   ativo: boolean;
+  /**
+   * Quanto o barbeiro leva de cada serviço que atendeu, em %.
+   * O percentual do produto é separado porque quase nunca é o mesmo:
+   * corte fica em 40–50%, pomada vendida no balcão em 5–10%.
+   */
+  comissaoPercentual?: number;
+  comissaoProdutosPercentual?: number;
 }
 
 export type MovimentoEstoqueTipo = "entrada" | "saida";
@@ -203,7 +212,12 @@ export type AgendamentoStatus =
   | "confirmado"
   | "concluido"
   | "cancelado";
-export type FormaPagamento = "online" | "local";
+
+// "pix_direto": a barbearia não usa Mercado Pago e recebe na chave Pix
+// dela. O dinheiro cai direto na conta do dono, sem intermediário — mas
+// também sem webhook, então é ele quem confirma no painel depois de ver
+// o extrato.
+export type FormaPagamento = "online" | "local" | "pix_direto";
 
 /** Como o cliente pagou quando escolheu pagar online. */
 export type MetodoPagamento = "pix" | "cartao";
