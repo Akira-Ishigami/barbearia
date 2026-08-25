@@ -10,11 +10,20 @@ export interface Plan {
   tagline: string;
   features: string[];
   highlight: boolean;
-  /** Só o Básico tem período grátis; o Pro é pago desde o primeiro dia. */
+  /** Os dois planos têm o mesmo período grátis. */
   temTrial: boolean;
 }
 
-export const TRIAL_DAYS = 7;
+/**
+ * Um mês grátis nos dois planos.
+ *
+ * Sete dias não davam pra barbearia cadastrar serviço, subir foto, montar a
+ * equipe e ainda ver o sistema rodando num ciclo real de agenda — ela
+ * decidia sem nunca ter usado de verdade. E o Pro cobrado desde o primeiro
+ * dia empurrava todo mundo pro Básico, que é justamente o plano onde não
+ * dá pra experimentar equipe, estoque e loja.
+ */
+export const TRIAL_DAYS = 30;
 
 export const PLANS: Plan[] = [
   {
@@ -36,7 +45,7 @@ export const PLANS: Plan[] = [
   },
   {
     id: "pro",
-    temTrial: false,
+    temTrial: true,
     name: "Pro",
     price: "259,95",
     valor: 259.95,

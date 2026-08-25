@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { supabaseAdmin, supabaseConfigurado } from "@/lib/supabase";
 import { gerarSlug } from "@/lib/slug";
 import { ipDoPedido, limparExpirados, rateLimit } from "@/lib/rate-limit";
+import { TRIAL_DAYS } from "@/lib/plans";
 
 // Cadastro é aberto (não exige login) e caro: cria conta Auth + barbearia +
 // usuário + barbeiro. Sem teto, um bot enche o banco e a cota do Supabase.
@@ -102,10 +103,17 @@ export async function POST(request: NextRequest) {
         horario_abertura: c.horarioAbertura ?? "09:00",
         horario_fechamento: c.horarioFechamento ?? "20:00",
         plano: planoEscolhido,
-        // O período grátis é só do Básico. O Pro nasce vencido de propósito:
-        // libera quando o pagamento entrar, senão bastava escolher Pro no
-        // cadastro pra usar tudo de graça por uma semana.
-        assinatura_status: planoEscolhido === "pro" ? "vencida" : "trial",
+        // Os dois planos nascem em teste: o mês grátis vale pro Básico e pro
+        // Pro, porque escolher entre eles sem ter usado equipe, estoque e
+        // loja é escolher no escuro.
+        assinatura_status: "trial",
+        // A data vai explícita, e não pelo default da coluna, pra o prazo
+        // ter um dono só: TRIAL_DAYS. Com o default mandando, mudar o prazo
+        // exigiria lembrar de rodar um ALTER no banco — e enquanto ninguém
+        // lembrasse, o site prometeria um prazo e o banco daria outro.
+        trial_termina_em: new Date(
+          Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000,
+        ).toISOString(),
       })
       .select("id")
       .single();

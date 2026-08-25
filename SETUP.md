@@ -168,11 +168,26 @@ Duas decisões de segurança que valem saber:
 
 ---
 
-## 8. Comissão dos barbeiros
+## 8. Período de teste
 
-Configurada por barbeiro em `/painel/barbeiros` (editar perfil), com percentual
-separado pra **serviço** e pra **produto** — quase nunca são iguais: corte fica
-em 40–50%, pomada vendida no balcão em 5–10%.
+Todo cadastro começa com **30 dias grátis**, nos dois planos, e dá pra trocar
+de plano livremente durante esse mês — quem entrou pelo Básico precisa
+conseguir experimentar equipe, estoque e loja antes de decidir.
+
+Depois do teste, subir pro Pro exige pagamento aprovado (`/api/assinatura` →
+webhook do Mercado Pago). A checagem de "está em teste?" é feita no servidor,
+com a data do banco: mandar o status no corpo do pedido deixaria qualquer um
+alegar estar em teste.
+
+---
+
+## 9. Comissão dos barbeiros
+
+Configurada por barbeiro em `/painel/barbeiros` (editar perfil): um percentual,
+aplicado **só sobre o serviço**. Produto vendido no balcão é da barbearia — foi
+ela que comprou o estoque e é ela que come o encalhe, então a margem não é do
+barbeiro. O que saiu de produto aparece na tela, fora da conta, pro dono saber
+quem está vendendo.
 
 O fechamento é em `/painel/comissoes` (plano Pro). Só entra atendimento
 **concluído**: confirmado ainda pode virar falta, e comissão paga em cima de

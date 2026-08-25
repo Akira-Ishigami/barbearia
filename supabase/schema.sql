@@ -25,18 +25,21 @@ create table if not exists barbearias (
   sobre               text,
   galeria             text[]      not null default '{}',
   -- Assinatura do sistema (a barbearia paga a Navalha).
-  --   'trial'   → nos 7 dias grátis
+  --   'trial'   → no mês grátis
   --   'ativa'   → pagou, em dia
   --   'vencida' → trial acabou ou pagamento não veio
   assinatura_status   text        not null default 'trial',
-  trial_termina_em    timestamptz not null default (now() + interval '7 days'),
+  trial_termina_em    timestamptz not null default (now() + interval '30 days'),
   assinatura_ate      timestamptz,          -- até quando está pago
   criada_em           timestamptz not null default now()
 );
 
 -- Para bancos já criados antes destes campos (roda sem erro se já existirem):
 alter table barbearias add column if not exists assinatura_status text not null default 'trial';
-alter table barbearias add column if not exists trial_termina_em timestamptz not null default (now() + interval '7 days');
+alter table barbearias add column if not exists trial_termina_em timestamptz not null default (now() + interval '30 days');
+-- O teste era de 7 dias e passou a ser de um mês; bancos criados antes
+-- disso guardam o default antigo na coluna, então ele é trocado aqui.
+alter table barbearias alter column trial_termina_em set default (now() + interval '30 days');
 alter table barbearias add column if not exists assinatura_ate timestamptz;
 
 -- ---------- Conta Mercado Pago de cada barbearia ----------
@@ -553,15 +556,17 @@ alter table plataforma_log enable row level security;
 -- Comissão por barbeiro
 --
 -- Quase toda barbearia paga o profissional por porcentagem do que ele
--- produziu, e o percentual do serviço costuma ser diferente do percentual
--- do produto vendido (corte 50%, pomada 10%). Por isso são dois campos.
+-- produziu. O percentual incide só sobre o serviço prestado.
 -- ============================================================
 
 -- Percentual sugerido pra quem entrar na equipe daqui pra frente.
 alter table barbearias add column if not exists comissao_padrao numeric(5,2) not null default 0;
 
 alter table barbeiros add column if not exists comissao_percentual numeric(5,2) not null default 0;
-alter table barbeiros add column if not exists comissao_produtos_percentual numeric(5,2) not null default 0;
+-- Comissão só sobre serviço. Produto vendido no balcão é da barbearia:
+-- o barbeiro não compra o estoque nem assume o encalhe, então a margem
+-- não é dele. A coluna chegou a existir e sai aqui.
+alter table barbeiros drop column if exists comissao_produtos_percentual;
 
 -- Fechamentos de comissão: o que já foi pago, pra não pagar duas vezes.
 create table if not exists comissao_fechamentos (
@@ -571,7 +576,7 @@ create table if not exists comissao_fechamentos (
   periodo_de    date not null,
   periodo_ate   date not null,
   base_servicos numeric(10,2) not null default 0,
-  base_produtos numeric(10,2) not null default 0,
+  base_produtos numeric(10,2) not null default 0,   -- histórico; hoje sempre 0
   valor         numeric(10,2) not null,
   observacao    text not null default '',
   pago_em       timestamptz not null default now(),

@@ -65,7 +65,11 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <nav className="flex w-full gap-2 overflow-x-auto md:mt-4 md:flex-col md:gap-1 md:overflow-visible">
+        <span className="mr-2 flex shrink-0 items-center rounded-lg border border-cyan/30 bg-cyan/5 px-2.5 font-body text-[11px] font-semibold text-cyan-bright md:hidden">
+          {admin ? "Admin" : "Suporte"}
+        </span>
+
+        <nav className="flex min-w-0 gap-2 overflow-x-auto md:mt-4 md:w-full md:flex-col md:gap-1 md:overflow-visible">
           {NAV.filter((item) => !item.soAdmin || admin).map((item) => {
             const ativo =
               item.href === "/adm" ? pathname === "/adm" : pathname.startsWith(item.href);
@@ -85,19 +89,23 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="mt-auto hidden space-y-2 pt-8 md:block">
+        {/* No celular a barra vira uma linha só: estes botões precisam ficar
+            nela, senão quem abre a área pelo telefone não tem como voltar
+            pro painel nem sair. */}
+        <div className="ml-auto flex shrink-0 items-center gap-2 pl-2 md:ml-0 md:mt-auto md:block md:space-y-2 md:pl-0 md:pt-8">
           <Link
             href="/painel"
-            className="block rounded-lg border border-line-strong px-3.5 py-2.5 font-body text-sm text-bone-dim transition-colors hover:border-cyan/40 hover:text-cyan-bright"
+            className="whitespace-nowrap rounded-lg border border-line-strong px-3.5 py-2.5 font-body text-sm text-bone-dim transition-colors hover:border-cyan/40 hover:text-cyan-bright md:block"
           >
-            Ir pro painel
+            <span className="md:hidden">Painel</span>
+            <span className="hidden md:inline">Ir pro painel</span>
           </Link>
           <button
             onClick={async () => {
               await sair();
               router.push("/login");
             }}
-            className="w-full rounded-lg border border-line-strong px-3.5 py-2.5 text-left font-body text-sm text-bone-dim transition-colors hover:border-off-line hover:text-off"
+            className="whitespace-nowrap rounded-lg border border-line-strong px-3.5 py-2.5 text-left font-body text-sm text-bone-dim transition-colors hover:border-off-line hover:text-off md:w-full"
           >
             Sair
           </button>

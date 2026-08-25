@@ -181,11 +181,11 @@ export interface BarbeiroPerfil {
   ativo: boolean;
   /**
    * Quanto o barbeiro leva de cada serviço que atendeu, em %.
-   * O percentual do produto é separado porque quase nunca é o mesmo:
-   * corte fica em 40–50%, pomada vendida no balcão em 5–10%.
+   *
+   * Só serviço: produto vendido no balcão é da barbearia, que comprou o
+   * estoque e assume o encalhe — a margem dele não é do barbeiro.
    */
   comissaoPercentual?: number;
-  comissaoProdutosPercentual?: number;
 }
 
 export type MovimentoEstoqueTipo = "entrada" | "saida";

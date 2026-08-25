@@ -7,8 +7,10 @@ import { TRIAL_DAYS, getPlan, type PlanId } from "@/lib/plans";
  * Botão dos planos na home. Leva pro cadastro em qualquer caso — a cobrança
  * do Pro acontece dentro do painel, não aqui.
  *
- * O período grátis é só do Básico: prometer "grátis" no Pro seria mentira,
- * já que ele é cobrado desde o primeiro dia.
+ * Os dois planos têm o mesmo mês grátis, então o texto do botão é igual
+ * nos dois. O `temTrial` continua sendo consultado em vez de assumido:
+ * se um plano voltar a ser pago desde o primeiro dia, o botão para de
+ * prometer grátis sozinho.
  */
 export function BotaoAssinar({
   plano,

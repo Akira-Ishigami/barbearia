@@ -5,10 +5,16 @@ import { supabaseAdmin, supabaseConfigurado } from "@/lib/supabase";
 /**
  * Troca de plano.
  *
- * Subir de plano NÃO passa por aqui: precisa de pagamento aprovado, senão
- * bastava chamar esta rota pra virar Pro de graça. O upgrade é feito em
- * `/api/assinatura`, e quem realmente muda o plano é o webhook do Mercado
- * Pago, depois que o dinheiro entra.
+ * Subir de plano com assinatura ativa NÃO passa por aqui: precisa de
+ * pagamento aprovado, senão bastava chamar esta rota pra virar Pro de
+ * graça. O upgrade é feito em `/api/assinatura`, e quem realmente muda o
+ * plano é o webhook do Mercado Pago, depois que o dinheiro entra.
+ *
+ * A exceção é o período de teste. Os dois planos têm o mesmo mês grátis, e
+ * quem entrou pelo Básico precisa conseguir experimentar equipe, estoque e
+ * loja antes de decidir — cobrar pra testar o Pro é vender às cegas. A
+ * checagem do trial é feita aqui no servidor, com a data do banco: mandar
+ * o status no corpo do pedido deixaria qualquer um alegar estar em teste.
  *
  * Descer de plano é liberado: a barbearia está abrindo mão de recursos, e
  * o valor menor passa a valer no próximo ciclo.
@@ -38,7 +44,7 @@ export async function PATCH(request: NextRequest) {
   const db = supabaseAdmin();
   const { data: barbearia } = await db
     .from("barbearias")
-    .select("plano")
+    .select("plano, assinatura_status, trial_termina_em")
     .eq("id", quem.barbeariaId)
     .maybeSingle();
 
@@ -50,8 +56,13 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ ok: true, plano: barbearia.plano });
   }
 
+  const emTeste =
+    barbearia.assinatura_status === "trial" &&
+    Boolean(barbearia.trial_termina_em) &&
+    new Date(barbearia.trial_termina_em as string).getTime() > Date.now();
+
   // 402 = precisa pagar. O painel usa isso pra mandar a pessoa pro checkout.
-  if (corpo.plano === "pro") {
+  if (corpo.plano === "pro" && !emTeste) {
     return NextResponse.json(
       {
         erro: "Mudar pro plano Pro precisa de pagamento.",
@@ -63,10 +74,10 @@ export async function PATCH(request: NextRequest) {
 
   const { error } = await db
     .from("barbearias")
-    .update({ plano: "basico" })
+    .update({ plano: corpo.plano })
     .eq("id", quem.barbeariaId);
 
   if (error) return NextResponse.json({ erro: error.message }, { status: 500 });
 
-  return NextResponse.json({ ok: true, plano: "basico" });
+  return NextResponse.json({ ok: true, plano: corpo.plano, emTeste });
 }

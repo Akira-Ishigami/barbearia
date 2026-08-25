@@ -8,9 +8,9 @@ import type { BarbeiroPerfil } from "./types";
  * Comissão dos barbeiros.
  *
  * Quase toda barbearia paga o profissional por porcentagem do que ele
- * produziu, e o percentual do serviço quase nunca é o mesmo do produto:
- * corte costuma ser 40–50%, pomada vendida no balcão fica em 5–10%. Por
- * isso cada barbeiro tem dois percentuais.
+ * produziu — e a porcentagem incide só sobre o SERVIÇO. Produto vendido no
+ * balcão é da barbearia: foi ela que comprou o estoque e é ela que come o
+ * encalhe, então a margem não é do barbeiro.
  *
  * REGRA DO QUE CONTA: só entra atendimento **concluído**. Confirmado ainda
  * pode virar falta, e comissão paga em cima de falta é dinheiro que sai
@@ -22,14 +22,13 @@ export interface ComissaoBarbeiro {
   barbeiroId: string;
   nome: string;
   percentualServicos: number;
-  percentualProdutos: number;
   /** Atendimentos concluídos no período. */
   atendimentos: number;
+  /** Quanto ele produziu em serviço — é sobre isso que a comissão incide. */
   baseServicos: number;
+  /** Quanto saiu de produto junto. Não gera comissão; fica pro dono ver. */
   baseProdutos: number;
-  comissaoServicos: number;
-  comissaoProdutos: number;
-  /** O que há pra pagar: comissão de serviço + comissão de produto. */
+  /** O que há pra pagar. */
   total: number;
   /** Já confirmado mas ainda não atendido — não entra no total. */
   previsto: number;
@@ -59,12 +58,9 @@ export function calcularComissoes(
       barbeiroId: b.id,
       nome: b.nome,
       percentualServicos: b.comissaoPercentual ?? 0,
-      percentualProdutos: b.comissaoProdutosPercentual ?? 0,
       atendimentos: 0,
       baseServicos: 0,
       baseProdutos: 0,
-      comissaoServicos: 0,
-      comissaoProdutos: 0,
       total: 0,
       previsto: 0,
       liquidoBarbearia: 0,
@@ -82,23 +78,17 @@ export function calcularComissoes(
       linha.baseServicos += l.totalServicos;
       linha.baseProdutos += l.totalProdutos;
     } else if (l.status === "confirmado") {
-      linha.previsto +=
-        (l.totalServicos * linha.percentualServicos) / 100 +
-        (l.totalProdutos * linha.percentualProdutos) / 100;
+      linha.previsto += (l.totalServicos * linha.percentualServicos) / 100;
     }
   }
 
   return Array.from(porId.values())
     .map((c) => {
-      const comissaoServicos = arredondar((c.baseServicos * c.percentualServicos) / 100);
-      const comissaoProdutos = arredondar((c.baseProdutos * c.percentualProdutos) / 100);
-      const total = arredondar(comissaoServicos + comissaoProdutos);
+      const total = arredondar((c.baseServicos * c.percentualServicos) / 100);
       return {
         ...c,
         baseServicos: arredondar(c.baseServicos),
         baseProdutos: arredondar(c.baseProdutos),
-        comissaoServicos,
-        comissaoProdutos,
         total,
         previsto: arredondar(c.previsto),
         liquidoBarbearia: arredondar(c.baseServicos + c.baseProdutos - total),

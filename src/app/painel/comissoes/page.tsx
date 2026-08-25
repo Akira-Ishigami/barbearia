@@ -21,8 +21,11 @@ import { useAsync } from "@/lib/use-async";
  *
  * A tela responde uma pergunta prática de fim de semana: "quanto sai da
  * gaveta hoje". Por isso o número grande é o total a pagar, e cada linha
- * abre mostrando de onde ele veio — serviço e produto separados, porque o
- * percentual dos dois quase nunca é igual.
+ * abre mostrando de onde ele veio.
+ *
+ * A comissão incide só sobre serviço. Produto vendido junto aparece na
+ * linha, mas fora da conta: o estoque é da barbearia, e a margem dele
+ * também.
  */
 
 function dinheiro(v: number) {
@@ -72,9 +75,7 @@ export default function ComissoesPage() {
 
   // Sem percentual configurado a tela não tem o que calcular — é o primeiro
   // aviso que o dono precisa ver, antes de qualquer número.
-  const semPercentual = barbeiros.filter(
-    (b) => !b.comissaoPercentual && !b.comissaoProdutosPercentual,
-  );
+  const semPercentual = barbeiros.filter((b) => !b.comissaoPercentual);
 
   function escolher(p: (typeof PERIODOS)[number]) {
     setPeriodo(p.id);
@@ -123,7 +124,8 @@ export default function ComissoesPage() {
         Quanto pagar pra equipe
       </h1>
       <p className="mt-1 max-w-xl font-body text-sm text-bone-dim">
-        Só entra atendimento <strong className="text-bone">concluído</strong>. O que está
+        A comissão é sobre o <strong className="text-bone">serviço</strong>, e só entra
+        atendimento <strong className="text-bone">concluído</strong>. O que está
         confirmado mas ainda não aconteceu aparece como previsto — se a pessoa faltar,
         você não pagou por nada.
       </p>
@@ -218,7 +220,7 @@ export default function ComissoesPage() {
           </p>
           <p className="mt-2 font-accent text-3xl text-bone">{dinheiro(totais.producao)}</p>
           <p className="mt-1 font-body text-xs text-bone-dim">
-            Serviços + produtos dos atendimentos concluídos
+            Serviços e produtos dos atendimentos concluídos
           </p>
         </div>
 
@@ -267,8 +269,7 @@ export default function ComissoesPage() {
                       )}
                     </p>
                     <p className="font-body text-xs text-muted">
-                      {l.atendimentos} atendimento(s) · {l.percentualServicos}% serviço
-                      {l.percentualProdutos > 0 && ` · ${l.percentualProdutos}% produto`}
+                      {l.atendimentos} atendimento(s) · {l.percentualServicos}% sobre serviço
                     </p>
                   </div>
                   <div className="text-right">
@@ -276,7 +277,7 @@ export default function ComissoesPage() {
                       {dinheiro(l.total)}
                     </p>
                     <p className="font-body text-[11px] text-muted">
-                      de {dinheiro(l.baseServicos + l.baseProdutos)} produzidos
+                      de {dinheiro(l.baseServicos)} em serviço
                     </p>
                   </div>
                 </button>
@@ -286,20 +287,20 @@ export default function ComissoesPage() {
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div>
                         <p className="font-body text-xs font-medium uppercase tracking-wide text-muted">
-                          Serviços
+                          Serviços prestados
                         </p>
                         <p className="mt-1 font-body text-sm text-bone-dim">
                           {dinheiro(l.baseServicos)} × {l.percentualServicos}% ={" "}
-                          <span className="text-bone">{dinheiro(l.comissaoServicos)}</span>
+                          <span className="text-bone">{dinheiro(l.total)}</span>
                         </p>
                       </div>
                       <div>
                         <p className="font-body text-xs font-medium uppercase tracking-wide text-muted">
-                          Produtos
+                          Produtos vendidos
                         </p>
                         <p className="mt-1 font-body text-sm text-bone-dim">
-                          {dinheiro(l.baseProdutos)} × {l.percentualProdutos}% ={" "}
-                          <span className="text-bone">{dinheiro(l.comissaoProdutos)}</span>
+                          {dinheiro(l.baseProdutos)}{" "}
+                          <span className="text-muted">— não entra na comissão</span>
                         </p>
                       </div>
                     </div>

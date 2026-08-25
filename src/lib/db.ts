@@ -297,7 +297,6 @@ function paraBarbeiro(l: LinhaBarbearia): BarbeiroPerfil {
     foto: (l.foto as string) ?? undefined,
     ativo: Boolean(l.ativo),
     comissaoPercentual: Number(l.comissao_percentual ?? 0),
-    comissaoProdutosPercentual: Number(l.comissao_produtos_percentual ?? 0),
   };
 }
 
@@ -320,9 +319,6 @@ export async function updateBarbeiro(id: string, patch: Partial<BarbeiroPerfil>)
   if (patch.ativo !== undefined) linha.ativo = patch.ativo;
   if (patch.comissaoPercentual !== undefined) {
     linha.comissao_percentual = patch.comissaoPercentual;
-  }
-  if (patch.comissaoProdutosPercentual !== undefined) {
-    linha.comissao_produtos_percentual = patch.comissaoProdutosPercentual;
   }
   const { error } = await supabase().from("barbeiros").update(linha).eq("id", id);
   erro(error);

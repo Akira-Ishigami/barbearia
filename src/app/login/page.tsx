@@ -31,6 +31,22 @@ export default function LoginPage() {
       const { data: auth } = await supabase().auth.getUser();
       const authId = auth.user?.id ?? "";
 
+      // A equipe da Navalha vai direto pra área da plataforma. Vem antes de
+      // tudo porque quem é admin costuma TAMBÉM ser dono de uma barbearia —
+      // sem isso ele cairia sempre no painel dela e teria que caçar o link.
+      const { data: sessao } = await supabase().auth.getSession();
+      const token = sessao.session?.access_token;
+      if (token) {
+        const resposta = await fetch("/api/adm/eu", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const corpo = await resposta.json().catch(() => ({}));
+        if (corpo.dentro) {
+          router.push("/adm");
+          return;
+        }
+      }
+
       const { data: usuario } = await supabase()
         .from("usuarios")
         .select("role")
