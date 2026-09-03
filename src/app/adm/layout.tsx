@@ -25,6 +25,10 @@ import { usePlataforma } from "@/lib/use-plataforma";
  * é só não mostrar o que não ia funcionar.
  */
 
+// "Privacidade" não tem estação: fica fora do menu do dia a dia (ninguém
+// precisa reler a regra toda vez que abre a plataforma), mas a página
+// continua no ar — Clientes linka pra ela como referência de por que a
+// tela é do jeito que é.
 const ESTACOES = [
   { href: "/adm", n: "01", label: "Hoje", nota: "o que resolver", soAdmin: false },
   { href: "/adm/barbearias", n: "02", label: "Barbearias", nota: "a base", soAdmin: false },
@@ -32,13 +36,6 @@ const ESTACOES = [
   { href: "/adm/clientes", n: "04", label: "Clientes", nota: "quem agenda", soAdmin: false },
   { href: "/adm/registro", n: "05", label: "Registro", nota: "o que foi feito", soAdmin: false },
   { href: "/adm/equipe", n: "06", label: "Equipe", nota: "quem tem acesso", soAdmin: true },
-  {
-    href: "/adm/privacidade",
-    n: "07",
-    label: "Privacidade",
-    nota: "o que não vemos",
-    soAdmin: false,
-  },
 ];
 
 export default function AdmLayout({ children }: { children: React.ReactNode }) {
