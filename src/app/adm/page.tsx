@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useAsync } from "@/lib/use-async";
 import { cabecalhosPlataforma, usePlataforma } from "@/lib/use-plataforma";
 import {
@@ -41,6 +42,31 @@ interface Pendente {
 
 export default function AdmHojePage() {
   const acesso = usePlataforma();
+  const admin = acesso?.nivel === "admin";
+
+  const [entrandoComo, setEntrandoComo] = useState<"dono" | "barbeiro" | null>(null);
+  const [erroVerComo, setErroVerComo] = useState<string | null>(null);
+
+  async function verComo(papel: "dono" | "barbeiro") {
+    setEntrandoComo(papel);
+    setErroVerComo(null);
+    try {
+      const r = await fetch(`/api/adm/ver-como?papel=${papel}`, {
+        headers: await cabecalhosPlataforma(),
+      });
+      const c = await r.json().catch(() => ({}));
+      if (!r.ok || !c.url) {
+        setErroVerComo(c.erro ?? "Não foi possível abrir.");
+      } else {
+        // Aba nova: a sessão do admin aqui em /adm não muda — o "Ver como"
+        // vive só em sessionStorage da aba que abre.
+        window.open(c.url, "_blank", "noopener");
+      }
+    } catch {
+      setErroVerComo("Falha de conexão.");
+    }
+    setEntrandoComo(null);
+  }
 
   const {
     dados: d,
@@ -288,6 +314,29 @@ export default function AdmHojePage() {
               </div>
             </div>
           </Secao>
+
+          {/* ---------- Ver como ---------- */}
+          {admin && (
+            <Secao
+              titulo="Ver como"
+              nota="Abre numa aba nova, numa barbearia demo só sua — não dá acesso à conta de nenhum cliente."
+              atraso={180}
+            >
+              {erroVerComo && (
+                <div className="mb-4">
+                  <Aviso tom="off">{erroVerComo}</Aviso>
+                </div>
+              )}
+              <div className="flex flex-wrap gap-3">
+                <Botao disabled={entrandoComo !== null} onClick={() => verComo("dono")}>
+                  {entrandoComo === "dono" ? "Abrindo…" : "Ver o painel do dono →"}
+                </Botao>
+                <Botao disabled={entrandoComo !== null} onClick={() => verComo("barbeiro")}>
+                  {entrandoComo === "barbeiro" ? "Abrindo…" : "Ver o painel do barbeiro →"}
+                </Botao>
+              </div>
+            </Secao>
+          )}
         </>
       )}
     </div>

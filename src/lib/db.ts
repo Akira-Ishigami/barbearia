@@ -1,6 +1,7 @@
 "use client";
 
 import { supabase } from "./supabase-browser";
+import { tokenImpersonado } from "./impersonar-browser";
 import { gerarSlug, pareceUuid } from "./slug";
 import { SLOT_MIN, slotsDe } from "./types";
 import { addMinutes } from "./date";
@@ -30,8 +31,16 @@ function erro(e: { message: string } | null): void {
 /**
  * Cabeçalhos pras rotas de API que exigem login. O token do Supabase Auth
  * é o que prova quem está chamando — a rota não confia em id vindo no corpo.
+ *
+ * Se a aba estiver em modo "Ver como", manda o token de impersonação no
+ * lugar da sessão normal — ver `lib/impersonar.ts`.
  */
 export async function cabecalhosAutenticados(): Promise<HeadersInit> {
+  const impersonado = tokenImpersonado();
+  if (impersonado) {
+    return { "Content-Type": "application/json", Authorization: `Bearer ${impersonado}` };
+  }
+
   const { data } = await supabase().auth.getSession();
   return {
     "Content-Type": "application/json",

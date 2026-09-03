@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase, supabaseConfigurado } from "./supabase-browser";
+import { CHAVE_IMPERSONACAO, tokenImpersonado } from "./impersonar-browser";
 import type { Session, UserRole } from "./types";
 
 /**
@@ -14,8 +15,32 @@ import type { Session, UserRole } from "./types";
  */
 export type SessionState = Session | null | undefined;
 
+/**
+ * Modo "Ver como": sem sessão real do Supabase, o token de impersonação
+ * (assinado por `/api/adm/ver-como`) é quem diz quem está logado.
+ */
+async function carregarSessaoImpersonada(token: string): Promise<Session | null> {
+  const r = await fetch("/api/impersonar/quem-sou", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) return null;
+
+  const d = await r.json();
+  return {
+    userId: d.userId as string,
+    nome: d.nome as string,
+    email: d.email as string,
+    role: d.role as UserRole,
+    barbeariaId: d.barbeariaId as string,
+    barbeariaNome: d.barbeariaNome as string,
+  };
+}
+
 async function carregarSessao(): Promise<Session | null> {
   if (!supabaseConfigurado()) return null;
+
+  const impersonado = tokenImpersonado();
+  if (impersonado) return carregarSessaoImpersonada(impersonado);
 
   const db = supabase();
   const { data: auth } = await db.auth.getUser();
@@ -98,5 +123,17 @@ export async function entrar(
 }
 
 export async function sair() {
+  // Modo "Ver como": não existe sessão real do Supabase pra encerrar
+  // aqui — e chamar signOut() apagaria a sessão de verdade do admin,
+  // que este navegador compartilha entre abas da mesma origem.
+  if (tokenImpersonado()) {
+    try {
+      window.sessionStorage.removeItem("navalha_impersonar");
+    } catch {
+      /* segue mesmo assim — a aba fecha ou volta pro início */
+    }
+    return;
+  }
+
   if (supabaseConfigurado()) await supabase().auth.signOut();
 }
