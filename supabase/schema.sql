@@ -217,6 +217,15 @@ alter table pedidos add column if not exists cliente_id uuid references clientes
 create index if not exists pedidos_cliente_idx on pedidos (cliente_id, criado_em desc);
 create unique index if not exists barbearias_slug_unico on barbearias (slug) where slug is not null;
 
+-- Produto comprado no carrinho (pedido_produtos) nunca baixava o estoque —
+-- só entrada/saída manual em Estoque mexia em produtos.estoque. A baixa
+-- acontece quando o pedido vira de verdade (agendamento confirmado —
+-- local, Pix direto — ou pagamento aprovado no Mercado Pago), nunca no
+-- momento do agendamento em si. Essa flag marca se já baixou, pra
+-- confirmar duas vezes (ou o webhook do MP repetir a notificação) não
+-- descontar o mesmo produto duas vezes.
+alter table pedidos add column if not exists estoque_baixado boolean not null default false;
+
 -- ============================================================
 -- RLS (Row Level Security)
 --
@@ -311,9 +320,25 @@ drop policy if exists "leitura publica produtos" on produtos;
 create policy "leitura publica produtos" on produtos
   for select using (ativo = true);
 
+-- RLS é por LINHA, não por coluna: a política antiga liberava a leitura
+-- pública da linha inteira de `barbeiros`, incluindo `email` (login da
+-- equipe) e `comissao_percentual` (quanto cada um ganha) — qualquer
+-- pessoa, sem login nenhum, conseguia ler os dois direto pela API REST.
+-- Testado direto contra o banco: `curl` com a anon key devolvia e-mail e
+-- comissão de todo mundo. A vitrine pública nunca usou esses dois campos;
+-- só nome, foto e especialidade. Por isso a leitura pública passa a ser só
+-- pela view abaixo, com as colunas já filtradas — a tabela em si fica só
+-- pra quem é da equipe (política "equipe le barbeiros", que já existe).
 drop policy if exists "leitura publica barbeiros" on barbeiros;
-create policy "leitura publica barbeiros" on barbeiros
-  for select using (ativo = true);
+
+drop view if exists public.barbeiros_publico;
+create view public.barbeiros_publico
+with (security_invoker = false) as
+  select id, barbearia_id, nome, especialidade, foto, ativo
+    from barbeiros
+   where ativo = true;
+
+grant select on public.barbeiros_publico to anon, authenticated;
 
 -- A página pública precisa saber quais horários já estão tomados, mas não
 -- pode ver o nome nem o telefone de quem marcou. Por isso a leitura sai por
@@ -461,6 +486,112 @@ begin
   values (p_barbearia, p_produto, v_nome, p_tipo, p_quantidade, p_motivo);
 end $$;
 
+-- ---------- Baixa de estoque dos produtos comprados no carrinho ----------
+-- Produto adicionado no carrinho da loja vira uma linha em pedido_produtos,
+-- mas isso nunca tocou produtos.estoque — o número mostrado em Estoque
+-- nunca refletia o que o cliente realmente levou. A baixa acontece só
+-- quando o pedido vira de verdade (agendamento confirmado — local ou Pix
+-- direto —, ou pagamento aprovado no Mercado Pago), nunca no momento do
+-- agendamento — senão cancelar um "pendente" já teria descontado um
+-- produto que ninguém levou.
+--
+-- Função interna (sem checagem de dono própria): só é chamada de dentro de
+-- confirmar_agendamento() e baixar_estoque_pedido_pago(), que já validaram
+-- a barbearia antes de chegar aqui — nunca exposta direto por RPC.
+create or replace function public._baixar_estoque_pedido(p_pedido uuid, p_barbearia uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  -- `estoque_baixado` como trava: se já baixou (ou não existe o pedido),
+  -- não faz nada — evita descontar duas vezes se o webhook do MP repetir a
+  -- notificação, ou se o dono clicar em confirmar duas vezes.
+  update pedidos
+     set estoque_baixado = true
+   where id = p_pedido and barbearia_id = p_barbearia and not estoque_baixado;
+
+  if not found then
+    return;
+  end if;
+
+  -- `greatest(0, ...)` em vez de travar a confirmação: o estoque já foi
+  -- checado na hora da compra (validarProdutos), e a essa altura o pedido
+  -- já existe — melhor deixar o número não ficar negativo do que impedir
+  -- o dono de confirmar um cliente que já está na cadeira.
+  update produtos p
+     set estoque = greatest(0, p.estoque - pp.quantidade)
+    from pedido_produtos pp
+   where pp.pedido_id = p_pedido
+     and p.id = pp.produto_id
+     and p.barbearia_id = p_barbearia;
+
+  insert into movimentos_estoque (barbearia_id, produto_id, produto_nome, tipo, quantidade, motivo)
+  select p_barbearia, pp.produto_id, pp.produto_nome, 'saida', pp.quantidade, 'Venda — pedido no carrinho'
+    from pedido_produtos pp
+   where pp.pedido_id = p_pedido;
+end $$;
+
+revoke all on function public._baixar_estoque_pedido(uuid, uuid) from public, anon, authenticated;
+
+-- Confirma um agendamento "pendente" (pagamento no local ou Pix direto) e,
+-- se for a primeira confirmação do pedido, já baixa o estoque dos
+-- produtos comprados junto. Chamada pelo dono/barbeiro logado — por isso
+-- confere a barbearia do próprio usuário, igual ao movimentar_estoque()
+-- acima.
+create or replace function public.confirmar_agendamento(p_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_barbearia uuid;
+  v_pedido uuid;
+begin
+  select barbearia_id, pedido_id into v_barbearia, v_pedido
+    from agendamentos where id = p_id and status = 'pendente';
+
+  -- Já confirmado, cancelado, ou não existe: nada a fazer — silencioso, pra
+  -- clicar duas vezes rápido não virar erro na tela.
+  if v_barbearia is null then
+    return;
+  end if;
+  if v_barbearia is distinct from public.minha_barbearia() then
+    raise exception 'Sem permissão pra mexer nessa agenda.';
+  end if;
+
+  update agendamentos set status = 'confirmado' where id = p_id;
+
+  if v_pedido is not null then
+    perform public._baixar_estoque_pedido(v_pedido, v_barbearia);
+  end if;
+end $$;
+
+-- Contraparte pro webhook do Mercado Pago: já roda com service_role (sem
+-- sessão de usuário, então minha_barbearia() não tem o que responder) — o
+-- servidor já validou que o pedido é dessa barbearia antes de chamar isto.
+-- Por isso fica restrita ao service_role, nunca exposta pro navegador.
+create or replace function public.baixar_estoque_pedido_pago(p_pedido uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_barbearia uuid;
+begin
+  select barbearia_id into v_barbearia from pedidos where id = p_pedido;
+  if v_barbearia is null then
+    return;
+  end if;
+  perform public._baixar_estoque_pedido(p_pedido, v_barbearia);
+end $$;
+
+revoke all on function public.baixar_estoque_pedido_pago(uuid) from public, anon, authenticated;
+grant execute on function public.baixar_estoque_pedido_pago(uuid) to service_role;
+
 -- ============================================================
 -- Assinatura: trial de 7 dias, depois cobra
 -- ============================================================
@@ -506,6 +637,18 @@ as $$
          plano = case when p_plano in ('basico','pro') then p_plano else plano end
    where id = p_barbearia
 $$;
+
+-- O comentário acima sempre disse "chamada só pelo service role", mas
+-- nenhum REVOKE nunca foi de fato executado — toda função nova no Postgres
+-- nasce com EXECUTE liberado pra PUBLIC, e no Supabase isso cai direto pra
+-- anon e authenticated. Sem esta linha, QUALQUER pessoa logada (dono de
+-- outra barbearia, ou até um cliente) conseguia chamar
+-- `supabase.rpc('marcar_assinatura_paga', {p_barbearia: '<qualquer id>', p_plano: 'pro'})`
+-- direto pelo navegador e virar Pro de graça — a mesma falha do upgrade
+-- grátis já corrigida na rota /api/plano, só que reaberta por uma porta
+-- que ninguém tinha trancado.
+revoke all on function public.marcar_assinatura_paga(uuid, text) from public, anon, authenticated;
+grant execute on function public.marcar_assinatura_paga(uuid, text) to service_role;
 
 -- ============================================================
 -- Equipe da plataforma (Navalha): admin e suporte
@@ -626,3 +769,53 @@ alter table pix_contas enable row level security;
 alter table pedidos add column if not exists pix_txid text;
 alter table pedidos add column if not exists confirmado_por uuid references usuarios(id) on delete set null;
 create index if not exists pedidos_txid_idx on pedidos (pix_txid);
+
+-- ============================================================
+-- Correção pontual: pedidos antigos que nunca baixaram estoque
+-- ============================================================
+-- Roda uma vez (e é seguro rodar de novo: _baixar_estoque_pedido() marca
+-- estoque_baixado e para de mexer no que já processou). Sem isso, o dia em
+-- que este arquivo for aplicado o estoque continuaria com a contagem
+-- errada de tudo que já foi vendido antes da correção — só pedidos novos
+-- ficariam certos, e o dono não teria como saber que os antigos ficaram
+-- pra trás.
+do $$
+declare
+  r record;
+begin
+  for r in
+    select p.id, p.barbearia_id
+      from pedidos p
+     where not p.estoque_baixado
+       and exists (select 1 from pedido_produtos pp where pp.pedido_id = p.id)
+       and exists (
+         select 1 from agendamentos a
+          where a.pedido_id = p.id and a.status in ('confirmado', 'concluido')
+       )
+  loop
+    perform public._baixar_estoque_pedido(r.id, r.barbearia_id);
+  end loop;
+end $$;
+
+-- ============================================================
+-- Conta do Mercado Pago da própria Navalha, via OAuth
+-- ============================================================
+-- O saldo (Carteira, em /adm) não abre com MP_ACCESS_TOKEN nessa conta —
+-- o Mercado Pago devolve 403, provavelmente por ela ainda ter cadastro
+-- pendente (endereço). Token de OAuth, autorizado por login de verdade,
+-- costuma ter permissão que token de app sozinho não tem — vale tentar.
+--
+-- Linha única (id fixo), diferente de mp_contas que é uma por barbearia:
+-- só existe uma Navalha. Mesma regra de mp_contas e plataforma_equipe:
+-- sem policy de RLS, só o service role (rotas de API) enxerga.
+create table if not exists plataforma_mp_conta (
+  id             text primary key default 'navalha',
+  mp_user_id     text not null,
+  apelido        text not null default '',
+  access_token   text not null,
+  refresh_token  text not null,
+  expira_em      timestamptz not null,
+  conectado_em   timestamptz not null default now()
+);
+
+alter table plataforma_mp_conta enable row level security;

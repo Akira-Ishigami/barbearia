@@ -175,6 +175,11 @@ export async function POST(request: NextRequest) {
         .update({ status: "confirmado" })
         .eq("pedido_id", pedidoId)
         .eq("status", "aguardando_pagamento");
+
+      // Produto comprado junto no carrinho só sai do estoque quando o
+      // pagamento realmente aprova — não no checkout abandonado, que fica
+      // preso em "aguardando_pagamento" pra sempre sem tirar nada daqui.
+      await db.rpc("baixar_estoque_pedido_pago", { p_pedido: pedidoId });
     } else if (pagamento.status === "rejected") {
       await db
         .from("agendamentos")

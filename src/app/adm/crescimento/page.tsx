@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useAsync } from "@/lib/use-async";
 import { cabecalhosPlataforma, usePlataforma } from "@/lib/use-plataforma";
 import {
   Aviso,
+  Botao,
   Cabecalho,
   Fila,
   Medida,
@@ -34,6 +36,9 @@ interface RespostaCarteira {
   ok?: boolean;
   saldo?: { disponivel: number; moeda: string };
   erro?: string;
+  motivo?: string;
+  conectadoViaOAuth?: boolean;
+  apelido?: string;
 }
 
 export default function AdmCrescimentoPage() {
@@ -61,6 +66,32 @@ export default function AdmCrescimentoPage() {
     [acesso?.email],
     { pular: !admin },
   );
+
+  const [conectando, setConectando] = useState(false);
+  const [erroConexao, setErroConexao] = useState<string | null>(null);
+
+  async function conectarMP() {
+    setErroConexao(null);
+    setConectando(true);
+    try {
+      const r = await fetch("/api/adm/mp/conectar", { headers: await cabecalhosPlataforma() });
+      const corpo = await r.json().catch(() => ({}));
+      if (!r.ok || !corpo.url) {
+        setErroConexao(
+          [corpo.erro, corpo.comoResolver].filter(Boolean).join(" ") ||
+            "Não foi possível iniciar a conexão.",
+        );
+        setConectando(false);
+        return;
+      }
+      // Navegação de página inteira: o Mercado Pago precisa carregar a
+      // própria tela de login.
+      window.location.href = corpo.url;
+    } catch {
+      setErroConexao("Não foi possível iniciar a conexão.");
+      setConectando(false);
+    }
+  }
 
   if (!acesso) return null;
 
@@ -131,9 +162,27 @@ export default function AdmCrescimentoPage() {
           {admin && (
             <Secao
               titulo="Carteira"
-              nota="Saldo de verdade na conta do Mercado Pago da Navalha — não é estimativa, é o que já caiu."
+              nota={
+                carteira?.conectadoViaOAuth
+                  ? `Conectada por login, como ${carteira.apelido || "Navalha"} — saldo de verdade, não estimativa.`
+                  : "Saldo de verdade na conta do Mercado Pago da Navalha — não é estimativa, é o que já caiu."
+              }
               atraso={40}
+              direita={
+                <Botao onClick={conectarMP} disabled={conectando}>
+                  {conectando
+                    ? "Abrindo o Mercado Pago…"
+                    : carteira?.conectadoViaOAuth
+                      ? "Reconectar"
+                      : "Conectar com Mercado Pago"}
+                </Botao>
+              }
             >
+              {erroConexao && (
+                <div className="mb-4">
+                  <Aviso tom="off">{erroConexao}</Aviso>
+                </div>
+              )}
               {carregandoCarteira && (
                 <p className="font-body text-sm text-muted">Consultando o Mercado Pago…</p>
               )}

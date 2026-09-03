@@ -310,6 +310,32 @@ export async function getBarbeiros(barbeariaId: string): Promise<BarbeiroPerfil[
   return (data ?? []).map(paraBarbeiro);
 }
 
+/**
+ * Versão pública, pra vitrine — só nome, foto e especialidade. E-mail de
+ * login e comissão não têm por que sair do painel, então vêm de uma view
+ * que já corta essas colunas (ver `barbeiros_publico` no schema); ler a
+ * tabela `barbeiros` direto exigiria estar logado como equipe.
+ */
+export async function getBarbeirosPublico(barbeariaId: string): Promise<BarbeiroPerfil[]> {
+  const { data, error } = await supabase()
+    .from("barbeiros_publico")
+    .select("*")
+    .eq("barbearia_id", barbeariaId)
+    .order("nome");
+  erro(error);
+  return (data ?? []).map((l) => ({
+    id: l.id as string,
+    barbeariaId: l.barbearia_id as string,
+    usuarioId: null,
+    nome: l.nome as string,
+    email: "",
+    especialidade: (l.especialidade as string) ?? "",
+    foto: (l.foto as string) ?? undefined,
+    ativo: Boolean(l.ativo),
+    comissaoPercentual: 0,
+  }));
+}
+
 export async function updateBarbeiro(id: string, patch: Partial<BarbeiroPerfil>): Promise<void> {
   const linha: Record<string, unknown> = {};
   if (patch.nome !== undefined) linha.nome = patch.nome;
@@ -408,8 +434,14 @@ export async function getAgendamentosPorBarbeiro(barbeiroId: string): Promise<Ag
   return (data ?? []).map(paraAgendamento);
 }
 
+/**
+ * Confirma um agendamento "pendente" (pagamento no local ou Pix direto).
+ * Passa por uma função do banco, não por um update direto: é ela quem já
+ * baixa o estoque dos produtos comprados junto no carrinho, na primeira
+ * vez que o pedido é confirmado — ver `confirmar_agendamento()` no schema.
+ */
 export async function confirmarAgendamento(id: string): Promise<void> {
-  erro((await supabase().from("agendamentos").update({ status: "confirmado" }).eq("id", id)).error);
+  erro((await supabase().rpc("confirmar_agendamento", { p_id: id })).error);
 }
 
 export async function cancelarAgendamento(id: string): Promise<void> {
