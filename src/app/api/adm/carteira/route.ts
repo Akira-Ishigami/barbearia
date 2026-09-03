@@ -9,10 +9,14 @@ import { supabaseAdmin, supabaseConfigurado } from "@/lib/supabase";
  * Só admin: é dinheiro, mesma régua de marcar_paga/mudar_plano.
  *
  * Prefere o token de OAuth (conectado por login de verdade em
- * plataforma_mp_conta) sobre o MP_ACCESS_TOKEN fixo do ambiente: o
- * primeiro teste com o token de app devolveu 403 nessa conta — token
- * autorizado por login às vezes tem permissão que token de app sozinho
- * não tem. Cai pro token fixo se a conta nunca foi conectada.
+ * plataforma_mp_conta) sobre o MP_ACCESS_TOKEN fixo do ambiente. Na
+ * prática os dois devolvem 403 nessa conta — confirmado com saldo e
+ * extrato reais visíveis no próprio app do Mercado Pago, então não é a
+ * conta que está incompleta: é esse endpoint específico que a Mercado
+ * Pago não libera pra aplicativo de terceiro, seja qual for o token.
+ * Mantém a preferência por OAuth porque é o token "certo" pro caso de um
+ * dia a Mercado Pago liberar. Cai pro token fixo se a conta nunca foi
+ * conectada.
  */
 export async function GET(request: NextRequest) {
   const quem = await autenticarAdmin(request);
@@ -36,7 +40,7 @@ export async function GET(request: NextRequest) {
       {
         erro:
           r.motivo === "sem_permissao"
-            ? "O Mercado Pago recusou a consulta de saldo pra essa conta — geralmente é cadastro incompleto (endereço pendente, tipo de conta). Confira em Seu negócio, dentro do Mercado Pago."
+            ? "O Mercado Pago tem saldo e extrato normalmente, mas recusa esse endpoint pra aplicativos de terceiro nessa conta — não é problema de cadastro. Pra ver o valor real, entra direto no Mercado Pago."
             : "Não foi possível consultar o saldo agora.",
         motivo: r.motivo,
         conectadoViaOAuth,

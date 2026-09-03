@@ -170,9 +170,14 @@ export interface SaldoMP {
  * Mercado Livre), mas não está na documentação atual — o caminho
  * "de vitrine" pra dado financeiro hoje é um relatório assíncrono
  * (POST, espera, baixa CSV), pesado demais pra mostrar um número. Esse
- * aqui é o direto. Se a conta tiver alguma pendência de cadastro (endereço
- * incompleto, tipo de conta), o Mercado Pago devolve 403 — por isso o
- * retorno distingue "sem saldo" de "conta não deixa ver".
+ * aqui é o direto.
+ *
+ * Devolve 403 pra essa conta com token de app E com token de OAuth, mesmo
+ * a conta tendo saldo e extrato normais (confirmado direto no app do
+ * Mercado Pago) — não é pendência de cadastro, é o endpoint em si que a
+ * Mercado Pago não libera pra aplicativo de terceiro. Fica como está por
+ * ser o único caminho direto pra esse número; se um dia a Mercado Pago
+ * liberar, volta a funcionar sem mudar nada aqui.
  */
 export async function buscarSaldo(
   accessToken: string,

@@ -206,6 +206,14 @@ export default function AdmCrescimentoPage() {
                       tom="acento"
                     />
                   </div>
+                  <a
+                    href="https://www.mercadopago.com.br/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 inline-block rounded-lg border border-line-strong bg-ink-elev px-4 py-2.5 font-body text-sm font-semibold text-bone-dim transition-colors hover:border-cyan hover:text-cyan"
+                  >
+                    Ver saldo real no Mercado Pago →
+                  </a>
                 </>
               )}
             </Secao>
