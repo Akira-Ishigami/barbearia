@@ -28,11 +28,12 @@ import {
  * física, e ela não é cliente da Navalha — é cliente da barbearia. A
  * Navalha só guarda porque precisa pro serviço funcionar.
  *
- * Por isso ela é feita ao contrário das outras: **não existe listagem**.
- * Abrir a tela mostra contagem e mais nada. Pessoa só aparece quando
- * alguém procura por ela pelo dado inteiro — que é o caso real de suporte,
- * com a pessoa do outro lado da linha ditando o próprio contato. E mesmo
- * assim vem mascarada.
+ * Por padrão ela mostra contagem, não pessoa: a busca rápida exige o
+ * dado inteiro — que é o caso real de suporte, com a pessoa do outro
+ * lado da linha ditando o próprio contato — e devolve mascarada. A
+ * lista completa, sem máscara, é decisão do administrador (é ele quem
+ * arca com o risco de tratar dado de cliente de terceiro) e fica
+ * registrada como as outras ações dele.
  *
  * Em qual barbearia cada uma foi atendida não aparece em lugar nenhum:
  * isso é a relação dela com a barbearia, não com a plataforma.
@@ -65,6 +66,7 @@ interface Resposta {
   };
   semanas: Semana[];
   encontrados: Encontrado[] | null;
+  lista?: { pagina: number; totalPaginas: number; total: number; itens: Encontrado[] };
   aviso?: string;
 }
 
@@ -76,6 +78,7 @@ export default function AdmClientesPage() {
   const [busca, setBusca] = useState("");
   const [apagando, setApagando] = useState<string | null>(null);
   const [mensagem, setMensagem] = useState<string | null>(null);
+  const [pagina, setPagina] = useState(1);
 
   const { dados: d, carregando, erro, recarregar } = useAsync<Resposta>(
     async () => {
@@ -88,6 +91,18 @@ export default function AdmClientesPage() {
     },
     [acesso?.email, busca],
     { pular: !acesso },
+  );
+
+  const { dados: lista, carregando: carregandoLista } = useAsync<Resposta>(
+    async () => {
+      const r = await fetch(`/api/adm/clientes?lista=1&pagina=${pagina}`, {
+        headers: await cabecalhosPlataforma(),
+      });
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).erro ?? "Falha ao carregar.");
+      return r.json();
+    },
+    [acesso?.email, pagina],
+    { pular: !admin },
   );
 
   if (!acesso) return null;
@@ -211,10 +226,9 @@ export default function AdmClientesPage() {
           >
             <div className="max-w-xl">
               <Aviso>
-                Não existe lista aqui. Uma relação de todos os clientes das barbearias não
-                teria finalidade — e dado pessoal sem finalidade não se guarda nem se
-                mostra. Digite o <strong>e-mail completo</strong> ou o{" "}
-                <strong>telefone com DDD</strong> de quem procurou você.
+                Pra achar rápido quem está falando com você agora, digite o{" "}
+                <strong>e-mail completo</strong> ou o <strong>telefone com DDD</strong> —
+                o resultado vem mascarado. A lista completa, sem máscara, está mais abaixo.
               </Aviso>
 
               <form onSubmit={procurar} className="mt-6 flex flex-wrap items-end gap-3">
@@ -299,12 +313,86 @@ export default function AdmClientesPage() {
             )}
           </Secao>
 
+          {/* ---------- Lista completa ---------- */}
+          {admin && (
+            <Secao
+              titulo="Todos os clientes"
+              nota="Sem máscara — só o administrador vê esta lista, e cada página aberta fica registrada."
+              atraso={140}
+            >
+              {carregandoLista && !lista && (
+                <p className="font-accent text-[11px] uppercase tracking-[0.22em] text-muted">
+                  Carregando
+                </p>
+              )}
+              {lista?.lista && (
+                <>
+                  {lista.lista.itens.length === 0 ? (
+                    <Vazio>Nenhum cliente cadastrado ainda.</Vazio>
+                  ) : (
+                    <div className="border-t border-line">
+                      {lista.lista.itens.map((c) => (
+                        <div
+                          key={c.id}
+                          className="flex flex-wrap items-start justify-between gap-4 border-b border-line py-4"
+                        >
+                          <div className="min-w-0">
+                            <p className="flex items-center gap-2 font-body text-sm text-bone">
+                              {c.nome}
+                              {!c.temConta && <Selo>sem conta</Selo>}
+                            </p>
+                            <p className="mt-1 font-accent text-[11px] text-muted">
+                              {c.email} · {c.telefone}
+                            </p>
+                            <p className="mt-1 font-body text-[11px] text-muted">
+                              {c.visitas === 0
+                                ? "nunca agendou"
+                                : `${c.visitas} visita(s) · última ${quando(c.ultimaVisita!)}`}{" "}
+                              · cadastro de {dataLonga(c.criadoEm)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-6 flex items-center justify-between gap-4">
+                    <p className="font-accent text-[11px] text-muted">
+                      Página {lista.lista.pagina} de {lista.lista.totalPaginas} ·{" "}
+                      {lista.lista.total} cliente(s) no total
+                    </p>
+                    <div className="flex gap-2">
+                      <Botao
+                        disabled={pagina <= 1 || carregandoLista}
+                        onClick={() => setPagina((p) => Math.max(1, p - 1))}
+                      >
+                        Anterior
+                      </Botao>
+                      <Botao
+                        disabled={pagina >= lista.lista.totalPaginas || carregandoLista}
+                        onClick={() => setPagina((p) => p + 1)}
+                      >
+                        Próxima
+                      </Botao>
+                    </div>
+                  </div>
+                </>
+              )}
+            </Secao>
+          )}
+
           <Secao titulo="Por que a tela é assim" atraso={180}>
             <div className="max-w-2xl space-y-3 font-body text-sm leading-relaxed text-bone-dim">
               <p>
                 Nome, e-mail e telefone de pessoa física são dado pessoal. A Navalha guarda
                 porque precisa — sem isso não existe agendamento —, mas guardar não é o
                 mesmo que poder olhar quando quiser.
+              </p>
+              <p>
+                Por isso a busca rápida acima continua exigindo o dado inteiro e devolvendo
+                mascarado — é o caminho de quem está no telefone com um cliente. A lista
+                completa, sem máscara, é uma decisão do administrador da plataforma, e fica
+                registrada como as outras ações dele.
               </p>
               <p>
                 A regra que esta tela segue está inteira em{" "}

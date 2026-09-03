@@ -17,18 +17,18 @@ import { mascararEmail, mascararTelefone, nomeCurto } from "@/lib/privacidade";
  *
  * O que isso vira na prática:
  *
- *   1. NÃO existe listagem. Abrir a tela não devolve pessoa nenhuma. Uma
- *      lista de todo mundo não tem finalidade: ninguém precisa "navegar"
- *      pela base de clientes de terceiros.
- *   2. A busca exige o valor INTEIRO — e-mail completo ou telefone. É o
+ *   1. A busca (pra suporte, qualquer nível da equipe) exige o valor
+ *      INTEIRO — e-mail completo ou telefone — e devolve mascarado. É o
  *      caso real de suporte: a pessoa do outro lado da linha ditando o
  *      próprio contato. Pedaço não devolve nada, senão a busca viraria
  *      uma forma de baixar a base aos poucos.
- *   3. O que volta é mascarado. Dá pra confirmar que é quem ligou; não dá
- *      pra copiar contato.
- *   4. Em qual barbearia a pessoa foi atendida nunca é dito. Isso é a
+ *   2. A lista completa (`?lista=1`), sem máscara, é só pro administrador
+ *      — decisão de negócio de quem responde pela Navalha, ciente do
+ *      risco de tratar dado de cliente de terceiro sem essa finalidade
+ *      estar clara. Fica registrada como as outras ações de admin.
+ *   3. Em qual barbearia a pessoa foi atendida nunca é dito. Isso é a
  *      relação dela com a barbearia, não com a Navalha.
- *   5. Toda busca fica no registro, com quem buscou e o que buscou.
+ *   4. Toda busca e toda listagem ficam no registro, com quem e quando.
  *
  * O DELETE atende ao direito de eliminação (art. 18, VI): quando a pessoa
  * pede pra sair, o cadastro dela é apagado de verdade.
@@ -127,6 +127,56 @@ export async function GET(request: NextRequest) {
     taxaRetorno: agendaram ? Math.round((voltaram / agendaram) * 100) : null,
     mediaVisitas: agendaram ? Math.round((pedidos.length / agendaram) * 10) / 10 : 0,
   };
+
+  // ---------- Lista completa, sem máscara: só o administrador ----------
+  if (request.nextUrl.searchParams.get("lista") === "1") {
+    const admin = await autenticarAdmin(request);
+    if (!admin) {
+      return NextResponse.json(
+        { erro: "A lista completa de clientes é só do administrador." },
+        { status: 403 },
+      );
+    }
+
+    const pagina = Math.max(1, Number(request.nextUrl.searchParams.get("pagina")) || 1);
+    const porPagina = 50;
+    const inicio = (pagina - 1) * porPagina;
+
+    const { data: linhas, count } = await db
+      .from("clientes")
+      .select("id, nome, email, telefone, criado_em, auth_user_id", { count: "exact" })
+      .order("criado_em", { ascending: false })
+      .range(inicio, inicio + porPagina - 1);
+
+    await registrarAcao(admin, "listar_clientes", null, `página ${pagina}`);
+
+    const itens = (linhas ?? []).map((c) => {
+      const v = visitas.get(c.id as string);
+      return {
+        id: c.id,
+        nome: c.nome,
+        email: c.email,
+        telefone: (c.telefone as string) || "—",
+        temConta: Boolean(c.auth_user_id),
+        criadoEm: c.criado_em,
+        visitas: v?.total ?? 0,
+        ultimaVisita: v?.ultima ?? null,
+      };
+    });
+
+    return NextResponse.json({
+      nivel: quem.nivel,
+      resumo,
+      semanas,
+      encontrados: null,
+      lista: {
+        pagina,
+        totalPaginas: Math.max(1, Math.ceil((count ?? 0) / porPagina)),
+        total: count ?? 0,
+        itens,
+      },
+    });
+  }
 
   // ---------- Sem busca: nenhuma pessoa sai daqui ----------
   if (!busca) {
