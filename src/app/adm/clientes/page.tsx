@@ -184,7 +184,7 @@ export default function AdmClientesPage() {
               <Serie titulo="Contas novas" semanas={d.semanas} campo="cadastros" />
               <Serie titulo="Agendamentos" semanas={d.semanas} campo="pedidos" />
               <div className="border-t border-line-strong pt-3">
-                <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                <p className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
                   Agendam com conta?
                 </p>
                 <p className="mt-1 font-body text-[11px] leading-snug text-muted">

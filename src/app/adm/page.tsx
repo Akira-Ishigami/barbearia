@@ -230,7 +230,7 @@ export default function AdmHojePage() {
           <Secao titulo="Chegou agora" atraso={140}>
             <div className="grid gap-10 lg:grid-cols-2">
               <div>
-                <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                <p className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
                   Últimas barbearias
                 </p>
                 <div className="mt-3 border-t border-line">
@@ -248,7 +248,7 @@ export default function AdmHojePage() {
                           plano {b.plano} · {quando(b.criadaEm)}
                         </span>
                       </span>
-                      <span className="shrink-0 font-accent text-[10px] uppercase tracking-wider text-muted">
+                      <span className="shrink-0 font-accent text-[11px] font-semibold uppercase tracking-wide text-muted">
                         {b.status}
                       </span>
                     </Link>
@@ -257,7 +257,7 @@ export default function AdmHojePage() {
               </div>
 
               <div>
-                <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                <p className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
                   Últimas ações do suporte
                 </p>
                 <div className="mt-3 border-t border-line">

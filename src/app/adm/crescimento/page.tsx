@@ -124,7 +124,7 @@ export default function AdmCrescimentoPage() {
           <Secao titulo="Composição da base" atraso={120}>
             <div className="grid gap-10 lg:grid-cols-3">
               <div>
-                <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                <p className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
                   Situação
                 </p>
                 <div className="mt-4">
@@ -140,7 +140,7 @@ export default function AdmCrescimentoPage() {
               </div>
 
               <div>
-                <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                <p className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
                   Plano
                 </p>
                 <div className="mt-4">
@@ -155,7 +155,7 @@ export default function AdmCrescimentoPage() {
               </div>
 
               <div>
-                <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                <p className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
                   Como recebem
                 </p>
                 <div className="mt-4">
@@ -199,7 +199,7 @@ export default function AdmCrescimentoPage() {
 
             <div className="mt-10 grid gap-10 lg:grid-cols-2">
               <div>
-                <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                <p className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
                   O que acontece com o horário · 30 dias
                 </p>
                 <div className="mt-4">
@@ -221,7 +221,7 @@ export default function AdmCrescimentoPage() {
               </div>
 
               <div>
-                <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                <p className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
                   Como o cliente paga · 30 dias
                 </p>
                 <div className="mt-4">
@@ -274,7 +274,7 @@ export default function AdmCrescimentoPage() {
                     <span className="tabular block font-accent text-sm text-bone">
                       {r.pedidos}
                     </span>
-                    <span className="block font-body text-[10px] text-muted">
+                    <span className="block font-body text-[11px] text-muted">
                       último {data(r.ultimoPedido)}
                     </span>
                   </span>

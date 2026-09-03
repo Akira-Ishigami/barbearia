@@ -1,11 +1,5 @@
 import type { Metadata } from "next";
-import {
-  Sora,
-  JetBrains_Mono,
-  Plus_Jakarta_Sans,
-  Unbounded,
-  Instrument_Serif,
-} from "next/font/google";
+import { Sora, JetBrains_Mono, Plus_Jakarta_Sans, Unbounded } from "next/font/google";
 import "./globals.css";
 
 const sora = Sora({
@@ -18,15 +12,6 @@ const sora = Sora({
 const unbounded = Unbounded({
   variable: "--font-loja-display",
   subsets: ["latin"],
-});
-
-// Só na área da plataforma (/adm). Serifa num painel administrativo é
-// escolha incomum de propósito: é o que faz aquela área não se confundir
-// com o painel da barbearia nem com a loja, sem precisar de aviso na tela.
-const instrument = Instrument_Serif({
-  variable: "--font-adm-display",
-  subsets: ["latin"],
-  weight: "400",
 });
 
 const mono = JetBrains_Mono({
@@ -51,7 +36,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="pt-BR"
-      className={`${sora.variable} ${mono.variable} ${jakarta.variable} ${unbounded.variable} ${instrument.variable} h-full antialiased`}
+      className={`${sora.variable} ${mono.variable} ${jakarta.variable} ${unbounded.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-ink text-bone">{children}</body>
     </html>

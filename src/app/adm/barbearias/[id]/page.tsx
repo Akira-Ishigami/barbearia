@@ -265,8 +265,8 @@ export default function AdmBarbeariaPage() {
         atraso={120}
       >
         <div className="grid gap-6 sm:grid-cols-2">
-          <div className="border-t border-line-strong pt-3">
-            <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+          <div className="border-l-[3px] border-line-strong pl-3.5">
+            <p className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
               Mercado Pago
             </p>
             {d.recebimento.mercadoPago ? (
@@ -285,8 +285,8 @@ export default function AdmBarbeariaPage() {
             )}
           </div>
 
-          <div className="border-t border-line-strong pt-3">
-            <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+          <div className="border-l-[3px] border-line-strong pl-3.5">
+            <p className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
               Pix na chave
             </p>
             {d.recebimento.pix ? (
@@ -344,7 +344,7 @@ export default function AdmBarbeariaPage() {
 
           {admin && (
             <div className="border-t border-line pt-5">
-              <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-cyan">
+              <p className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-cyan">
                 Só administrador
               </p>
               <div className="mt-2.5 flex flex-wrap gap-2">

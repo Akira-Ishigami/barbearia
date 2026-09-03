@@ -9,10 +9,12 @@ import { usePlataforma } from "@/lib/use-plataforma";
 /**
  * Área da plataforma — a Navalha olhando pra si mesma.
  *
- * É papel: fundo quente, tinta preta, fio de cabelo, serifa nos títulos.
- * O painel da barbearia é escuro e dourado, a loja é clara e geométrica.
- * Quem tem os três acessos precisa saber onde está antes de clicar em
- * qualquer coisa, e a cor resolve isso sem precisar de aviso na tela.
+ * Console de operação: cartão branco de verdade contra um cinza neutro,
+ * item ativo com preenchimento sólido em vez de só trocar de cor. O
+ * painel da barbearia é escuro e dourado, a loja é clara e geométrica;
+ * aqui é a terceira, e quem tem os três acessos precisa saber onde está
+ * antes de clicar em qualquer coisa — a cor resolve isso sem aviso na
+ * tela.
  *
  * O menu é numerado como estação de trabalho: cada tela responde uma
  * pergunta e só ela. Tela que responde cinco perguntas obriga a pessoa a
@@ -52,7 +54,7 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
   if (acesso === undefined) {
     return (
       <div className="adm-paper flex flex-1 items-center justify-center bg-ink">
-        <p className="font-accent text-[11px] uppercase tracking-[0.22em] text-muted">
+        <p className="font-accent text-xs font-semibold uppercase tracking-[0.14em] text-muted">
           Verificando acesso
         </p>
       </div>
@@ -68,65 +70,64 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
     href === "/adm" ? pathname === "/adm" : pathname.startsWith(href);
 
   return (
-    <div className="adm-paper adm-grade flex flex-1 flex-col bg-ink text-bone lg:flex-row">
+    <div className="adm-paper flex flex-1 flex-col bg-ink text-bone lg:flex-row">
       {/* ---------- Estações ---------- */}
-      <aside className="border-b border-line-strong bg-ink-elev/60 lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:border-b-0 lg:border-r">
+      <aside className="border-b border-line bg-ink-elev lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:border-b-0 lg:border-r">
         <div className="flex h-full flex-col px-5 py-5 lg:px-6 lg:py-7">
           <div className="flex items-center justify-between gap-3">
             <Link href="/" className="flex items-baseline gap-2.5">
-              <span className="font-display text-2xl leading-none text-bone">Navalha</span>
-              <span className="font-accent text-[9px] uppercase tracking-[0.2em] text-cyan">
+              <span className="font-display text-2xl font-bold leading-none text-bone">
+                Navalha
+              </span>
+              <span className="font-accent text-[11px] font-bold uppercase tracking-[0.1em] text-cyan">
                 plataforma
               </span>
             </Link>
-            <span className="font-accent text-[10px] uppercase tracking-wider text-muted lg:hidden">
+            <span className="rounded-full bg-ink-elev-2 px-2.5 py-1 font-accent text-[11px] font-bold uppercase tracking-wide text-bone-dim lg:hidden">
               {admin ? "Admin" : "Suporte"}
             </span>
           </div>
 
-          <nav className="mt-5 flex gap-1 overflow-x-auto lg:mt-8 lg:flex-col lg:gap-0 lg:overflow-visible">
+          <nav className="mt-5 flex gap-1.5 overflow-x-auto lg:mt-8 lg:flex-col lg:gap-1 lg:overflow-visible">
             {visiveis.map((e) => {
               const on = ativa(e.href);
               return (
                 <Link
                   key={e.href}
                   href={e.href}
-                  className={`flex shrink-0 items-baseline gap-3 whitespace-nowrap border-line py-2.5 transition-colors lg:border-t lg:px-1 ${
-                    on ? "text-cyan" : "text-bone-dim hover:text-bone"
+                  className={`flex shrink-0 items-center gap-3 whitespace-nowrap rounded-xl px-3 py-2.5 transition-colors ${
+                    on ? "bg-cyan text-white" : "text-bone-dim hover:bg-ink-elev-2 hover:text-bone"
                   }`}
                 >
                   <span
-                    className={`tabular font-accent text-[10px] ${on ? "text-cyan" : "text-muted"}`}
+                    className={`tabular font-accent text-xs font-bold ${on ? "text-white/80" : "text-muted"}`}
                   >
                     {e.n}
                   </span>
                   <span className="min-w-0">
-                    <span className="block font-body text-sm font-medium">{e.label}</span>
-                    <span className="hidden font-body text-[11px] text-muted lg:block">
+                    <span className="block font-body text-sm font-semibold">{e.label}</span>
+                    <span
+                      className={`hidden font-body text-xs lg:block ${on ? "text-white/75" : "text-muted"}`}
+                    >
                       {e.nota}
                     </span>
                   </span>
-                  {on && (
-                    <span aria-hidden className="ml-auto hidden font-accent text-cyan lg:block">
-                      ·
-                    </span>
-                  )}
                 </Link>
               );
             })}
           </nav>
 
           <div className="mt-auto hidden pt-8 lg:block">
-            <div className="border-t border-line-strong pt-3">
-              <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-cyan">
+            <div className="rounded-xl bg-ink-elev-2 px-3.5 py-3">
+              <p className="font-accent text-[11px] font-bold uppercase tracking-[0.08em] text-cyan">
                 {admin ? "Administrador" : "Suporte"}
               </p>
-              <p className="mt-0.5 truncate font-body text-[11px] text-muted">{acesso.email}</p>
+              <p className="mt-0.5 truncate font-body text-xs text-bone-dim">{acesso.email}</p>
             </div>
-            <div className="mt-4 flex gap-2">
+            <div className="mt-3 flex gap-2">
               <Link
                 href="/painel"
-                className="border border-line-strong px-3 py-1.5 font-body text-[11px] text-bone-dim transition-colors hover:border-cyan hover:text-cyan"
+                className="flex-1 rounded-lg border border-line-strong px-3 py-2 text-center font-body text-xs font-semibold text-bone-dim transition-colors hover:border-cyan hover:text-cyan"
               >
                 Meu painel
               </Link>
@@ -135,7 +136,7 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
                   await sair();
                   router.push("/login");
                 }}
-                className="border border-line-strong px-3 py-1.5 font-body text-[11px] text-bone-dim transition-colors hover:border-off-line hover:text-off"
+                className="flex-1 rounded-lg border border-line-strong px-3 py-2 font-body text-xs font-semibold text-bone-dim transition-colors hover:border-off-line hover:text-off"
               >
                 Sair
               </button>
@@ -147,7 +148,7 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
           <div className="mt-3 flex gap-2 lg:hidden">
             <Link
               href="/painel"
-              className="border border-line-strong px-3 py-1.5 font-body text-[11px] text-bone-dim"
+              className="rounded-lg border border-line-strong px-3 py-1.5 font-body text-xs font-semibold text-bone-dim"
             >
               Meu painel
             </Link>
@@ -156,7 +157,7 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
                 await sair();
                 router.push("/login");
               }}
-              className="border border-line-strong px-3 py-1.5 font-body text-[11px] text-bone-dim"
+              className="rounded-lg border border-line-strong px-3 py-1.5 font-body text-xs font-semibold text-bone-dim"
             >
               Sair
             </button>
@@ -164,7 +165,7 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* ---------- Folha ---------- */}
+      {/* ---------- Conteúdo ---------- */}
       <main className="min-w-0 flex-1">
         <div className="mx-auto w-full max-w-5xl px-6 py-10 md:px-10 md:py-14">{children}</div>
       </main>

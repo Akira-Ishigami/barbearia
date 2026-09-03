@@ -1,6 +1,13 @@
 @import "tailwindcss";
 
 :root {
+  /* Sem isso o navegador não sabe que a área é escura de propósito e tenta
+     "corrigir" sozinho — é o que fazia o /adm (que é claro, tipo papel)
+     sair ilegível: o modo escuro forçado do Windows/navegador repintava a
+     página inteira por cima da paleta que o CSS já define, e o resultado
+     era cinza sobre cinza. Aqui declara o padrão escuro; `.theme-light` e
+     `.adm-paper` avisam que a área delas é clara, cada uma na sua vez. */
+  color-scheme: dark;
   --ink: #060708;
   --ink-elev: #0d1013;
   --ink-elev-2: #131820;
@@ -55,6 +62,7 @@
    Usado na área do cliente (/loja) e, opcionalmente, no painel e no
    painel do barbeiro (onde é o padrão). */
 .theme-light {
+  color-scheme: light;
   --ink: #f3f3f1;
   --ink-elev: #ffffff;
   --ink-elev-2: #e8e8e4;
@@ -115,55 +123,45 @@
 }
 
 /* ============================================================
-   Área da plataforma (/adm) — "sala de controle em papel"
+   Área da plataforma (/adm) — sala de controle
    ============================================================
    O painel da barbearia é escuro e dourado; a loja é clara e geométrica.
-   A plataforma precisa ser a terceira coisa: quem tem os três acessos tem
-   que saber onde está antes de clicar em qualquer botão.
-
-   A escolha aqui é papel: fundo quente, tinta quase preta, fio de cabelo
-   no lugar de caixa, número em mono e display em serifa. Lê como relatório
-   impresso de operação — que é literalmente o que a tela é. Serifa em
-   painel administrativo é incomum de propósito; é o que faz esta área não
-   parecer as outras duas.
+   A plataforma é a terceira coisa: quem tem os três acessos precisa saber
+   onde está antes de clicar em qualquer botão. As duas versões anteriores
+   tentaram isso com metáfora — folha impressa, papel — e as duas erraram a
+   mão no contraste. Essa aqui não tenta parecer outra coisa: é console de
+   operação mesmo. Cartão branco de verdade contra um cinza neutro (nunca
+   creme — creme lembra papel, exatamente o que saiu), selo de estado com
+   preenchimento sólido em vez de texto colorido, número grande em negrito
+   sobre a mesma Sora do painel. Constrói pra reler todo dia, não pra
+   fotografar.
    ============================================================ */
 .adm-paper {
-  --ink: #f4f2ec;
-  --ink-elev: #fffefb;
-  --ink-elev-2: #eae6dc;
-  --bone: #14161a;
-  --bone-dim: #4b5058;
-  --muted: #8a8a80;
-  --cyan: #0d6b66;
-  --cyan-bright: #084f4b;
-  --gold: #8a5a06;
-  --gold-bright: #6f4805;
-  --gold-deep: #4a3003;
-  --line: rgba(20, 22, 26, 0.1);
-  --line-strong: rgba(20, 22, 26, 0.2);
+  color-scheme: light;
+  --ink: #eef0f3;
+  --ink-elev: #ffffff;
+  --ink-elev-2: #e1e4e9;
+  --bone: #0c0e13;
+  --bone-dim: #454b56;
+  --muted: #6b7280;
+  --cyan: #0e7490;
+  --cyan-bright: #0891b2;
+  --gold: #a15c07;
+  --gold-bright: #b4650a;
+  --gold-deep: #6b3d05;
+  --line: rgba(12, 14, 19, 0.1);
+  --line-strong: rgba(12, 14, 19, 0.18);
 
-  --ok: #0f6a42;
-  --ok-soft: rgba(15, 106, 66, 0.09);
-  --ok-line: rgba(15, 106, 66, 0.3);
-  --off: #a81f27;
-  --off-soft: rgba(168, 31, 39, 0.07);
-  --off-line: rgba(168, 31, 39, 0.26);
-  --warn: #8a5a06;
-  --warn-soft: rgba(138, 90, 6, 0.09);
-  --warn-line: rgba(138, 90, 6, 0.28);
-  --warn-solid: #fdf6e6;
-
-  --font-display: var(--font-adm-display);
-}
-
-/* Papel milimetrado bem apagado. Dá textura sem virar padrão de fundo —
-   a 22px a grade some na leitura e só aparece quando se procura por ela. */
-.adm-grade {
-  background-image:
-    linear-gradient(rgba(20, 22, 26, 0.028) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(20, 22, 26, 0.028) 1px, transparent 1px);
-  background-size: 22px 22px;
-  background-position: -1px -1px;
+  --ok: #15803d;
+  --ok-soft: rgba(21, 128, 61, 0.1);
+  --ok-line: rgba(21, 128, 61, 0.32);
+  --off: #b91c1c;
+  --off-soft: rgba(185, 28, 28, 0.09);
+  --off-line: rgba(185, 28, 28, 0.3);
+  --warn: #a15c07;
+  --warn-soft: rgba(161, 92, 7, 0.1);
+  --warn-line: rgba(161, 92, 7, 0.3);
+  --warn-solid: #fff8e8;
 }
 
 /* Números sempre da mesma largura: coluna de valor que não dança quando o
@@ -302,6 +300,17 @@ body {
   mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
 }
 
+/* Some a borda cortada abrupta do texto que corre na faixa (marquee). */
+.mask-fade-x {
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 8%,
+    black 92%,
+    transparent
+  );
+}
+
 @keyframes marquee {
   from {
     transform: translateX(0);
@@ -343,6 +352,18 @@ body {
 .animate-float-tilt {
   animation: float-tilt 7s ease-in-out infinite;
   transform-style: preserve-3d;
+}
+
+/* Deriva lenta dos brilhos de fundo do hero — profundidade sem chamar
+   atenção, então a órbita é curta (28px) e a duração longa. */
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(20px, -28px) scale(1.08);
+  }
 }
 
 @keyframes pulse-dot {

@@ -177,6 +177,26 @@ export async function POST(request: NextRequest) {
         .select("auth_user_id")
         .eq("barbearia_id", c.barbeariaId);
 
+      // Quem está executando a exclusão também é dono/barbeiro dessa
+      // barbearia (email cadastrado nos dois lugares — comum em conta de
+      // teste do próprio time). Sem esta checagem, o admin apaga a própria
+      // conta do Supabase Auth como efeito colateral e fica sem conseguir
+      // entrar de novo pra desfazer nada — já aconteceu uma vez.
+      const apagaAPropriaConta = (equipe ?? []).some(
+        (u) => u.auth_user_id === quem.authUserId,
+      );
+      if (apagaAPropriaConta) {
+        return NextResponse.json(
+          {
+            erro:
+              "Você está na equipe dessa barbearia — excluir ela apagaria seu próprio " +
+              "login. Peça pra outro admin excluir, ou tire seu acesso dessa barbearia " +
+              "antes (em Equipe) e tente de novo.",
+          },
+          { status: 400 },
+        );
+      }
+
       const { error: erroExclusao } = await db
         .from("barbearias")
         .delete()

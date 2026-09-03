@@ -108,7 +108,7 @@ export default function AdmBarbeariasPage() {
               }`}
             >
               {f.label}
-              <span className="tabular ml-1.5 font-accent text-[10px] opacity-60">
+              <span className="tabular ml-1.5 font-accent text-[11px] opacity-70">
                 {contar(f.id)}
               </span>
             </button>
@@ -130,7 +130,7 @@ export default function AdmBarbeariasPage() {
             <Vazio>Nenhuma barbearia com esse filtro.</Vazio>
           ) : (
             <>
-              <div className="hidden grid-cols-[1fr_9rem_8rem_5rem] gap-4 border-b border-line-strong pb-2 font-accent text-[10px] uppercase tracking-[0.16em] text-muted md:grid">
+              <div className="hidden grid-cols-[1fr_9rem_8rem_5rem] gap-4 border-b border-line-strong pb-2 font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-muted md:grid">
                 <span>Barbearia</span>
                 <span>Recebimento</span>
                 <span>Assinatura</span>

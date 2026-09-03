@@ -104,7 +104,7 @@ export default function AdmEquipePage() {
       <Secao titulo="O que cada nível faz">
         <div className="grid gap-8 sm:grid-cols-2">
           <div className="border-t border-line-strong pt-3">
-            <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+            <p className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
               Suporte
             </p>
             <ul className="mt-3 space-y-1.5 font-body text-sm text-bone-dim">
@@ -115,7 +115,7 @@ export default function AdmEquipePage() {
             </ul>
           </div>
           <div className="border-t border-line-strong pt-3">
-            <p className="font-accent text-[10px] uppercase tracking-[0.16em] text-cyan">
+            <p className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-cyan">
               Administrador
             </p>
             <ul className="mt-3 space-y-1.5 font-body text-sm text-bone-dim">
@@ -150,7 +150,7 @@ export default function AdmEquipePage() {
           <form onSubmit={salvar} className="max-w-2xl">
             <div className="grid gap-6 sm:grid-cols-2">
               <label className="block">
-                <span className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                <span className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
                   E-mail
                 </span>
                 <div className="mt-1">
@@ -163,7 +163,7 @@ export default function AdmEquipePage() {
                 </div>
               </label>
               <label className="block">
-                <span className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                <span className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
                   Nome
                 </span>
                 <div className="mt-1">
@@ -174,7 +174,7 @@ export default function AdmEquipePage() {
 
             <div className="mt-6 flex flex-wrap items-end gap-4">
               <label className="block">
-                <span className="font-accent text-[10px] uppercase tracking-[0.16em] text-muted">
+                <span className="font-accent text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
                   Nível
                 </span>
                 <select
