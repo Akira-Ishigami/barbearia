@@ -29,11 +29,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ erro: "Só o dono assina o plano." }, { status: 403 });
   }
 
-  const { data: barbearia } = await supabaseAdmin()
-    .from("barbearias")
-    .select("plano")
-    .eq("id", quem.barbeariaId)
-    .maybeSingle();
+  const db = supabaseAdmin();
+  const [{ data: barbearia }, { data: usuario }] = await Promise.all([
+    db.from("barbearias").select("plano").eq("id", quem.barbeariaId).maybeSingle(),
+    db.from("usuarios").select("nome, email").eq("id", quem.usuarioId).maybeSingle(),
+  ]);
 
   // O corpo pode pedir OUTRO plano (é assim que se faz upgrade), mas só um
   // dos planos reais — o preço sempre sai da tabela de planos, nunca do
@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
           title: `Navalha — plano ${plano.name} (mensal)`,
           quantity: 1,
           unit_price: plano.valor,
+          description: `Assinatura mensal do sistema Navalha, plano ${plano.name}`,
         },
       ],
       // O plano vai junto: é o webhook, com o pagamento aprovado em mãos,
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
         failure: `${base}/painel?assinatura=falhou`,
       },
       notificationUrl: `${base}/api/mp/webhook`,
+      pagador: usuario ? { nome: usuario.nome, email: usuario.email } : undefined,
       parcelasMax: 1,
     });
 

@@ -168,11 +168,17 @@ export async function POST(request: NextRequest) {
     const preferencia = await criarPreferencia({
       accessToken,
       items: [
-        ...servicos.map((s) => ({ title: s.nome, quantity: 1, unit_price: s.preco })),
+        ...servicos.map((s) => ({
+          title: s.nome,
+          quantity: 1,
+          unit_price: s.preco,
+          description: "Serviço prestado na barbearia",
+        })),
         ...produtos.map((p) => ({
           title: p.nome,
           quantity: p.quantidade,
           unit_price: p.preco,
+          description: "Produto vendido na barbearia",
         })),
       ],
       externalReference: `pedido:${pedido.id}`,
@@ -182,7 +188,7 @@ export async function POST(request: NextRequest) {
         failure: `${base}/loja/${corpo.barbeariaId}/pagamento?resultado=falhou`,
       },
       notificationUrl: `${base}/api/mp/webhook`,
-      pagador: { name: corpo.cliente.nome, email: corpo.cliente.email },
+      pagador: { nome: corpo.cliente.nome, email: corpo.cliente.email },
       marketplaceFee: taxa > 0 ? (total * taxa) / 100 : undefined,
       parcelasMax: conta.parcelas_max ?? 1,
       aceitaPix: conta.aceita_pix,

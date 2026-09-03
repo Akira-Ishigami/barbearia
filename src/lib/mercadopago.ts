@@ -218,6 +218,12 @@ export interface ItemPreferencia {
   title: string;
   quantity: number;
   unit_price: number;
+  /**
+   * O Mercado Pago pontua a preferência por completude (tela "Aprovação
+   * dos pagamentos" na conta), e descrição vazia é um dos itens que tira
+   * ponto — deixa o antifraude deles com menos contexto pra aprovar.
+   */
+  description?: string;
 }
 
 export interface CriarPreferenciaInput {
@@ -226,7 +232,7 @@ export interface CriarPreferenciaInput {
   externalReference: string;
   backUrls: { success: string; pending: string; failure: string };
   notificationUrl: string;
-  pagador?: { name?: string; email?: string };
+  pagador?: { nome?: string; email?: string };
   /** Comissão retida pela Navalha (só no fluxo marketplace). */
   marketplaceFee?: number;
   parcelasMax?: number;
@@ -268,7 +274,16 @@ export async function criarPreferencia(input: CriarPreferenciaInput): Promise<Pr
   };
 
   if (input.pagador?.email) {
-    corpo.payer = { name: input.pagador.name, email: input.pagador.email };
+    // O score de aprovação do MP pontua nome e sobrenome separados — um
+    // campo "name" só não conta pra "Sobrenome do comprador" na tela
+    // deles. Nome completo com espaço é o único formato que já temos
+    // (checkout não pede nome/sobrenome à parte), então o corte é aqui.
+    const partes = (input.pagador.nome ?? "").trim().split(/\s+/).filter(Boolean);
+    corpo.payer = {
+      first_name: partes[0] || undefined,
+      last_name: partes.length > 1 ? partes.slice(1).join(" ") : undefined,
+      email: input.pagador.email,
+    };
   }
   if (input.marketplaceFee && input.marketplaceFee > 0) {
     corpo.marketplace_fee = Number(input.marketplaceFee.toFixed(2));
