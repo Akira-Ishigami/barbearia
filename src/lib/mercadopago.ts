@@ -157,6 +157,63 @@ export async function buscarUsuario(accessToken: string): Promise<UsuarioMP | nu
   }
 }
 
+export interface SaldoMP {
+  disponivel: number;
+  moeda: string;
+}
+
+/**
+ * Saldo da conta do Mercado Pago da própria Navalha (não da barbearia —
+ * essa conta nunca é lida, é o dinheiro de outra empresa).
+ *
+ * O endpoint é real (confere com o cliente oficial em Python da própria
+ * Mercado Livre), mas não está na documentação atual — o caminho
+ * "de vitrine" pra dado financeiro hoje é um relatório assíncrono
+ * (POST, espera, baixa CSV), pesado demais pra mostrar um número. Esse
+ * aqui é o direto. Se a conta tiver alguma pendência de cadastro (endereço
+ * incompleto, tipo de conta), o Mercado Pago devolve 403 — por isso o
+ * retorno distingue "sem saldo" de "conta não deixa ver".
+ */
+export async function buscarSaldo(
+  accessToken: string,
+): Promise<{ ok: true; saldo: SaldoMP } | { ok: false; motivo: "sem_permissao" | "falha" }> {
+  const usuario = await buscarUsuario(accessToken).catch(() => null);
+  const id = usuario ? await idDoUsuario(accessToken) : null;
+  if (!id) return { ok: false, motivo: "falha" };
+
+  try {
+    const resposta = await fetch(
+      `${MP_API}/users/${id}/mercadopago_account/balance`,
+      { headers: { Authorization: `Bearer ${accessToken}` } },
+    );
+
+    if (resposta.status === 403) return { ok: false, motivo: "sem_permissao" };
+    if (!resposta.ok) return { ok: false, motivo: "falha" };
+
+    const d = await resposta.json();
+    const valor = Number(d.available_balance ?? d.amount ?? d.total_amount ?? NaN);
+    if (!Number.isFinite(valor)) return { ok: false, motivo: "falha" };
+
+    return { ok: true, saldo: { disponivel: valor, moeda: d.currency_id ?? "BRL" } };
+  } catch {
+    return { ok: false, motivo: "falha" };
+  }
+}
+
+/** `/users/me` só devolve o id junto de um monte de outra coisa; isola isso. */
+async function idDoUsuario(accessToken: string): Promise<number | null> {
+  try {
+    const resposta = await fetch(`${MP_API}/users/me`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!resposta.ok) return null;
+    const d = await resposta.json();
+    return typeof d.id === "number" ? d.id : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface ItemPreferencia {
   title: string;
   quantity: number;

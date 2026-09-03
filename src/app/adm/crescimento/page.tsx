@@ -30,8 +30,15 @@ import { ROTULO_FORMA, type Visao } from "../tipos";
  * não é lido em lugar nenhum do sistema.
  */
 
+interface RespostaCarteira {
+  ok?: boolean;
+  saldo?: { disponivel: number; moeda: string };
+  erro?: string;
+}
+
 export default function AdmCrescimentoPage() {
   const acesso = usePlataforma();
+  const admin = acesso?.nivel === "admin";
 
   const { dados: d, carregando, erro } = useAsync<Visao>(
     async () => {
@@ -41,6 +48,18 @@ export default function AdmCrescimentoPage() {
     },
     [acesso?.email],
     { pular: !acesso },
+  );
+
+  // Saldo é chamada à parte, e não faz parte de /api/adm/visao: depende do
+  // Mercado Pago responder, que é mais lento e menos confiável que ler o
+  // próprio banco — não faz sentido travar o resto da tela por causa dele.
+  const { dados: carteira, carregando: carregandoCarteira } = useAsync<RespostaCarteira>(
+    async () => {
+      const r = await fetch("/api/adm/carteira", { headers: await cabecalhosPlataforma() });
+      return r.json();
+    },
+    [acesso?.email],
+    { pular: !admin },
   );
 
   if (!acesso) return null;
@@ -107,6 +126,31 @@ export default function AdmCrescimentoPage() {
               />
             </Fila>
           </Secao>
+
+          {/* ---------- Carteira ---------- */}
+          {admin && (
+            <Secao
+              titulo="Carteira"
+              nota="Saldo de verdade na conta do Mercado Pago da Navalha — não é estimativa, é o que já caiu."
+              atraso={40}
+            >
+              {carregandoCarteira && (
+                <p className="font-body text-sm text-muted">Consultando o Mercado Pago…</p>
+              )}
+              {!carregandoCarteira && carteira?.ok && carteira.saldo && (
+                <Medida
+                  rotulo={`Disponível · ${carteira.saldo.moeda}`}
+                  valor={dinheiro(carteira.saldo.disponivel)}
+                  tom="ok"
+                />
+              )}
+              {!carregandoCarteira && (!carteira || !carteira.ok) && (
+                <Aviso tom="warn">
+                  {carteira?.erro ?? "Não foi possível consultar o saldo agora."}
+                </Aviso>
+              )}
+            </Secao>
+          )}
 
           {/* ---------- Séries ---------- */}
           <Secao
