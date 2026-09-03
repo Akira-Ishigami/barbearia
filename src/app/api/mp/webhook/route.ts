@@ -130,6 +130,19 @@ export async function POST(request: NextRequest) {
             p_barbearia: assinaturaBarbearia,
             p_plano: planoPago === "pro" || planoPago === "basico" ? planoPago : null,
           });
+          // A API de saldo do Mercado Pago não libera pra gente (ver
+          // schema.sql) — isso aqui é como o sistema sabe "quanto já
+          // entrou" sem depender dela. `upsert` porque o MP reenvia o
+          // mesmo webhook várias vezes.
+          await db.from("plataforma_pagamentos").upsert(
+            {
+              barbearia_id: assinaturaBarbearia,
+              plano: planoPago === "pro" || planoPago === "basico" ? planoPago : "",
+              valor: pagamentoBruto.transaction_amount,
+              mp_payment_id: String(paymentId),
+            },
+            { onConflict: "mp_payment_id" },
+          );
         }
         return NextResponse.json({ ok: true, tipo: "assinatura", status: pagamentoBruto.status });
       }

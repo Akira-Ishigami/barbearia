@@ -200,9 +200,9 @@ export default function AdmCrescimentoPage() {
                   </Aviso>
                   <div className="mt-4">
                     <Medida
-                      rotulo="Faturamento · mensalidades em dia"
-                      valor={dinheiro(d.receita.mensalRecorrente)}
-                      nota="não é o saldo do Mercado Pago — é a soma do que as assinaturas ativas pagam por mês"
+                      rotulo="Faturamento · já recebido em mensalidades"
+                      valor={dinheiro(d.receita.acumulado)}
+                      nota="registrado aqui a cada pagamento aprovado — não é o saldo do Mercado Pago, é o que a Navalha já cobrou"
                       tom="acento"
                     />
                   </div>

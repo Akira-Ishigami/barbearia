@@ -48,7 +48,7 @@ export interface Visao {
   };
   planos: Record<string, number>;
   /** Só a mensalidade das assinaturas — receita da própria Navalha. */
-  receita: { mensalRecorrente: number };
+  receita: { mensalRecorrente: number; acumulado: number };
   conversao: { jaPagaram: number; saiuDoTeste: number; taxa: number | null };
   pagamentos: {
     comMercadoPago: number;

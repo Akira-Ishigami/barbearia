@@ -800,10 +800,13 @@ end $$;
 -- ============================================================
 -- Conta do Mercado Pago da própria Navalha, via OAuth
 -- ============================================================
--- O saldo (Carteira, em /adm) não abre com MP_ACCESS_TOKEN nessa conta —
--- o Mercado Pago devolve 403, provavelmente por ela ainda ter cadastro
--- pendente (endereço). Token de OAuth, autorizado por login de verdade,
--- costuma ter permissão que token de app sozinho não tem — vale tentar.
+-- O saldo (Carteira, em /adm) não abre nessa conta nem com MP_ACCESS_TOKEN
+-- nem com token de OAuth — os dois batem 403 igual, mesmo a conta tendo
+-- saldo e extrato normais no próprio Mercado Pago. Não é cadastro
+-- pendente: é esse endpoint específico que a Mercado Pago não libera pra
+-- aplicativo de terceiro. Guardamos o OAuth mesmo assim (é o token
+-- "certo" se um dia liberar) e cobrimos o buraco com plataforma_pagamentos
+-- abaixo, que é dinheiro que a gente vê de verdade.
 --
 -- Linha única (id fixo), diferente de mp_contas que é uma por barbearia:
 -- só existe uma Navalha. Mesma regra de mp_contas e plataforma_equipe:
@@ -819,3 +822,30 @@ create table if not exists plataforma_mp_conta (
 );
 
 alter table plataforma_mp_conta enable row level security;
+
+-- ============================================================
+-- Registro dos pagamentos de assinatura recebidos de verdade
+-- ============================================================
+-- A API de saldo do Mercado Pago não libera pra terceiro (ver acima), então
+-- isso aqui é a alternativa: em vez de perguntar pro Mercado Pago quanto
+-- tem na conta, a gente mesmo guarda cada mensalidade aprovada assim que o
+-- webhook confirma. Não é o saldo da conta (não sabe de saque, tarifa,
+-- estorno nem de pagamento que caiu por fora do checkout da Navalha) — é
+-- só "quanto já entrou de mensalidade", que é o dado que o sistema
+-- realmente tem como saber com certeza.
+--
+-- mp_payment_id é único de propósito: o Mercado Pago reenvia o mesmo
+-- webhook várias vezes, e sem isso cada reenvio duplicaria a linha.
+create table if not exists plataforma_pagamentos (
+  id             uuid primary key default gen_random_uuid(),
+  barbearia_id   uuid references barbearias(id) on delete set null,
+  plano          text not null default '',
+  valor          numeric(10, 2) not null,
+  mp_payment_id  text not null unique,
+  pago_em        timestamptz not null default now()
+);
+create index if not exists plataforma_pagamentos_idx on plataforma_pagamentos (pago_em desc);
+
+alter table plataforma_pagamentos enable row level security;
+-- Mesma regra das outras tabelas de plataforma: sem policy, só o service
+-- role (rotas de API) enxerga.

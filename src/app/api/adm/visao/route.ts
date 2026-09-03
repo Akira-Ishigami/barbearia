@@ -88,6 +88,7 @@ export async function GET(request: NextRequest) {
     clientesRes,
     agendamentosRes,
     logRes,
+    pagamentosRes,
   ] = await Promise.all([
     db
       .from("barbearias")
@@ -112,6 +113,7 @@ export async function GET(request: NextRequest) {
       .select("id, email, acao, barbearia_id, detalhe, criado_em")
       .order("criado_em", { ascending: false })
       .limit(6),
+    db.from("plataforma_pagamentos").select("valor"),
   ]);
 
   const barbearias = (barbeariasRes.data ?? []) as LinhaBarbearia[];
@@ -265,7 +267,16 @@ export async function GET(request: NextRequest) {
     planos: porPlano,
 
     // Só a mensalidade das assinaturas — receita da própria Navalha.
-    receita: { mensalRecorrente: Math.round(mrr * 100) / 100 },
+    // "acumulado" é o que o webhook já registrou em plataforma_pagamentos
+    // (ver schema.sql) — a alternativa a perguntar pro Mercado Pago, que
+    // não libera a API de saldo pra gente.
+    receita: {
+      mensalRecorrente: Math.round(mrr * 100) / 100,
+      acumulado:
+        Math.round(
+          (pagamentosRes.data ?? []).reduce((soma, p) => soma + Number(p.valor), 0) * 100,
+        ) / 100,
+    },
 
     conversao: {
       jaPagaram,
