@@ -194,9 +194,19 @@ export default function AdmCrescimentoPage() {
                 />
               )}
               {!carregandoCarteira && (!carteira || !carteira.ok) && (
-                <Aviso tom="warn">
-                  {carteira?.erro ?? "Não foi possível consultar o saldo agora."}
-                </Aviso>
+                <>
+                  <Aviso tom="warn">
+                    {carteira?.erro ?? "Não foi possível consultar o saldo agora."}
+                  </Aviso>
+                  <div className="mt-4">
+                    <Medida
+                      rotulo="Faturamento · mensalidades em dia"
+                      valor={dinheiro(d.receita.mensalRecorrente)}
+                      nota="não é o saldo do Mercado Pago — é a soma do que as assinaturas ativas pagam por mês"
+                      tom="acento"
+                    />
+                  </div>
+                </>
               )}
             </Secao>
           )}
