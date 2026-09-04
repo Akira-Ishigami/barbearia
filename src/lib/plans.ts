@@ -56,7 +56,7 @@ export const PLANS: Plan[] = [
       "Loja de produtos integrada na página pública",
       "Painel individual para cada barbeiro, com login próprio",
       "Barbeiros ilimitados na equipe",
-      "Comissão por barbeiro, com percentual separado de serviço e produto",
+      "Comissão por barbeiro, com percentual próprio sobre o serviço",
       "Relatórios de faturamento e relatório mensal de estoque",
       "Suporte prioritário",
     ],

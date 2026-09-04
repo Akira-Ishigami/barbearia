@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { PLANS, TRIAL_DAYS } from "@/lib/plans";
 import { BotaoAssinar } from "@/components/BotaoAssinar";
+import { Reveal } from "@/components/Reveal";
+import { Counter } from "@/components/Counter";
+import { HeroGlow } from "@/components/HeroGlow";
 
 function Icon({
   path,
@@ -87,7 +90,7 @@ const SCREENS = [
     accent: "gold" as const,
     icon: ICONS.globe,
     items: [
-      "Agenda sozinho, sem trocar mensagem",
+      "Escolhe o horário livre e agenda direto na página",
       "Vê serviços, produtos e preços",
       "Paga online pelo Mercado Pago",
       "Funciona em qualquer celular ou computador",
@@ -110,7 +113,7 @@ const FAQ = [
   },
   {
     q: "Dá pra trocar de plano depois?",
-    a: "Sim. Você pode migrar do Básico pro Pro (ou voltar) quando quiser — a cobrança é ajustada no próximo ciclo.",
+    a: `Sim. Durante os ${TRIAL_DAYS} dias de teste, mudar de plano é livre e imediato, pra você experimentar os dois. Depois do teste, voltar pro Básico continua imediato e sem custo; subir pro Pro passa pelo Mercado Pago, e o acesso libera assim que o pagamento é aprovado.`,
   },
 ];
 
@@ -165,12 +168,14 @@ export default function Home() {
 
       {/* HERO */}
       <section className="grid-field relative overflow-hidden border-b border-line px-6 pb-28 pt-20 md:pt-28">
-        <div className="pointer-events-none absolute -right-24 top-10 h-72 w-72 rounded-full bg-cyan/10 blur-3xl" />
-        <div className="relative mx-auto grid max-w-6xl items-center gap-20 md:grid-cols-[1.05fr_0.95fr]">
+        <HeroGlow />
+        <div className="pointer-events-none absolute -right-24 top-10 h-72 w-72 animate-[drift_11s_ease-in-out_infinite] rounded-full bg-cyan/10 blur-3xl motion-reduce:animate-none" />
+        <div className="pointer-events-none absolute -left-32 bottom-0 h-80 w-80 animate-[drift_14s_ease-in-out_infinite_reverse] rounded-full bg-gold/10 blur-3xl motion-reduce:animate-none" />
+        <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-20 md:grid-cols-[1.05fr_0.95fr]">
           <div className="animate-rise">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-line-strong px-4 py-1.5 font-body text-xs uppercase tracking-[0.2em] text-gold-bright">
-              <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-cyan-bright" />
-              Sistema de agendamento inteligente
+            <div className="mb-6 inline-flex items-center gap-2.5 rounded-full border border-line-strong px-4 py-1.5 font-body text-xs uppercase tracking-[0.2em] text-gold-bright">
+              <Icon path={ICONS.scissors} className="h-3 w-3" />
+              Sistema de agendamento
             </div>
             <h1 className="font-display text-5xl font-bold leading-[1.05] tracking-tight text-bone sm:text-6xl lg:text-[4.1rem]">
               Sua barbearia,
@@ -179,8 +184,8 @@ export default function Home() {
             </h1>
             <p className="mt-6 max-w-lg font-body text-lg leading-relaxed text-bone-dim">
               Um painel pra você, um painel pra cada barbeiro e uma página
-              pública pro cliente agendar e pagar sozinho — tudo conectado,
-              sem troca de mensagem no meio.
+              pública onde o cliente escolhe o horário e paga sozinho —
+              tudo direto no navegador, sem instalar nada.
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-4">
               <a
@@ -292,7 +297,7 @@ export default function Home() {
 
       {/* MARQUEE */}
       <div className="scan-divider" />
-      <div className="overflow-hidden border-b border-line bg-[#0e1220] py-4">
+      <div className="mask-fade-x overflow-hidden border-b border-line bg-[#0e1220] py-4">
         <div className="animate-marquee flex w-max gap-10 whitespace-nowrap">
           {Array.from({ length: 2 }).map((_, i) => (
             <div key={i} className="flex items-center gap-10">
@@ -316,10 +321,80 @@ export default function Home() {
         </div>
       </div>
 
+      {/* ANTES / DEPOIS */}
+      <section className="border-b border-line bg-ink px-6 py-24">
+        <div className="mx-auto max-w-5xl">
+          <Reveal className="text-center">
+            <p className="font-accent text-xs uppercase tracking-[0.2em] text-gold-bright">
+              A diferença no dia a dia
+            </p>
+            <h2 className="mt-3 font-display text-4xl font-bold tracking-tight text-bone sm:text-5xl">
+              O cliente escolhe o horário
+              <br />
+              direto na sua página — sozinho.
+            </h2>
+          </Reveal>
+
+          <div className="relative mt-14 grid gap-6 md:grid-cols-2">
+            <span className="absolute left-1/2 top-1/2 z-10 hidden h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-line-strong bg-ink text-cyan-bright md:flex">
+              <Icon path="M5 12h14M13 6l6 6-6 6" />
+            </span>
+
+            <Reveal delay={0}>
+              <div className="h-full rounded-3xl border border-off-line/40 bg-off-soft/40 p-8">
+                <p className="font-accent text-xs uppercase tracking-widest text-off">
+                  Sem sistema
+                </p>
+                <ul className="mt-5 space-y-4">
+                  {[
+                    "Ninguém enxerga os horários livres de fora",
+                    "Dois clientes podem marcar sem querer no mesmo horário",
+                    "Confirmação e cobrança feitas na mão, uma por uma",
+                    "Estoque de produto controlado de cabeça",
+                  ].map((t) => (
+                    <li key={t} className="flex items-start gap-3 font-body text-sm text-bone-dim">
+                      <Icon
+                        path="M18 6 6 18M6 6l12 12"
+                        className="mt-0.5 h-4 w-4 shrink-0 text-off"
+                      />
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Reveal>
+
+            <Reveal delay={120}>
+              <div className="h-full rounded-3xl border border-gold-bright/30 bg-gradient-to-b from-gold-bright/[0.07] to-transparent p-8 shadow-[0_0_50px_-20px_rgba(255,207,107,0.3)]">
+                <p className="font-accent text-xs uppercase tracking-widest text-gold-bright">
+                  Com a Navalha
+                </p>
+                <ul className="mt-5 space-y-4">
+                  {[
+                    "Cliente entra na sua página e já vê os horários livres",
+                    "Cada horário só é ocupado por uma pessoa, garantido pelo sistema",
+                    "Quem paga online já entra confirmado — sem passo manual",
+                    "Estoque desconta sozinho a cada produto vendido",
+                  ].map((t) => (
+                    <li key={t} className="flex items-start gap-3 font-body text-sm text-bone">
+                      <Icon
+                        path={ICONS.check}
+                        className="mt-0.5 h-4 w-4 shrink-0 text-gold-bright"
+                      />
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
       {/* SYSTEM SCREENS */}
       <section id="sistema" className="border-b border-line bg-[#0a1414] px-6 py-24">
         <div className="mx-auto max-w-6xl">
-          <div className="max-w-xl">
+          <Reveal className="max-w-xl">
             <p className="font-accent text-xs uppercase tracking-[0.2em] text-gold-bright">
               O sistema
             </p>
@@ -331,59 +406,60 @@ export default function Home() {
               barbearia, o barbeiro acompanha a própria agenda, e o cliente
               resolve tudo sozinho.
             </p>
-          </div>
+          </Reveal>
 
           <div className="mt-14 grid gap-6 md:grid-cols-3">
-            {SCREENS.map((s) => {
+            {SCREENS.map((s, i) => {
               const isGold = s.accent === "gold";
               return (
-                <div
-                  key={s.title}
-                  className={`group relative overflow-hidden rounded-2xl border p-7 transition-colors ${
-                    isGold
-                      ? "border-line hover:border-gold-bright/40"
-                      : "border-line hover:border-cyan-bright/40"
-                  } bg-ink-elev/60`}
-                >
+                <Reveal key={s.title} delay={i * 100}>
                   <div
-                    className={`pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl transition-opacity opacity-0 group-hover:opacity-100 ${
-                      isGold ? "bg-gold/15" : "bg-cyan/15"
-                    }`}
-                  />
-                  <div className="relative flex items-center justify-between">
-                    <span
-                      className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
-                        isGold
-                          ? "border-gold/30 bg-gold/10 text-gold-bright"
-                          : "border-cyan/30 bg-cyan/10 text-cyan-bright"
+                    className={`group relative h-full overflow-hidden rounded-2xl border p-7 transition-all duration-300 hover:-translate-y-1.5 ${
+                      isGold
+                        ? "border-line hover:border-gold-bright/40 hover:shadow-[0_20px_50px_-25px_rgba(255,207,107,0.35)]"
+                        : "border-line hover:border-cyan-bright/40 hover:shadow-[0_20px_50px_-25px_rgba(139,242,236,0.35)]"
+                    } bg-ink-elev/60`}
+                  >
+                    <div
+                      className={`pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full blur-3xl transition-opacity opacity-0 group-hover:opacity-100 ${
+                        isGold ? "bg-gold/15" : "bg-cyan/15"
                       }`}
-                    >
-                      <Icon path={s.icon} className="h-5 w-5" />
-                    </span>
-                    <span className="font-accent text-[10px] uppercase tracking-widest text-muted">
-                      {s.tag}
-                    </span>
-                  </div>
-                  <h3 className="relative mt-5 font-display text-xl font-semibold text-bone">
-                    {s.title}
-                  </h3>
-                  <ul className="relative mt-4 space-y-2.5">
-                    {s.items.map((it) => (
-                      <li
-                        key={it}
-                        className="flex items-start gap-2.5 font-body text-sm text-bone-dim"
+                    />
+                    <div className="relative flex items-center justify-between">
+                      <span
+                        className={`flex h-10 w-10 items-center justify-center rounded-xl border transition-transform duration-300 group-hover:scale-110 ${
+                          isGold
+                            ? "border-gold/30 bg-gold/10 text-gold-bright"
+                            : "border-cyan/30 bg-cyan/10 text-cyan-bright"
+                        }`}
                       >
-                        <Icon
-                          path={ICONS.check}
-                          className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${
-                            isGold ? "text-gold-bright" : "text-cyan-bright"
-                          }`}
-                        />
-                        {it}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                        <Icon path={s.icon} className="h-5 w-5" />
+                      </span>
+                      <span className="font-accent text-[10px] uppercase tracking-widest text-muted">
+                        {s.tag}
+                      </span>
+                    </div>
+                    <h3 className="relative mt-5 font-display text-xl font-semibold text-bone">
+                      {s.title}
+                    </h3>
+                    <ul className="relative mt-4 space-y-2.5">
+                      {s.items.map((it) => (
+                        <li
+                          key={it}
+                          className="flex items-start gap-2.5 font-body text-sm text-bone-dim"
+                        >
+                          <Icon
+                            path={ICONS.check}
+                            className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${
+                              isGold ? "text-gold-bright" : "text-cyan-bright"
+                            }`}
+                          />
+                          {it}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </Reveal>
               );
             })}
           </div>
@@ -391,7 +467,7 @@ export default function Home() {
           {/* steps */}
           <div className="mt-24 grid gap-10 md:grid-cols-3">
             {STEPS.map((s, i) => (
-              <div key={s.n} className="relative">
+              <Reveal key={s.n} delay={i * 120} className="relative">
                 <span className="text-outline font-accent text-6xl">{s.n}</span>
                 <h4 className="mt-2 font-display text-xl font-semibold text-bone">
                   {s.title}
@@ -404,7 +480,7 @@ export default function Home() {
                     →
                   </div>
                 )}
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -413,9 +489,9 @@ export default function Home() {
       {/* PRICING */}
       <section id="planos" className="grid-field relative border-b border-line bg-[#150f08] px-6 py-24">
         <div className="relative mx-auto max-w-6xl">
-          <div className="text-center">
+          <Reveal className="text-center">
             <span className="inline-flex items-center gap-2 rounded-full border border-cyan-bright/30 bg-cyan/10 px-4 py-1.5 font-body text-xs font-semibold text-cyan-bright">
-              <span className="pulse-dot h-1.5 w-1.5 rounded-full bg-cyan-bright" />
+              <Icon path={ICONS.check} className="h-3.5 w-3.5" />
               {TRIAL_DAYS} dias grátis em qualquer plano
             </span>
             <p className="mt-5 font-accent text-xs uppercase tracking-[0.2em] text-gold-bright">
@@ -428,20 +504,22 @@ export default function Home() {
               Sem taxa por agendamento, sem contrato de fidelidade. Comece
               pelo plano que quiser com {TRIAL_DAYS} dias de graça e cancele na hora que achar melhor.
             </p>
-          </div>
+          </Reveal>
 
           <div className="mt-16 grid gap-8 md:grid-cols-2">
-            {PLANS.map((plan) => (
+            {PLANS.map((plan, i) => {
+              const [reais, centavos] = plan.price.split(",");
+              return (
+              <Reveal key={plan.id} delay={i * 120}>
               <div
-                key={plan.id}
-                className={`relative flex flex-col rounded-3xl border p-8 md:p-10 ${
+                className={`group relative flex h-full flex-col rounded-3xl border p-8 transition-all duration-300 hover:-translate-y-1.5 md:p-10 ${
                   plan.highlight
-                    ? "glass-panel border-gold-bright/40 shadow-[0_0_60px_-15px_rgba(255,207,107,0.25)]"
-                    : "border-line bg-ink-elev/40"
+                    ? "glass-panel border-gold-bright/40 shadow-[0_0_60px_-15px_rgba(255,207,107,0.25)] hover:shadow-[0_0_70px_-12px_rgba(255,207,107,0.4)]"
+                    : "border-line bg-ink-elev/40 hover:border-line-strong"
                 }`}
               >
                 {plan.highlight && (
-                  <span className="absolute -top-3.5 left-8 rounded-full bg-gold-bright px-4 py-1 font-body text-xs font-bold uppercase tracking-wide text-ink">
+                  <span className="absolute -top-3.5 left-8 rounded-full bg-gold-bright px-4 py-1 font-body text-xs font-bold uppercase tracking-wide text-ink shadow-[0_4px_16px_-4px_rgba(255,207,107,0.6)]">
                     Mais escolhido
                   </span>
                 )}
@@ -457,7 +535,7 @@ export default function Home() {
                     R$
                   </span>
                   <span className="font-accent text-5xl leading-none text-bone">
-                    {plan.price}
+                    <Counter valor={Number(reais)} />,{centavos}
                   </span>
                   <span className="font-body text-sm text-muted">/mês</span>
                 </div>
@@ -484,7 +562,9 @@ export default function Home() {
                     : `R$ ${plan.price}/mês desde o primeiro dia. Cancele quando quiser.`}
                 </p>
               </div>
-            ))}
+              </Reveal>
+              );
+            })}
           </div>
 
           <p className="mt-8 flex items-center justify-center gap-2 text-center font-body text-xs text-muted">
@@ -498,16 +578,19 @@ export default function Home() {
       {/* FAQ */}
       <section id="faq" className="border-b border-line bg-[#120c17] px-6 py-24">
         <div className="mx-auto max-w-3xl">
-          <p className="text-center font-accent text-xs uppercase tracking-[0.2em] text-gold-bright">
+          <Reveal className="text-center">
+          <p className="font-accent text-xs uppercase tracking-[0.2em] text-gold-bright">
             Dúvidas
           </p>
-          <h2 className="mt-3 text-center font-display text-4xl font-bold tracking-tight text-bone">
+          <h2 className="mt-3 font-display text-4xl font-bold tracking-tight text-bone">
             Perguntas frequentes
           </h2>
+          </Reveal>
 
           <div className="mt-12 divide-y divide-line border-y border-line">
-            {FAQ.map((item) => (
-              <details key={item.q} className="group py-5">
+            {FAQ.map((item, i) => (
+              <Reveal key={item.q} delay={i * 70}>
+              <details className="group py-5">
                 <summary className="flex cursor-pointer list-none items-center justify-between font-display text-lg font-medium text-bone">
                   {item.q}
                   <span className="ml-4 shrink-0 font-accent text-xl text-gold-bright transition-transform group-open:rotate-45">
@@ -518,6 +601,7 @@ export default function Home() {
                   {item.a}
                 </p>
               </details>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -525,8 +609,8 @@ export default function Home() {
 
       {/* FINAL CTA */}
       <section className="relative overflow-hidden bg-[#0c0a06] px-6 py-24">
-        <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-gold/10 blur-3xl" />
-        <div className="relative mx-auto max-w-3xl text-center">
+        <div className="pointer-events-none absolute left-1/2 top-0 h-64 w-[36rem] -translate-x-1/2 animate-[drift_13s_ease-in-out_infinite] rounded-full bg-gold/10 blur-3xl motion-reduce:animate-none" />
+        <Reveal className="relative mx-auto max-w-3xl text-center">
           <h2 className="font-display text-4xl font-bold tracking-tight text-bone sm:text-5xl">
             Pronto pra tirar sua barbearia
             <br />
@@ -542,7 +626,7 @@ export default function Home() {
           >
             Começar agora
           </a>
-        </div>
+        </Reveal>
       </section>
 
       {/* FOOTER */}
