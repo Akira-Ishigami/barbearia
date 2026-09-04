@@ -326,13 +326,15 @@ export async function getBarbeiros(barbeariaId: string): Promise<BarbeiroPerfil[
  * tabela `barbeiros` direto exigiria estar logado como equipe.
  */
 export async function getBarbeirosPublico(barbeariaId: string): Promise<BarbeiroPerfil[]> {
-  const { data, error } = await supabase()
-    .from("barbeiros_publico")
-    .select("*")
-    .eq("barbearia_id", barbeariaId)
-    .order("nome");
+  // RPC (função, não view): uma chamada só nunca devolve mais que o time
+  // desta barbearia — ver `barbeiros_publico()` em schema.sql.
+  const { data, error } = await supabase().rpc("barbeiros_publico", {
+    p_barbearia: barbeariaId,
+  });
   erro(error);
-  return (data ?? []).map((l) => ({
+  const linhas = (data ?? []) as LinhaBarbearia[];
+  linhas.sort((a, b) => (a.nome as string).localeCompare(b.nome as string));
+  return linhas.map((l) => ({
     id: l.id as string,
     barbeariaId: l.barbearia_id as string,
     usuarioId: null,

@@ -331,14 +331,29 @@ create policy "leitura publica produtos" on produtos
 -- pra quem é da equipe (política "equipe le barbeiros", que já existe).
 drop policy if exists "leitura publica barbeiros" on barbeiros;
 
+-- Era uma view sem escopo (`select * from barbeiros_publico`, sem exigir
+-- barbearia) — testado ao vivo: uma chamada só, sem login, devolvia nome
+-- e foto de barbeiro de QUALQUER barbearia da plataforma, não só a que a
+-- vitrine pública pediu. Cada equipe isolada é pública de propósito, mas
+-- o catálogo inteiro junto não é. Vira função, no mesmo molde de
+-- `horarios_ocupados()`: exige barbearia_id, então uma chamada só nunca
+-- devolve mais que o time de uma loja.
 drop view if exists public.barbeiros_publico;
-create view public.barbeiros_publico
-with (security_invoker = false) as
+
+create or replace function public.barbeiros_publico(p_barbearia uuid)
+returns table (id uuid, barbearia_id uuid, nome text, especialidade text, foto text, ativo boolean)
+language sql
+stable
+security definer
+set search_path = public
+as $$
   select id, barbearia_id, nome, especialidade, foto, ativo
     from barbeiros
-   where ativo = true;
+   where barbearia_id = p_barbearia and ativo = true
+$$;
 
-grant select on public.barbeiros_publico to anon, authenticated;
+revoke all on function public.barbeiros_publico(uuid) from public;
+grant execute on function public.barbeiros_publico(uuid) to anon, authenticated;
 
 -- A página pública precisa saber quais horários já estão tomados, mas não
 -- pode ver o nome nem o telefone de quem marcou. Por isso a leitura sai por
@@ -388,17 +403,34 @@ begin
   end loop;
 end $$;
 
--- Agenda, pedidos e estoque: quem é da barbearia enxerga e mexe.
+-- Agenda, pedidos e estoque: quem é da barbearia enxerga.
+--
+-- Era "for all" (dono e barbeiro com CRUD completo, DELETE incluso) —
+-- testado o alcance real: o navegador só faz SELECT nas três, e UPDATE de
+-- status em agendamentos (cancelar/concluir); criar e apagar pedido,
+-- agendamento e movimento de estoque sempre passa por rota de API com
+-- service_role (checkout, RPC de estoque). RLS mais largo que o uso real
+-- deixava qualquer barbeiro (não só o dono) apagar pedido/agenda/estoque
+-- da própria barbearia direto pela REST API do Supabase, sem passar pelo
+-- app — restringe pra só o que de fato é usado.
 do $$
 declare t text;
 begin
   foreach t in array array['agendamentos','pedidos','movimentos_estoque'] loop
     execute format('drop policy if exists "equipe usa %1$s" on %1$s', t);
+    execute format('drop policy if exists "equipe le %1$s" on %1$s', t);
     execute format(
-      'create policy "equipe usa %1$s" on %1$s for all
-         using (barbearia_id = public.minha_barbearia())
-         with check (barbearia_id = public.minha_barbearia())', t);
+      'create policy "equipe le %1$s" on %1$s for select
+         using (barbearia_id = public.minha_barbearia())', t);
   end loop;
+
+  -- Só agendamentos recebe update do navegador (cancelar/concluir) — os
+  -- outros dois nunca são alterados fora de rota de API/RPC.
+  execute 'drop policy if exists "equipe atualiza agendamentos" on agendamentos';
+  execute
+    'create policy "equipe atualiza agendamentos" on agendamentos for update
+       using (barbearia_id = public.minha_barbearia())
+       with check (barbearia_id = public.minha_barbearia())';
 end $$;
 
 -- ---------- Cliente vê o próprio histórico ----------
