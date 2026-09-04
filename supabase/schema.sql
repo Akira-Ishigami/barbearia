@@ -881,3 +881,40 @@ create index if not exists plataforma_pagamentos_idx on plataforma_pagamentos (p
 alter table plataforma_pagamentos enable row level security;
 -- Mesma regra das outras tabelas de plataforma: sem policy, só o service
 -- role (rotas de API) enxerga.
+
+-- ============================================================
+-- Chat de suporte — barbearia fala com a Navalha
+-- ============================================================
+-- Uma conversa contínua por barbearia (não por ticket): reabrir não perde
+-- o histórico. `atendido_por` é a trava — enquanto tiver e-mail preenchido
+-- e recente, mais ninguém do suporte entra na mesma conversa. Sem policy
+-- de RLS, como as outras tabelas de plataforma: os dois lados (barbearia
+-- e suporte) passam por rota de API, que decide quem pode ler/escrever —
+-- a trava de "um suporte por vez" exige um UPDATE atômico que RLS sozinho
+-- não expressa bem.
+create table if not exists suporte_conversas (
+  id                  uuid primary key default gen_random_uuid(),
+  barbearia_id        uuid not null references barbearias(id) on delete cascade unique,
+  atendido_por        text,
+  atendido_desde      timestamptz,
+  ultima_mensagem_em  timestamptz not null default now(),
+  criada_em           timestamptz not null default now()
+);
+
+create table if not exists suporte_mensagens (
+  id           uuid primary key default gen_random_uuid(),
+  conversa_id  uuid not null references suporte_conversas(id) on delete cascade,
+  de           text not null,          -- 'barbearia' | 'suporte'
+  autor_nome   text not null default '',
+  autor_email  text,
+  texto        text,
+  -- Igual à foto de barbeiro (data URL base64): mesmo teto de ~2MB,
+  -- validado na rota. Vídeo/áudio ficam pra quando tiver um provedor
+  -- externo — não dá pra guardar chamada de vídeo numa coluna de texto.
+  foto         text,
+  criado_em    timestamptz not null default now()
+);
+create index if not exists suporte_mensagens_idx on suporte_mensagens (conversa_id, criado_em);
+
+alter table suporte_conversas enable row level security;
+alter table suporte_mensagens enable row level security;

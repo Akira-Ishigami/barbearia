@@ -36,6 +36,7 @@ const ESTACOES = [
   { href: "/adm/clientes", n: "04", label: "Clientes", nota: "quem agenda", soAdmin: false },
   { href: "/adm/registro", n: "05", label: "Registro", nota: "o que foi feito", soAdmin: false },
   { href: "/adm/equipe", n: "06", label: "Equipe", nota: "quem tem acesso", soAdmin: true },
+  { href: "/adm/suporte", n: "07", label: "Suporte", nota: "conversa com cada barbearia", soAdmin: false },
 ];
 
 export default function AdmLayout({ children }: { children: React.ReactNode }) {

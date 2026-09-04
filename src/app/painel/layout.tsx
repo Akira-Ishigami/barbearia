@@ -25,6 +25,7 @@ const NAV = [
   { href: "/painel/localizacao", label: "Localização", pro: false },
   { href: "/painel/pagamentos", label: "Pagamentos", pro: false },
   { href: "/painel/relatorios", label: "Relatórios", pro: true },
+  { href: "/painel/suporte", label: "Suporte", pro: false },
 ];
 
 export default function PainelLayout({ children }: { children: React.ReactNode }) {
