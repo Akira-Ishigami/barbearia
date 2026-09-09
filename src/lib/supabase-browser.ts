@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { tokenImpersonado } from "./impersonar-browser";
 
 /**
  * Cliente do Supabase usado no navegador — chave anônima, então tudo o que
@@ -29,6 +30,13 @@ export function supabase(): SupabaseClient {
     );
   }
 
+  // Aba em modo "Ver como" guarda a sessão em sessionStorage, não
+  // localStorage: localStorage é compartilhado entre todas as abas da
+  // mesma origem, e a sessão real que o "Ver como" estabelece (ver
+  // `bootstrapSessaoImpersonada`) é só pra essa aba — senão vazaria pra
+  // outras abas e até pra sessão de verdade do admin em /adm.
+  const emImpersonacao = typeof window !== "undefined" && Boolean(tokenImpersonado());
+
   cache = createClient(url, anon, {
     auth: {
       // Mantém o login salvo entre visitas e renova o token sozinho antes de
@@ -37,6 +45,7 @@ export function supabase(): SupabaseClient {
       persistSession: true,
       autoRefreshToken: true,
       storageKey: "navalha-auth",
+      ...(emImpersonacao ? { storage: window.sessionStorage } : {}),
     },
   });
   return cache;

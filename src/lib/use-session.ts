@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { supabase, supabaseConfigurado } from "./supabase-browser";
-import { CHAVE_IMPERSONACAO, tokenImpersonado } from "./impersonar-browser";
+import {
+  bootstrapSessaoImpersonada,
+  CHAVE_IMPERSONACAO,
+  tokenImpersonado,
+} from "./impersonar-browser";
 import type { Session, UserRole } from "./types";
 
 /**
@@ -20,6 +24,11 @@ export type SessionState = Session | null | undefined;
  * (assinado por `/api/adm/ver-como`) é quem diz quem está logado.
  */
 async function carregarSessaoImpersonada(token: string): Promise<Session | null> {
+  // Estabelece a sessão real do Supabase (nesta aba só) antes de mais nada
+  // — sem ela, agenda/barbeiros/estoque e tudo que lê direto do Supabase
+  // (protegido por RLS) fica vazio mesmo com o token de impersonação.
+  await bootstrapSessaoImpersonada(supabase());
+
   const r = await fetch("/api/impersonar/quem-sou", {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -123,12 +132,17 @@ export async function entrar(
 }
 
 export async function sair() {
-  // Modo "Ver como": não existe sessão real do Supabase pra encerrar
-  // aqui — e chamar signOut() apagaria a sessão de verdade do admin,
-  // que este navegador compartilha entre abas da mesma origem.
+  // Modo "Ver como": a sessão real (se existir) mora no sessionStorage
+  // desta aba, isolada da sessão de verdade do admin em localStorage —
+  // seguro chamar signOut() aqui, ele só derruba a sessão da aba.
   if (tokenImpersonado()) {
     try {
-      window.sessionStorage.removeItem("navalha_impersonar");
+      if (supabaseConfigurado()) await supabase().auth.signOut();
+    } catch {
+      /* segue mesmo assim */
+    }
+    try {
+      window.sessionStorage.removeItem(CHAVE_IMPERSONACAO);
     } catch {
       /* segue mesmo assim — a aba fecha ou volta pro início */
     }

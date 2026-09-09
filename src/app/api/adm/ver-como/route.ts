@@ -72,34 +72,87 @@ async function garantirCatalogoDemo(db: Db, barbeariaId: string): Promise<void> 
   ]);
 }
 
+interface UsuarioDemo {
+  usuarioId: string;
+  authUserId: string;
+  email: string;
+}
+
+/**
+ * Precisa de um `auth_user_id` de verdade — não só a linha em `usuarios` —
+ * porque boa parte do app lê o Supabase direto do navegador (agenda,
+ * barbeiros, estoque...), protegido por RLS, que exige `auth.uid()` real.
+ * Sem isso essas telas ficam vazias mesmo com o token de impersonação
+ * funcionando pras rotas de API.
+ *
+ * Ninguém loga nessa conta por e-mail/senha: a senha é sorteada e
+ * descartada a cada "Ver como" (ver `sessaoRealDemo`), então não existe
+ * senha fixa pra vazar.
+ */
 async function garantirUsuarioDemo(
   db: Db,
   barbeariaId: string,
   papel: "dono" | "barbeiro",
-): Promise<string> {
+): Promise<UsuarioDemo> {
+  const email = `demo-${papel}@navalha.local`;
+
   const { data: existente } = await db
     .from("usuarios")
-    .select("id")
+    .select("id, auth_user_id")
     .eq("barbearia_id", barbeariaId)
     .eq("role", papel)
     .maybeSingle();
-  if (existente) return existente.id as string;
 
-  // auth_user_id fica nulo de propósito: esse usuário nunca loga por
-  // e-mail/senha, só entra pelo token de impersonação.
+  if (existente?.auth_user_id) {
+    return { usuarioId: existente.id as string, authUserId: existente.auth_user_id as string, email };
+  }
+
+  // Existe a linha em `usuarios` mas não a conta de login (demo criada
+  // antes desta função existir) — cria a conta agora e liga as duas.
+  const { data: criado, error: erroAuth } = await db.auth.admin.createUser({
+    email,
+    password: crypto.randomUUID(),
+    email_confirm: true,
+  });
+  if (erroAuth || !criado.user) {
+    throw new Error(erroAuth?.message ?? "Falha ao criar o login demo.");
+  }
+
+  if (existente) {
+    await db.from("usuarios").update({ auth_user_id: criado.user.id }).eq("id", existente.id);
+    return { usuarioId: existente.id as string, authUserId: criado.user.id, email };
+  }
+
   const { data: novo, error } = await db
     .from("usuarios")
     .insert({
       barbearia_id: barbeariaId,
       nome: papel === "dono" ? "Dono (demo)" : "Barbeiro (demo)",
-      email: `demo-${papel}@navalha.local`,
+      email,
       role: papel,
+      auth_user_id: criado.user.id,
     })
     .select("id")
     .single();
 
-  if (error || !novo) throw new Error(error?.message ?? "Falha ao criar o usuário demo.");
-  return novo.id as string;
+  if (error || !novo) {
+    await db.auth.admin.deleteUser(criado.user.id).catch(() => {});
+    throw new Error(error?.message ?? "Falha ao criar o usuário demo.");
+  }
+  return { usuarioId: novo.id as string, authUserId: criado.user.id, email };
+}
+
+/**
+ * Sessão real do Supabase Auth pro usuário demo, via magic link gerado
+ * pelo servidor — nunca envia e-mail nenhum, só devolve o token pra
+ * trocar por sessão no navegador (`verifyOtp`, em `impersonar-browser.ts`).
+ * Isolada na aba: ver `supabase-browser.ts`.
+ */
+async function gerarOtpSessaoReal(db: Db, email: string): Promise<string> {
+  const { data, error } = await db.auth.admin.generateLink({ type: "magiclink", email });
+  const hash = data?.properties?.hashed_token;
+  if (error || !hash) throw new Error(error?.message ?? "Falha ao preparar a sessão demo.");
+  return hash;
 }
 
 /** O perfil público (tabela `barbeiros`) é o que a agenda e a loja usam — sem ele o barbeiro demo não aparece em nenhuma tela. */
@@ -184,18 +237,22 @@ export async function GET(request: NextRequest) {
     const barbeariaId = await garantirBarbeariaDemo(db);
     await garantirCatalogoDemo(db, barbeariaId);
 
-    const usuarioDonoId = await garantirUsuarioDemo(db, barbeariaId, "dono");
-    const usuarioBarbeiroId = await garantirUsuarioDemo(db, barbeariaId, "barbeiro");
-    const barbeiroId = await garantirBarbeiroDemo(db, barbeariaId, usuarioBarbeiroId);
+    const donoDemo = await garantirUsuarioDemo(db, barbeariaId, "dono");
+    const barbeiroDemo = await garantirUsuarioDemo(db, barbeariaId, "barbeiro");
+    const barbeiroId = await garantirBarbeiroDemo(db, barbeariaId, barbeiroDemo.usuarioId);
     await garantirAgendaDemo(db, barbeariaId, barbeiroId);
 
-    const usuarioId = papel === "dono" ? usuarioDonoId : usuarioBarbeiroId;
+    const alvo = papel === "dono" ? donoDemo : barbeiroDemo;
 
     await registrarAcao(quem, "ver_como_demo", barbeariaId, `entrou como ${papel} (demo)`);
 
-    const token = gerarTokenImpersonacao(usuarioId);
+    const [token, otp] = await Promise.all([
+      Promise.resolve(gerarTokenImpersonacao(alvo.usuarioId)),
+      gerarOtpSessaoReal(db, alvo.email),
+    ]);
     const destino = papel === "dono" ? "/painel" : "/barbeiro";
-    return NextResponse.json({ url: `${destino}?impersonar=${encodeURIComponent(token)}` });
+    const params = new URLSearchParams({ impersonar: token, otp });
+    return NextResponse.json({ url: `${destino}?${params.toString()}` });
   } catch (e) {
     return NextResponse.json(
       { erro: e instanceof Error ? e.message : "Não foi possível preparar a conta demo." },
