@@ -12,11 +12,22 @@ const CHAVE_OTP_CONSUMIDO = "navalha_impersonar_sessao_real";
  * limpa da URL na hora — senão fica no histórico.
  *
  * Usado tanto por `lib/db.ts` (cabeçalho das chamadas de API) quanto por
- * `lib/use-session.ts` (decidir se a aba está logada) — os dois precisam
+ * `lib/supabase-browser.ts` (decidir localStorage vs sessionStorage) e
+ * `lib/use-session.ts` (decidir se a aba está logada) — os três precisam
  * concordar sobre o mesmo token.
+ *
+ * Roda uma vez, no CARREGAMENTO do módulo — não na primeira chamada da
+ * função. `supabase()` decide localStorage ou sessionStorage checando
+ * isto; se a leitura da URL só acontecesse na primeira chamada de
+ * `tokenImpersonado()`, um efeito de OUTRO hook chamando `supabase()`
+ * primeiro (ordem de render não é garantida entre hooks) criaria o
+ * cliente configurado pro localStorage — compartilhado com a sessão de
+ * verdade do admin — e, por ser cache de módulo, ficaria errado pro
+ * resto da aba. Módulo ES roda o topo uma vez só, antes de qualquer
+ * import conseguir chamar as funções exportadas — sem essa corrida.
  */
-export function tokenImpersonado(): string | null {
-  if (typeof window === "undefined") return null;
+let tokenCache: string | null = null;
+if (typeof window !== "undefined") {
   try {
     const daUrl = new URLSearchParams(window.location.search).get("impersonar");
     if (daUrl) {
@@ -24,12 +35,17 @@ export function tokenImpersonado(): string | null {
       const url = new URL(window.location.href);
       url.searchParams.delete("impersonar");
       window.history.replaceState({}, "", url.toString());
-      return daUrl;
+      tokenCache = daUrl;
+    } else {
+      tokenCache = window.sessionStorage.getItem(CHAVE_IMPERSONACAO);
     }
-    return window.sessionStorage.getItem(CHAVE_IMPERSONACAO);
   } catch {
-    return null;
+    tokenCache = null;
   }
+}
+
+export function tokenImpersonado(): string | null {
+  return tokenCache;
 }
 
 /**
