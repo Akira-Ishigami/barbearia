@@ -74,14 +74,17 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
       )}
 
       {/* Sino de pendentes — no mobile a sidebar vira barra horizontal, então
-          ele fica flutuando no canto pra continuar acessível de qualquer tela. */}
+          ele fica flutuando no canto pra continuar acessível de qualquer tela.
+          Compact (só o círculo) pra não cobrir o card embaixo com o rótulo
+          "Pendentes" por extenso. */}
       {pendentes > 0 && (
-        <div className="fixed bottom-5 right-5 z-50 w-56 md:hidden">
+        <div className="fixed bottom-5 right-5 z-50 md:hidden">
           <PendentesPopover
             barbeariaId={session.barbeariaId}
             pendentes={pendentes}
             flash={flash}
             direction="up"
+            compact
           />
         </div>
       )}

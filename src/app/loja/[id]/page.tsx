@@ -364,7 +364,8 @@ export default function LojaPublicaPage() {
                   <div className="mb-4 flex items-baseline justify-between">
                     <h3 className="font-display text-lg font-semibold text-bone">{cat}</h3>
                     <span className="font-accent text-[11px] text-muted">
-                      {produtos.filter((p) => p.categoria === cat).length} itens
+                      {produtos.filter((p) => p.categoria === cat).length}{" "}
+                      {produtos.filter((p) => p.categoria === cat).length === 1 ? "item" : "itens"}
                     </span>
                   </div>
                   <ScrollRail ariaLabel={`Produtos — ${cat}`}>

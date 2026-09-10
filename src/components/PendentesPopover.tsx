@@ -18,6 +18,7 @@ export function PendentesPopover({
   flash,
   direction = "down",
   accent = "gold",
+  compact = false,
 }: {
   barbeariaId: string;
   /** Passe pra listar só os pendentes desse barbeiro. */
@@ -26,6 +27,10 @@ export function PendentesPopover({
   flash: boolean;
   direction?: "down" | "up";
   accent?: "gold" | "cyan";
+  /** Botão vira um círculo só com o sino — pro flutuante do mobile, que
+   * senão cobre bastante conteúdo por baixo com o rótulo "Pendentes" por
+   * extenso. O painel inteiro continua a um toque de distância. */
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -78,11 +83,19 @@ export function PendentesPopover({
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label={`${pendentes} agendamento(s) aguardando confirmação`}
-        className={`relative flex h-10 w-full items-center justify-center gap-2 rounded-lg border px-3 font-body text-sm transition-colors ${
-          pendentes > 0
-            ? "border-warn-line bg-warn-soft text-warn hover:bg-warn-soft"
-            : "border-line-strong text-bone-dim hover:text-bone"
-        }`}
+        className={
+          compact
+            ? `relative flex h-13 w-13 items-center justify-center rounded-full border shadow-lg transition-colors ${
+                pendentes > 0
+                  ? "border-warn-line bg-warn-soft text-warn"
+                  : "border-line-strong bg-ink-elev text-bone-dim"
+              }`
+            : `relative flex h-10 w-full items-center justify-center gap-2 rounded-lg border px-3 font-body text-sm transition-colors ${
+                pendentes > 0
+                  ? "border-warn-line bg-warn-soft text-warn hover:bg-warn-soft"
+                  : "border-line-strong text-bone-dim hover:text-bone"
+              }`
+        }
       >
         <svg
           viewBox="0 0 24 24"
@@ -91,16 +104,16 @@ export function PendentesPopover({
           strokeWidth={1.7}
           strokeLinecap="round"
           strokeLinejoin="round"
-          className="h-4 w-4"
+          className="h-4 w-4 shrink-0"
         >
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" />
         </svg>
-        <span>Pendentes</span>
+        {!compact && <span>Pendentes</span>}
         {pendentes > 0 && (
           <span
-            className={`ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-warn px-1 font-accent text-[11px] font-semibold text-ink ${
+            className={`flex h-5 min-w-5 items-center justify-center rounded-full bg-warn px-1 font-accent text-[11px] font-semibold text-ink ${
               flash ? "pulse-badge" : ""
-            }`}
+            } ${compact ? "absolute -right-1 -top-1" : "ml-auto"}`}
           >
             {pendentes}
           </span>
@@ -110,10 +123,11 @@ export function PendentesPopover({
       {open && (
         <div
           // No desktop passa da largura da barra de propósito: cabe o nome do
-          // cliente e o total sem cortar nenhum dos dois.
-          className={`absolute left-0 right-0 z-50 max-h-80 overflow-y-auto rounded-xl border border-line-strong bg-ink-elev p-2 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.9)] md:right-auto md:w-80 ${
-            direction === "up" ? "bottom-full mb-2" : "top-full mt-2"
-          }`}
+          // cliente e o total sem cortar nenhum dos dois. Compact (FAB do
+          // mobile) não tem uma barra pra herdar largura, então leva a dele.
+          className={`absolute right-0 z-50 max-h-80 overflow-y-auto rounded-xl border border-line-strong bg-ink-elev p-2 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.9)] ${
+            compact ? "w-72" : "left-0 md:left-auto md:w-80"
+          } ${direction === "up" ? "bottom-full mb-2" : "top-full mt-2"}`}
         >
           {itens.length === 0 ? (
             <p className="px-3 py-6 text-center font-body text-xs text-muted">
