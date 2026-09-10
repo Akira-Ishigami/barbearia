@@ -8,7 +8,14 @@ import { validarProdutos, validarServicos } from "@/lib/pedido-server";
  *
  * Vem pra cá (e não direto do navegador) porque o cliente não está logado:
  * ele não tem permissão de escrever em `pedidos`/`agendamentos` pelo RLS.
- * O horário entra como "pendente" até a barbearia confirmar.
+ *
+ * O horário entra direto como "confirmado" — pagar no balcão é só uma
+ * forma de pagamento, não motivo pra segurar o agendamento esperando a
+ * barbearia aprovar. (`pedidos.status_pagamento` continua "pendente": o
+ * dinheiro mesmo só entra na hora, isso aqui não muda.) Diferente do Pix
+ * direto, que fica "pendente" de propósito — sem webhook, ninguém sabe
+ * se o Pix realmente caiu, então o dono precisa olhar o extrato e
+ * confirmar manualmente antes.
  */
 interface Corpo {
   barbeariaId: string;
@@ -102,7 +109,7 @@ export async function POST(request: NextRequest) {
       duracao_min: s.duracaoMin,
       data: c.data,
       hora: s.hora,
-      status: "pendente",
+      status: "confirmado",
     })),
   );
 
@@ -127,6 +134,12 @@ export async function POST(request: NextRequest) {
         preco: p.preco,
       })),
     );
+
+    // O agendamento já nasce "confirmado" (ver comentário acima), então
+    // ninguém passa pelo confirmar_agendamento() que normalmente dá essa
+    // baixa — dá aqui, na hora, pro estoque não ficar contando produto
+    // que já foi reservado.
+    await db.rpc("baixar_estoque_pedido_pago", { p_pedido: pedido.id });
   }
 
   return NextResponse.json({ ok: true, pedidoId: pedido.id });

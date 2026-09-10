@@ -35,7 +35,7 @@ export const PLANS: Plan[] = [
     tagline: "Pra sair do caderno e da agenda manual.",
     features: [
       "Agenda da semana com horários dos clientes",
-      "Confirmação de agendamento pago no local",
+      "Agendamento pago no local, garantido na hora",
       "Horário de funcionamento configurável",
       "Cadastro de serviços por categoria, com foto",
       "Página pública com endereço e mapa",

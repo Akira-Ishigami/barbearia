@@ -84,8 +84,8 @@ function PagamentoConteudo() {
     return (
       <Resultado
         barbeariaId={barbearia.id}
-        titulo="Agendamento enviado!"
-        texto="A barbearia vai confirmar seu horário. Você paga no balcão no dia."
+        titulo="Horário marcado!"
+        texto="Seu horário está garantido. Você paga no balcão no dia."
         extra={
           confirmado.temProdutos
             ? "Seus produtos ficam separados pra retirada no dia da visita."
@@ -383,7 +383,7 @@ function PagamentoConteudo() {
                 Pagar no local
               </span>
               <span className="block font-body text-xs text-muted">
-                A barbearia precisa confirmar seu horário antes
+                Horário garantido na hora · você paga na barbearia
               </span>
             </span>
           </button>
