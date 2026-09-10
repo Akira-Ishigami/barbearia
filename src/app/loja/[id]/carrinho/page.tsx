@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLoja } from "@/lib/loja-context";
 import { caminhoLoja } from "@/lib/slug";
 import { getClienteLogado } from "@/lib/cliente-db";
@@ -87,11 +87,24 @@ export default function CheckoutPage() {
   // Os horários ocupados vêm do banco, então mudam quando outra pessoa
   // marca — recarrega sempre que o dia escolhido muda. Precisa ficar antes
   // de qualquer return: hooks não podem ser chamados condicionalmente.
-  const { dados: ocupadosPorBarbeiro } = useAsync(
+  const { dados: ocupadosPorBarbeiro, recarregar: recarregarOcupados } = useAsync(
     () => getHorariosOcupados(barbearia!.id, dia),
     [barbearia?.id, dia],
     { pular: !dia || !barbearia },
   );
+
+  // Num pico de gente escolhendo horário ao mesmo tempo, a lista buscada
+  // uma vez só fica velha rápido — várias pessoas veriam o mesmo horário
+  // como "livre" até uma delas de fato confirmar. Atualiza sozinho
+  // enquanto o dia estiver selecionado; não é o fim do mundo se ficar
+  // desatualizado por alguns segundos (a reserva de verdade é travada no
+  // banco), só reduz quanta gente esbarra no "horário acabou de ser
+  // ocupado" na hora de confirmar.
+  useEffect(() => {
+    if (!dia) return;
+    const t = setInterval(recarregarOcupados, 8000);
+    return () => clearInterval(t);
+  }, [dia, recarregarOcupados]);
 
   if (!barbearia) return null;
 
