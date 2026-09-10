@@ -165,12 +165,33 @@ create table if not exists agendamentos (
   criado_em      timestamptz not null default now()
 );
 
--- Um barbeiro não pode ter dois agendamentos vivos no mesmo horário.
--- É esta linha que impede duas pessoas fecharem o mesmo horário ao
--- mesmo tempo — a checagem no app sozinha não segura corrida.
-create unique index if not exists agendamentos_slot_unico
-  on agendamentos (barbeiro_id, data, hora)
-  where status in ('aguardando_pagamento', 'pendente', 'confirmado', 'concluido');
+-- Um barbeiro não pode ter dois agendamentos vivos que se sobrepõem no
+-- tempo. Era um índice único em (barbeiro_id, data, hora) — pegava só
+-- colisão de horário EXATO. Uma visita de serviço combinado (50min às
+-- 09:00, por exemplo) e outra de 30min às 09:20 se sobrepõem de verdade
+-- (09:20–09:50 cai dentro de 09:00–09:50) mas têm `hora` diferente, então
+-- o índice não via problema — dava pra dois clientes ficarem com o mesmo
+-- barbeiro no mesmo minuto. `intervalo` guarda o horário inteiro da
+-- visita (início ao fim, calculado da duração), e a exclusão barra
+-- qualquer sobreposição real, não só o início batendo igual.
+create extension if not exists btree_gist;
+
+alter table agendamentos add column if not exists intervalo tsrange
+  generated always as (
+    tsrange(
+      (data::text || ' ' || hora)::timestamp,
+      (data::text || ' ' || hora)::timestamp + (duracao_min || ' minutes')::interval
+    )
+  ) stored;
+
+drop index if exists agendamentos_slot_unico;
+
+alter table agendamentos drop constraint if exists agendamentos_sem_sobreposicao;
+alter table agendamentos add constraint agendamentos_sem_sobreposicao
+  exclude using gist (
+    barbeiro_id with =,
+    intervalo with &&
+  ) where (status in ('aguardando_pagamento', 'pendente', 'confirmado', 'concluido'));
 
 create index if not exists agendamentos_agenda_idx
   on agendamentos (barbearia_id, data);

@@ -137,7 +137,9 @@ export async function POST(request: NextRequest) {
 
   if (erroAgenda) {
     await db.from("pedidos").delete().eq("id", pedido.id);
-    const conflito = erroAgenda.code === "23505";
+    // 23505 = índice único (compat); 23P01 = exclusão de sobreposição de
+    // horário — a proteção de verdade, ver agendamentos_sem_sobreposicao.
+    const conflito = erroAgenda.code === "23505" || erroAgenda.code === "23P01";
     return NextResponse.json(
       {
         erro: conflito
