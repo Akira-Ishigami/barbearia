@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { sair } from "@/lib/use-session";
 import { usePlataforma } from "@/lib/use-plataforma";
 
@@ -43,11 +43,17 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const acesso = usePlataforma();
+  const [menuAberto, setMenuAberto] = useState(false);
 
   useEffect(() => {
     // `undefined` = ainda verificando; só decide quando a resposta chega.
     if (acesso === null) router.replace("/login?motivo=sem-acesso");
   }, [acesso, router]);
+
+  // Fecha a gaveta sozinha ao trocar de estação.
+  useEffect(() => {
+    setMenuAberto(false);
+  }, [pathname]);
 
   if (acesso === undefined) {
     return (
@@ -69,8 +75,58 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="adm-paper flex flex-1 flex-col bg-ink text-bone lg:flex-row">
+      {/* Barra do topo, só no celular: hambúrguer abre a gaveta com a
+          estação inteira (a barra lateral de verdade fica pro desktop,
+          lg:). Sticky pra continuar acessível rolando a tela. */}
+      <div className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b border-line bg-ink-elev/95 px-5 py-4 backdrop-blur-sm lg:hidden">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setMenuAberto(true)}
+            aria-label="Abrir menu"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line-strong text-bone-dim"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.8}
+              strokeLinecap="round"
+              className="h-4 w-4"
+            >
+              <path d="M3 6h18M3 12h18M3 18h18" />
+            </svg>
+          </button>
+          <span className="flex items-baseline gap-2">
+            <span className="font-display text-lg font-bold leading-none text-bone">
+              Navalha
+            </span>
+            <span className="font-accent text-[10px] font-bold uppercase tracking-[0.1em] text-cyan">
+              plataforma
+            </span>
+          </span>
+        </div>
+        <span className="rounded-full bg-ink-elev-2 px-2.5 py-1 font-accent text-[11px] font-bold uppercase tracking-wide text-bone-dim">
+          {admin ? "Admin" : "Suporte"}
+        </span>
+      </div>
+
+      {/* Fundo escurecido atrás da gaveta — toca fora pra fechar. */}
+      {menuAberto && (
+        <div
+          onClick={() => setMenuAberto(false)}
+          className="fixed inset-0 z-[105] bg-black/50 lg:hidden"
+        />
+      )}
+
       {/* ---------- Estações ---------- */}
-      <aside className="border-b border-line bg-ink-elev lg:sticky lg:top-0 lg:h-screen lg:w-64 lg:shrink-0 lg:border-b-0 lg:border-r">
+      {/* Vira gaveta no celular (fixed, desliza da esquerda) e barra
+          lateral de verdade no desktop. */}
+      <aside
+        style={{ paddingBottom: "max(1.25rem, calc(env(safe-area-inset-bottom) + 0.75rem))" }}
+        className={`fixed inset-y-0 left-0 z-[110] w-72 -translate-x-full overflow-y-auto border-r border-line bg-ink-elev transition-transform duration-300 ease-out lg:sticky lg:top-0 lg:z-auto lg:h-screen lg:w-64 lg:translate-x-0 lg:shrink-0 lg:border-b-0 lg:transition-none ${
+          menuAberto ? "translate-x-0" : ""
+        }`}
+      >
         <div className="flex h-full flex-col px-5 py-5 lg:px-6 lg:py-7">
           <div className="flex items-center justify-between gap-3">
             <Link href="/" className="flex items-baseline gap-2.5">
@@ -81,12 +137,25 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
                 plataforma
               </span>
             </Link>
-            <span className="rounded-full bg-ink-elev-2 px-2.5 py-1 font-accent text-[11px] font-bold uppercase tracking-wide text-bone-dim lg:hidden">
-              {admin ? "Admin" : "Suporte"}
-            </span>
+            <button
+              onClick={() => setMenuAberto(false)}
+              aria-label="Fechar menu"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-bone-dim hover:bg-bone/5 lg:hidden"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={1.8}
+                strokeLinecap="round"
+                className="h-4 w-4"
+              >
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
           </div>
 
-          <nav className="mt-5 flex gap-1.5 overflow-x-auto lg:mt-8 lg:flex-col lg:gap-1 lg:overflow-visible">
+          <nav className="mt-5 flex flex-col gap-1 lg:mt-8">
             {visiveis.map((e) => {
               const on = ativa(e.href);
               return (
@@ -105,7 +174,7 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
                   <span className="min-w-0">
                     <span className="block font-body text-sm font-semibold">{e.label}</span>
                     <span
-                      className={`hidden font-body text-xs lg:block ${on ? "text-white/75" : "text-muted"}`}
+                      className={`font-body text-xs ${on ? "text-white/75" : "text-muted"}`}
                     >
                       {e.nota}
                     </span>
@@ -115,7 +184,7 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
             })}
           </nav>
 
-          <div className="mt-auto hidden pt-8 lg:block">
+          <div className="mt-auto pt-8">
             <div className="rounded-xl bg-ink-elev-2 px-3.5 py-3">
               <p className="font-accent text-[11px] font-bold uppercase tracking-[0.08em] text-cyan">
                 {admin ? "Administrador" : "Suporte"}
@@ -139,26 +208,6 @@ export default function AdmLayout({ children }: { children: React.ReactNode }) {
                 Sair
               </button>
             </div>
-          </div>
-
-          {/* No celular a barra vira uma linha só; sem isto não há como
-              voltar pro painel nem sair de dentro da área. */}
-          <div className="mt-3 flex gap-2 lg:hidden">
-            <Link
-              href="/painel"
-              className="rounded-lg border border-line-strong px-3 py-1.5 font-body text-xs font-semibold text-bone-dim"
-            >
-              Meu painel
-            </Link>
-            <button
-              onClick={async () => {
-                await sair();
-                router.push("/login");
-              }}
-              className="rounded-lg border border-line-strong px-3 py-1.5 font-body text-xs font-semibold text-bone-dim"
-            >
-              Sair
-            </button>
           </div>
         </div>
       </aside>
