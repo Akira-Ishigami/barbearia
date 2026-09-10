@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSession } from "@/lib/use-session";
+import { Lightbox } from "@/components/Lightbox";
 
 /**
  * Tutorial de cada tela do painel, com print de verdade e passo a passo.
@@ -10,6 +11,10 @@ import { useSession } from "@/lib/use-session";
  * na real faltava configurar o percentual, que fica escondido dentro do
  * "Editar" de cada barbeiro. Por isso cada seção mostra ONDE clicar, não só
  * o que a tela faz.
+ *
+ * Cada seção tem duas versões do print — desktop e mobile, capturadas
+ * direto no tamanho de celular — porque uma tela de painel inteira
+ * espremida na largura de um telefone fica pequena demais pra ler.
  */
 
 interface Secao {
@@ -17,6 +22,7 @@ interface Secao {
   titulo: string;
   resumo: string;
   imagem: string;
+  imagemMobile: string;
   alt: string;
   passos: string[];
   aviso?: string;
@@ -29,6 +35,7 @@ const SECOES: Secao[] = [
     resumo:
       "O percentual de cada barbeiro fica escondido dentro do \"Editar\" — é o ponto que mais gera dúvida.",
     imagem: "/tutorial/barbeiros-editar.png",
+    imagemMobile: "/tutorial/mobile/barbeiros-editar.png",
     alt: "Modal de editar barbeiro, com o campo de comissão sobre serviço em destaque",
     passos: [
       "Vá em Barbeiros, no menu da esquerda.",
@@ -45,6 +52,7 @@ const SECOES: Secao[] = [
     resumo:
       "Um horário passa por dois estágios: confirmado (reservado) e concluído (atendido de verdade) — e é só o segundo que conta pra comissão.",
     imagem: "/tutorial/agenda.png",
+    imagemMobile: "/tutorial/mobile/agenda.png",
     alt: "Agenda da semana mostrando os horários marcados",
     passos: [
       "Agendamento pago no local ou por Mercado Pago já entra confirmado sozinho.",
@@ -59,6 +67,7 @@ const SECOES: Secao[] = [
     titulo: "Ver quanto pagar pra equipe",
     resumo: "Fecha o período, mostra quanto cada barbeiro produziu e quanto sai da gaveta.",
     imagem: "/tutorial/comissoes.png",
+    imagemMobile: "/tutorial/mobile/comissoes.png",
     alt: "Tela de comissões mostrando o valor a pagar por barbeiro",
     passos: [
       "Escolha o período (7, 15 ou 30 dias, ou datas específicas).",
@@ -71,6 +80,7 @@ const SECOES: Secao[] = [
     titulo: "Ver o que foi vendido",
     resumo: "Serviços prestados, produtos vendidos e o que já caiu na conta vs. o que ainda é pra cobrar no balcão.",
     imagem: "/tutorial/caixa.png",
+    imagemMobile: "/tutorial/mobile/caixa.png",
     alt: "Tela de caixa mostrando o resumo do dia",
     passos: [
       "Escolha o período no topo da tela.",
@@ -82,6 +92,7 @@ const SECOES: Secao[] = [
     titulo: "Cadastrar os serviços",
     resumo: "O catálogo que aparece na sua página pública, com preço e duração.",
     imagem: "/tutorial/servicos.png",
+    imagemMobile: "/tutorial/mobile/servicos.png",
     alt: "Lista de serviços cadastrados",
     passos: [
       "Preencha nome, categoria, preço e duração.",
@@ -94,6 +105,7 @@ const SECOES: Secao[] = [
     titulo: "Cadastrar produtos (Pro)",
     resumo: "Produtos que aparecem na loja pública, com controle de estoque.",
     imagem: "/tutorial/produtos.png",
+    imagemMobile: "/tutorial/mobile/produtos.png",
     alt: "Lista de produtos cadastrados",
     passos: [
       "Preencha nome, categoria, preço e o estoque inicial.",
@@ -105,6 +117,7 @@ const SECOES: Secao[] = [
     titulo: "Controlar entradas e saídas (Pro)",
     resumo: "Toda movimentação de produto fica registrada — reposição, venda avulsa no balcão, perda.",
     imagem: "/tutorial/estoque.png",
+    imagemMobile: "/tutorial/mobile/estoque.png",
     alt: "Tela de controle de estoque",
     passos: [
       "Escolha o produto, se é entrada ou saída, a quantidade e o motivo.",
@@ -116,6 +129,7 @@ const SECOES: Secao[] = [
     titulo: "Conectar Mercado Pago ou Pix",
     resumo: "Escolha como sua barbearia recebe: Mercado Pago (automático) e/ou Pix na sua própria chave.",
     imagem: "/tutorial/pagamentos.png",
+    imagemMobile: "/tutorial/mobile/pagamentos.png",
     alt: "Tela de configuração de pagamentos",
     passos: [
       "Pra Mercado Pago: clique em conectar e faça login com a conta da barbearia — o dinheiro cai direto nela, a Navalha nunca fica no meio.",
@@ -127,6 +141,7 @@ const SECOES: Secao[] = [
     titulo: "Endereço e horário de funcionamento",
     resumo: "O que aparece na sua página pública: endereço, mapa, dias e horário — inclusive exceções por dia.",
     imagem: "/tutorial/localizacao.png",
+    imagemMobile: "/tutorial/mobile/localizacao.png",
     alt: "Tela de localização e horário de funcionamento",
     passos: [
       "Digite o CEP pra preencher o endereço sozinho.",
@@ -138,6 +153,7 @@ const SECOES: Secao[] = [
     titulo: "Relatórios (Pro)",
     resumo: "Faturamento e estoque, por período, pra fechar o mês.",
     imagem: "/tutorial/relatorios.png",
+    imagemMobile: "/tutorial/mobile/relatorios.png",
     alt: "Tela de relatórios",
     passos: ["Escolha o período e o tipo de relatório que quer ver."],
   },
@@ -146,6 +162,7 @@ const SECOES: Secao[] = [
     titulo: "Falar com a Navalha",
     resumo: "Uma conversa só, contínua — dono e barbeiro escrevem na mesma linha.",
     imagem: "/tutorial/suporte.png",
+    imagemMobile: "/tutorial/mobile/suporte.png",
     alt: "Tela de chat de suporte",
     passos: [
       "Escreva sua dúvida ou mande uma foto.",
@@ -157,6 +174,7 @@ const SECOES: Secao[] = [
 export default function AjudaPage() {
   const session = useSession();
   const [aberta, setAberta] = useState<string>(SECOES[0].id);
+  const [fotoAberta, setFotoAberta] = useState<string | null>(null);
 
   if (!session) return null;
 
@@ -167,7 +185,8 @@ export default function AjudaPage() {
         Como usar cada tela
       </h1>
       <p className="mt-1 max-w-lg font-body text-sm text-bone-dim">
-        Print de verdade do sistema, com o passo a passo de onde clicar.
+        Print de verdade do sistema, com o passo a passo de onde clicar. Toque no print pra
+        ver em tamanho grande.
       </p>
 
       {/* ---------- Lista + conteúdo ---------- */}
@@ -202,10 +221,24 @@ export default function AjudaPage() {
             <h2 className="font-display text-xl font-semibold text-bone">{s.titulo}</h2>
             <p className="mt-1.5 max-w-2xl font-body text-sm text-bone-dim">{s.resumo}</p>
 
-            <div className="mt-5 overflow-hidden rounded-xl border border-line-strong bg-ink">
+            {/* Duas imagens — CSS decide qual mostrar pelo tamanho da tela —
+                mas as duas abrem o mesmo tamanho grande ao tocar. */}
+            <button
+              onClick={() => setFotoAberta(s.imagemMobile)}
+              className="mt-5 block w-full overflow-hidden rounded-xl border border-line-strong bg-ink text-left sm:hidden"
+              aria-label="Ampliar print"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={s.imagemMobile} alt={s.alt} className="w-full" />
+            </button>
+            <button
+              onClick={() => setFotoAberta(s.imagem)}
+              className="mt-5 hidden w-full overflow-hidden rounded-xl border border-line-strong bg-ink text-left sm:block"
+              aria-label="Ampliar print"
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={s.imagem} alt={s.alt} className="w-full" />
-            </div>
+            </button>
 
             <ol className="mt-5 space-y-2.5">
               {s.passos.map((p, i) => (
@@ -226,6 +259,15 @@ export default function AjudaPage() {
           </section>
         ))}
       </div>
+
+      {fotoAberta && (
+        <Lightbox
+          fotos={[fotoAberta]}
+          indice={0}
+          onFechar={() => setFotoAberta(null)}
+          onNavegar={() => {}}
+        />
+      )}
     </div>
   );
 }

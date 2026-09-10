@@ -37,6 +37,13 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
   // Só quem é da equipe da Navalha recebe algo aqui; pro dono comum é null.
   const plataforma = usePlataforma();
   const [verUpgrade, setVerUpgrade] = useState(false);
+  const [menuAberto, setMenuAberto] = useState(false);
+
+  // Fecha a gaveta sozinha ao trocar de tela — sem isso ficaria aberta por
+  // cima da tela nova depois de tocar num link.
+  useEffect(() => {
+    setMenuAberto(false);
+  }, [pathname]);
   const { pendentes, flash } = usePendingAlerts(
     session?.role === "dono" ? session.barbeariaId : undefined,
   );
@@ -73,10 +80,54 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
         </div>
       )}
 
-      {/* Sino de pendentes — no mobile a sidebar vira barra horizontal, então
-          ele fica flutuando no canto pra continuar acessível de qualquer tela.
-          Compact (só o círculo) pra não cobrir o card embaixo com o rótulo
-          "Pendentes" por extenso. */}
+      {/* Barra do topo, só no mobile: hambúrguer abre a gaveta com o menu
+          inteiro (a barra lateral de verdade fica pro desktop, md:). */}
+      <div className="flex items-center gap-3 border-b border-line bg-ink-elev/60 px-5 py-4 md:hidden">
+        <button
+          onClick={() => setMenuAberto(true)}
+          aria-label="Abrir menu"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line-strong text-bone-dim"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            className="h-4 w-4"
+          >
+            <path d="M3 6h18M3 12h18M3 18h18" />
+          </svg>
+        </button>
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-gold/40 bg-gold/10 text-gold-bright">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.6}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-3.5 w-3.5"
+          >
+            <path d="M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.5 8.5l11 11M20 4 8.5 15.5" />
+          </svg>
+        </span>
+        <span className="font-display text-base font-semibold text-bone">Navalha</span>
+      </div>
+
+      {/* Fundo escurecido atrás da gaveta — toca fora pra fechar. */}
+      {menuAberto && (
+        <div
+          onClick={() => setMenuAberto(false)}
+          className="fixed inset-0 z-[105] bg-black/50 md:hidden"
+        />
+      )}
+
+      {/* Sino de pendentes — no mobile a barra lateral fica escondida dentro
+          da gaveta, então ele fica flutuando no canto pra continuar
+          acessível de qualquer tela, gaveta aberta ou não. Compact (só o
+          círculo) pra não cobrir o card embaixo com o rótulo "Pendentes"
+          por extenso. */}
       {pendentes > 0 && (
         <div className="fixed bottom-5 right-5 z-50 md:hidden">
           <PendentesPopover
@@ -89,31 +140,55 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
         </div>
       )}
 
-      {/* SIDEBAR */}
+      {/* SIDEBAR — vira gaveta no mobile (fixed, desliza da esquerda; some
+          fora da tela quando fechada, translate-x-0 quando aberta) e barra
+          lateral de verdade no desktop. */}
       {/* No desktop a barra acompanha a rolagem: com a agenda ou a lista de
           serviços longa, o menu sumia e obrigava a rolar de volta pro topo.
           Sem `overflow` aqui de propósito — ele criaria um recorte que corta
           a lista de pendentes, que é um popover posicionado por cima. */}
-      <aside className="flex border-b border-line bg-ink-elev/60 px-5 py-6 md:sticky md:top-0 md:max-h-screen md:w-64 md:shrink-0 md:flex-col md:border-b-0 md:border-r">
-        <div className="hidden md:block">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-gold/40 bg-gold/10 text-gold-bright">
+      <aside
+        className={`fixed inset-y-0 left-0 z-[110] flex w-72 -translate-x-full flex-col overflow-y-auto border-r border-line bg-ink-elev px-5 py-6 transition-transform duration-300 ease-out md:sticky md:top-0 md:z-auto md:max-h-screen md:w-64 md:translate-x-0 md:shrink-0 md:border-b-0 md:transition-none ${
+          menuAberto ? "translate-x-0" : ""
+        }`}
+      >
+        <div>
+          <div className="flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-gold/40 bg-gold/10 text-gold-bright">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.6}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                >
+                  <path d="M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.5 8.5l11 11M20 4 8.5 15.5" />
+                </svg>
+              </span>
+              <span className="font-display text-lg font-semibold text-bone">
+                Navalha
+              </span>
+            </Link>
+            <button
+              onClick={() => setMenuAberto(false)}
+              aria-label="Fechar menu"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-bone-dim hover:bg-bone/5 md:hidden"
+            >
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth={1.6}
+                strokeWidth={1.8}
                 strokeLinecap="round"
-                strokeLinejoin="round"
                 className="h-4 w-4"
               >
-                <path d="M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.5 8.5l11 11M20 4 8.5 15.5" />
+                <path d="M18 6 6 18M6 6l12 12" />
               </svg>
-            </span>
-            <span className="font-display text-lg font-semibold text-bone">
-              Navalha
-            </span>
-          </Link>
+            </button>
+          </div>
 
           <div
             className={`mt-4 flex items-center justify-between rounded-lg border px-3 py-2 ${
@@ -145,7 +220,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
           </div>
         </div>
 
-        <div className="mt-4 hidden md:block">
+        <div className="mt-4">
           <PendentesPopover
             barbeariaId={session.barbeariaId}
             pendentes={pendentes}
@@ -153,7 +228,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
           />
         </div>
 
-        <nav className="flex w-full gap-2 overflow-x-auto md:mt-4 md:flex-col md:gap-1 md:overflow-visible">
+        <nav className="mt-4 flex w-full flex-col gap-1">
           {NAV.filter((item) => !item.pro || isPro).map((item) => {
             const active =
               item.href === "/painel"
@@ -175,7 +250,7 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
           })}
         </nav>
 
-        <div className="mt-auto hidden space-y-3 pt-8 md:block">
+        <div className="mt-auto space-y-3 pt-8">
           {plataforma && (
             <Link
               href="/adm"
