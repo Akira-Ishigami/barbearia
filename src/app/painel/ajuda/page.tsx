@@ -170,25 +170,33 @@ export default function AjudaPage() {
         Print de verdade do sistema, com o passo a passo de onde clicar.
       </p>
 
-      {/* ---------- Índice ---------- */}
-      <div className="no-scrollbar mt-6 flex gap-2 overflow-x-auto pb-1">
-        {SECOES.map((s) => (
-          <button
-            key={s.id}
-            onClick={() => setAberta(s.id)}
-            className={`shrink-0 rounded-full border px-4 py-2 font-body text-sm font-semibold transition-colors ${
-              aberta === s.id
-                ? "border-gold-bright bg-gold-bright/10 text-gold-bright"
-                : "border-line-strong text-bone-dim hover:border-gold-bright/40 hover:text-bone"
-            }`}
-          >
-            {s.titulo}
-          </button>
-        ))}
-      </div>
+      {/* ---------- Lista + conteúdo ---------- */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-[260px_1fr] lg:items-start">
+        {/* Lista de tópicos: sempre visível inteira, sem rolagem escondida. */}
+        <nav className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:block lg:gap-1">
+          {SECOES.map((s, i) => (
+            <button
+              key={s.id}
+              onClick={() => setAberta(s.id)}
+              className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left font-body text-sm transition-colors lg:rounded-lg ${
+                aberta === s.id
+                  ? "bg-gold-bright/10 font-semibold text-gold-bright"
+                  : "text-bone-dim hover:bg-ink-elev-2/60 hover:text-bone"
+              }`}
+            >
+              <span
+                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-accent text-[10px] font-bold ${
+                  aberta === s.id ? "bg-gold-bright text-ink" : "bg-ink-elev-2 text-muted"
+                }`}
+              >
+                {i + 1}
+              </span>
+              <span className="truncate">{s.titulo}</span>
+            </button>
+          ))}
+        </nav>
 
-      {/* ---------- Seções ---------- */}
-      <div className="mt-8 space-y-10">
+        {/* ---------- Seção aberta ---------- */}
         {SECOES.filter((s) => s.id === aberta).map((s) => (
           <section key={s.id} className="rounded-2xl border border-line bg-ink-elev/60 p-6">
             <h2 className="font-display text-xl font-semibold text-bone">{s.titulo}</h2>
