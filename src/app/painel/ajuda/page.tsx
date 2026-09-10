@@ -38,7 +38,7 @@ const SECOES: Secao[] = [
     imagemMobile: "/tutorial/mobile/barbeiros-editar.png",
     alt: "Modal de editar barbeiro, com o campo de comissão sobre serviço em destaque",
     passos: [
-      "Vá em Barbeiros, no menu da esquerda.",
+      "Vá em Barbeiros no menu (☰ no celular, barra lateral no computador).",
       "Clique em \"Editar\" no barbeiro que você quer configurar.",
       "No campo \"Comissão sobre serviço\", digite o percentual (ex.: 30 para 30%).",
       "Clique em Salvar.",
