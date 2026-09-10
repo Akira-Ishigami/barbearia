@@ -81,8 +81,9 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
       )}
 
       {/* Barra do topo, só no mobile: hambúrguer abre a gaveta com o menu
-          inteiro (a barra lateral de verdade fica pro desktop, md:). */}
-      <div className="flex items-center gap-3 border-b border-line bg-ink-elev/60 px-5 py-4 md:hidden">
+          inteiro (a barra lateral de verdade fica pro desktop, md:).
+          Sticky pra continuar acessível rolando a tela pra baixo. */}
+      <div className="sticky top-0 z-40 flex items-center gap-3 border-b border-line bg-ink-elev/95 px-5 py-4 backdrop-blur-sm md:hidden">
         <button
           onClick={() => setMenuAberto(true)}
           aria-label="Abrir menu"
