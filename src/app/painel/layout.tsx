@@ -149,7 +149,14 @@ export default function PainelLayout({ children }: { children: React.ReactNode }
           Sem `overflow` aqui de propósito — ele criaria um recorte que corta
           a lista de pendentes, que é um popover posicionado por cima. */}
       <aside
-        className={`fixed inset-y-0 left-0 z-[110] flex w-72 -translate-x-full flex-col overflow-y-auto border-r border-line bg-ink-elev px-5 py-6 transition-transform duration-300 ease-out md:sticky md:top-0 md:z-auto md:max-h-screen md:w-64 md:translate-x-0 md:shrink-0 md:border-b-0 md:transition-none ${
+        // Padding de baixo soma a área segura do iOS (o tarjão de gesto do
+        // home, embaixo): sem isso "Sair" ficava colado nele, quase
+        // embaixo da faixa que o sistema reserva pro gesto — difícil de
+        // acertar o toque, e às vezes o próprio gesto rouba o toque. Em
+        // aparelho sem área segura (env() dá 0) isso vira 1.5rem, igual
+        // já era — não muda nada no desktop.
+        style={{ paddingBottom: "max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem))" }}
+        className={`fixed inset-y-0 left-0 z-[110] flex w-72 -translate-x-full flex-col overflow-y-auto border-r border-line bg-ink-elev px-5 pt-6 transition-transform duration-300 ease-out md:sticky md:top-0 md:z-auto md:max-h-screen md:w-64 md:translate-x-0 md:shrink-0 md:border-b-0 md:transition-none ${
           menuAberto ? "translate-x-0" : ""
         }`}
       >

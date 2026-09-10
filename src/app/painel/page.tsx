@@ -189,9 +189,12 @@ export default function PainelPage() {
             Olá, {session.nome.split(" ")[0]} — aqui está o resumo de hoje.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* O link da loja é o que o dono manda pro cliente — fica junto do
-              botão de visitar pra não precisar caçar em Localização. */}
+              botão de visitar pra não precisar caçar em Localização.
+              whitespace-nowrap pra o texto nunca quebrar dentro do
+              pílula — se faltar espaço, é a fileira que quebra, não a
+              palavra no meio. */}
           <button
             onClick={async () => {
               await navigator.clipboard.writeText(linkPublico).catch(() => {});
@@ -199,14 +202,14 @@ export default function PainelPage() {
               window.setTimeout(() => setCopiado(false), 2000);
             }}
             title={linkPublico}
-            className="rounded-full border border-line-strong px-4 py-2 font-body text-sm font-semibold text-bone-dim transition-colors hover:border-gold-bright/40 hover:text-gold-bright"
+            className="whitespace-nowrap rounded-full border border-line-strong px-4 py-2 font-body text-sm font-semibold text-bone-dim transition-colors hover:border-gold-bright/40 hover:text-gold-bright"
           >
             {copiado ? "Link copiado!" : "Copiar link da loja"}
           </button>
           <Link
             href={caminhoDaLoja}
             target="_blank"
-            className="rounded-full border border-line-strong px-4 py-2 font-body text-sm font-semibold text-bone-dim transition-colors hover:border-gold-bright/40 hover:text-gold-bright"
+            className="whitespace-nowrap rounded-full border border-line-strong px-4 py-2 font-body text-sm font-semibold text-bone-dim transition-colors hover:border-gold-bright/40 hover:text-gold-bright"
           >
             Visitar site ↗
           </Link>

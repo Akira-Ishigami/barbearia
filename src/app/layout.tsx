@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Sora, JetBrains_Mono, Plus_Jakarta_Sans, Unbounded } from "next/font/google";
 import "./globals.css";
 
@@ -30,6 +30,15 @@ export const metadata: Metadata = {
   title: "Navalha — Sistema de agendamento para barbearias",
   description:
     "Agenda online, página própria, catálogo de serviços e produtos, e pagamento via Mercado Pago. Tudo o que sua barbearia precisa pra parar de agendar por mensagem.",
+};
+
+// `viewport-fit=cover` é o que liga env(safe-area-inset-*) de verdade —
+// sem isso o iOS nunca reporta a altura do tarjão de gesto do home, e todo
+// ajuste de área segura na CSS vira zero à toa.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
